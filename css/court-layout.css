@@ -1,0 +1,209 @@
+﻿/* Container and Layout */
+.staff-container {
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.court-admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.legend {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+    .dot.available {
+        background-color: #22c55e;
+    }
+
+    .dot.playing {
+        background-color: #ef4444;
+    }
+
+    .dot.closed {
+        background-color: #6b7280;
+    }
+
+    .dot.pickle {
+        background-color: #9333ea;
+        border: 1px solid #fff;
+    }
+
+.court-map {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    background: #222;
+    padding: 30px;
+    border-radius: 15px;
+}
+
+/* Court Card Base */
+.court-card {
+    position: relative;
+    background: #2d5a27;
+    border: 3px solid #fff;
+    border-radius: 6px;
+    min-height: 220px;
+    transition: transform 0.2s;
+    overflow: hidden;
+}
+
+    .court-card.horizontal {
+        grid-column: span 2;
+        min-height: 160px;
+    }
+
+    /* Status Logic */
+    .court-card.playing {
+        border-color: #ef4444;
+        box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.4);
+        animation: pulse 2s infinite;
+    }
+
+    .court-card.closed {
+        opacity: 0.6;
+        filter: grayscale(1);
+     
+        background-color: #4b5563 !important;
+    }
+        .court-card.closed .occupant-display {
+            pointer-events: none;
+        }
+
+
+    .court-card.pickleball {
+        background-color: #6a1b9a !important;
+    }
+
+/* Labels and Text */
+.court-info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+    z-index: 5;
+}
+
+.court-number {
+    font-size: 1.1rem;
+    font-weight: 800;
+    display: block;
+}
+
+.court-type {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    opacity: 0.8;
+}
+
+/* Central Display */
+.occupant-display {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    width: 95%;
+    z-index: 2;
+}
+
+.now-playing {
+    margin-bottom: 8px;
+}
+
+.player-name {
+    font-weight: bold;
+    font-size: 1.05rem;
+    display: block;
+}
+
+.current-time {
+    font-size: 0.85rem;
+    color: #fff;
+    font-weight: normal;
+    margin-left: 5px;
+}
+
+/* Next Up Styling */
+.next-up {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255,255,255,0.4);
+    font-size: 0.75rem;
+    color: #fad958;
+}
+
+.next-label {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    display: block;
+    opacity: 0.7;
+}
+
+/* Actions */
+.court-actions {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+}
+
+.btn-action {
+    background: rgba(255,255,255,0.9);
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #333;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+    .btn-action:hover {
+        background: #fff;
+        color: #1e3a8a;
+        transform: scale(1.1);
+    }
+
+@keyframes pulse {
+    0% {
+        box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.4);
+    }
+
+    50% {
+        box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.6);
+    }
+
+    100% {
+        box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.4);
+    }
+}

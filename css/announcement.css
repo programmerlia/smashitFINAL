@@ -1,0 +1,160 @@
+﻿/* ================= VARIABLES & GLOBAL ================= */
+:root {
+    --primary-color: #000058;
+    --accent-color: #ff4d4d;
+    --text-dark: #1a1a1a;
+    --text-muted: #64748b;
+    --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+body {
+    background-color: #f5f7f9 !important;
+    margin: 0;
+}
+
+.announcement-feed {
+  
+    background-color: #f5f7f9;
+   
+    width: 100%;
+    min-height: 100vh;
+    padding: 80px 20px;
+    margin: 0 auto;
+   
+    box-shadow: inset 0 20px 20px -20px rgba(0,0,0,0.05);
+}
+
+/* ================= FEED LAYOUT ================= */
+.announcement-item-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 80px;
+    margin-bottom: 120px;
+    width: 100%;
+    box-sizing: border-box;
+    /* Removed background and padding to retain old look */
+}
+
+    /* The Zig-Zag Fix - Using !important to prevent MasterPage overrides */
+    .announcement-item-wrapper.reverse {
+        flex-direction: row-reverse !important;
+    }
+
+/* ================= CONTENT STYLING ================= */
+.anno-text-side {
+    flex: 1.2;
+}
+
+    .anno-text-side h3 {
+        font-family: 'Inter', -apple-system, sans-serif;
+        font-size: 2.8rem; /* Slightly larger for impact */
+        color: var(--text-dark);
+        font-weight: 800;
+        margin-bottom: 20px;
+        letter-spacing: -1px;
+        line-height: 1.1;
+    }
+
+.anno-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--primary-color);
+    background: rgba(0, 0, 88, 0.05); /* Very subtle tint */
+    padding: 8px 20px;
+    border-radius: 50px;
+    margin-bottom: 25px;
+}
+
+.anno-desc {
+    line-height: 1.8;
+    color: var(--text-muted);
+    margin-bottom: 35px;
+    font-size: 1.15rem;
+}
+
+/* Specific styling for reversed text alignment */
+.announcement-item-wrapper.reverse .anno-text-side {
+    text-align: right;
+}
+
+/* ================= IMAGE STYLING ================= */
+.anno-image-side {
+    flex: 1;
+}
+
+.image-container {
+    width: 100%;
+    height: 450px;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.anno-image-side img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: var(--transition);
+}
+
+/* Hover effect for the image */
+.announcement-item-wrapper:hover .anno-image-side img {
+    transform: scale(1.06);
+}
+
+/* ================= BUTTONS ================= */
+.btn-apply-now {
+    display: inline-block;
+    background-color: var(--primary-color);
+    color: white !important;
+    padding: 16px 40px;
+    text-decoration: none;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+    .btn-apply-now:hover {
+        background-color: var(--text-dark);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0, 0, 88, 0.2);
+    }
+
+/* ================= MOBILE RESPONSIVENESS ================= */
+@media (max-width: 992px) {
+    .announcement-item-wrapper {
+        gap: 40px;
+    }
+
+    .anno-text-side h3 {
+        font-size: 2.2rem;
+    }
+}
+
+@media (max-width: 850px) {
+    .announcement-item-wrapper,
+    .announcement-item-wrapper.reverse {
+        flex-direction: column !important;
+        text-align: center !important;
+        margin-bottom: 80px;
+    }
+
+    .anno-text-side, .anno-image-side {
+        width: 100%;
+    }
+
+    .announcement-item-wrapper.reverse .anno-text-side {
+        text-align: center;
+    }
+
+    .image-container {
+        height: 350px;
+    }
+}

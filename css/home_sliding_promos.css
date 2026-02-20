@@ -1,0 +1,50 @@
+﻿.slider-container_promo {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    padding-bottom: 40px; /* Space for the dots */
+}
+
+.slider-wrapper_promo {
+    display: flex;
+    width: 100%;
+    /* This creates the smooth sliding animation */
+    transition: transform 0.5s ease-in-out;
+}
+
+.promo-slide {
+    flex: 0 0 100%; /* Forces each promo to exactly 100% width */
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 15px; /* Adds a little breathing room on the sides */
+}
+
+/* Positions the dots at the bottom center */
+.slider-indicators_promo {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.dot_promo {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 88, 0.3); /* Faded navy blue */
+    border: none;
+    padding: 0;
+    margin: 0 6px;
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.3s ease;
+}
+
+    .dot_promo.active,
+    .dot_promo:hover {
+        background-color: #000058; /* Solid navy blue */
+    }

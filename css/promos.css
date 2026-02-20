@@ -1,0 +1,77 @@
+
+.promos-section {
+    padding: 80px 0;
+    background-color: var(--light-bg);
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 40px;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background-color: var(--primary-color);
+}
+
+.promos-slider {
+    margin-bottom: 40px;
+}
+
+.promo-slide {
+    padding: 20px;
+}
+
+.promo-content {
+    display: flex;
+    background: var(--white);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.promo-image {
+    flex: 1;
+    min-height: 300px;
+}
+
+.promo-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.promo-text {
+    flex: 1.2;
+    padding: 30px;
+}
+
+.promo-text h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.promo-text .sub-title {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+.promos-slider .slick-dots {
+    bottom: -40px;
+}
+
+.promos-slider .slick-dots li button:before {
+    font-size: 12px;
+    color: var(--secondary-color);
+}
+

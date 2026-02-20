@@ -1,0 +1,144 @@
+﻿/* Layout & General Styles */
+body {
+    background-color: #f4f7f6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.admin-section {
+    padding: 30px 15px;
+    max-width: 1100px;
+    margin: auto;
+}
+
+h2 {
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 25px;
+    border-left: 5px solid #000058;
+    padding-left: 15px;
+}
+
+/* Card Styling for Dashboard & Tables */
+.dashboard-container, .table-container {
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+}
+
+h3 {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+/* Form Grid Improvements */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #444;
+    }
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+    .form-control:focus {
+        border-color: #000058;
+        box-shadow: 0 0 0 3px rgba(0, 0, 88, 0.1);
+        outline: none;
+    }
+
+/* Button Styling */
+.btn-container {
+    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+}
+
+.btn-publish, .btn-draft {
+    padding: 12px 25px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.2s, background 0.3s;
+}
+
+.btn-publish {
+    background-color: #000058;
+    color: white;
+}
+
+    .btn-publish:hover {
+        background-color: #00003d;
+        transform: translateY(-2px);
+    }
+
+.btn-draft {
+    background-color: #e2e8f0;
+    color: #475569;
+}
+
+    .btn-draft:hover {
+        background-color: #cbd5e1;
+    }
+
+/* Modern GridView Styling */
+.announcement-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+    .announcement-table th {
+        background-color: #f8fafc;
+        color: #64748b;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        padding: 12px;
+        border-bottom: 2px solid #edf2f7;
+        text-align: left;
+    }
+
+    .announcement-table td {
+        padding: 15px 12px;
+        border-bottom: 1px solid #edf2f7;
+        color: #334155;
+        font-size: 0.95rem;
+    }
+
+    .announcement-table tr:hover {
+        background-color: #f1f5f9;
+    }
+
+    /* Style the Edit/Delete Links */
+    .announcement-table a {
+        text-decoration: none;
+        margin-right: 10px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+
+        .announcement-table a:hover {
+            background: #e0e7ff;
+        }

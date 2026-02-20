@@ -1,0 +1,194 @@
+﻿<%@ Master Language="C#" 
+    AutoEventWireup="true" 
+    CodeBehind="receptionist.master.cs" 
+    Inherits="Smash_IT.adminpage.admin" %>
+
+<!DOCTYPE html>
+<html>
+<head runat="server">
+    <title>Admin Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #f3f3f3;
+        }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 230px;
+            height: 100vh;
+            background: #88a89a;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Logo area */
+        .logo-area {
+            text-align: center;
+            padding: 20px 10px;
+            background: #7f9f92;
+        }
+
+        .logo-area img {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Menu */
+        .menu {
+            padding-top: 10px;
+        }
+
+        .menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+
+        .menu a:hover {
+            background: #6f9486;
+        }
+
+        .menu a.active {
+            background: #5ea98b;
+            font-weight: 600;
+        }
+
+        .menu-icon {
+            width: 22px;
+            text-align: center;
+        }
+
+        /* Bottom user panel */
+        .sidebar-bottom {
+            background: #5a5a5a;
+            padding: 15px;
+            color: white;
+        }
+
+        .user-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-box img {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-info {
+            font-size: 12px;
+            line-height: 1.2;
+        }
+
+        .signout-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px;
+            background: #e5c96b;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            margin-left: 230px;
+            padding: 25px;
+            min-height: 100vh;
+            background: #efefef;
+        }
+    </style>
+
+    <asp:ContentPlaceHolder ID="head" runat="server" />
+</head>
+
+<body>
+<form runat="server">
+
+    <!-- ===== SIDEBAR ===== -->
+    <div class="sidebar">
+
+        <div>
+            <!-- Logo -->
+            <div class="logo-area">
+                <a href='<%= ResolveUrl("~/adminpage/admin_dashboard.aspx") %>'>
+                <img src='<%= ResolveUrl("~/Images/logo.png") %>' alt="Logo" />
+                </a>
+            </div>
+
+            <!-- Menu -->
+            <div class="menu">
+
+                <a href="~/adminpage/analytics.aspx" class="active">
+                    <span class="menu-icon">📊</span>
+                    Analytics
+                </a>
+
+                <a href="~/adminpage/announcement.aspx">
+                    <span class="menu-icon">📣</span>
+                    Announcement
+                </a>
+
+                <a href="~/adminpage/reservation.aspx">
+                    <span class="menu-icon">📅</span>
+                    Reservation
+                </a>
+
+                <a href="~/adminpage/users.aspx">
+                    <span class="menu-icon">🤖</span>
+                    Edit users
+                </a>
+
+            </div>
+        </div>
+
+        <!-- Bottom user -->
+
+        <div class="sidebar-bottom">
+    <div>
+        <asp:Label ID="lblFullName" runat="server" />
+    </div>
+    <div style="font-size:11px; opacity:.8;">
+        <asp:Label ID="lblRole" runat="server" />
+    </div>
+            <asp:Button 
+                ID="btnLogout" 
+                runat="server" 
+                Text="Sign out 🔒" 
+                CssClass="signout-btn"
+                OnClick="btnLogout_Click" />
+
+        </div>
+
+    </div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="main-content">
+        <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+    </div>
+
+</form>
+</body>
+</html>

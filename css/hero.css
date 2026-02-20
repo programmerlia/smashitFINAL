@@ -1,0 +1,80 @@
+
+.hero-section {
+    position: relative;
+    width:100%;
+}
+
+.hero-slide {
+    height: 90vh;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+    .hero-slide::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+
+.hero-content {
+    margin-top: 100px;
+    position: relative;
+    z-index: 1;
+    color: var(--white);
+    text-align: left;
+    padding: 20px;
+}
+
+    .hero-content h1 {
+        font-size: 4rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+        color: var(--white);
+    }
+
+    .hero-content p {
+        font-size: 1.2rem;
+        max-width: 600px;
+        margin-bottom: 30px;
+    }
+
+.hero-hours {
+    display: flex;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+    .hero-hours div {
+        margin-right: 30px;
+    }
+
+    .hero-hours span {
+        display: block;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        opacity: 0.8;
+    }
+
+.hero-slider .slick-dots {
+    bottom: 25px;
+}
+
+    .hero-slider .slick-dots li button:before {
+        font-size: 12px;
+        color: var(--white);
+        opacity: 0.5;
+    }
+
+    .hero-slider .slick-dots li.slick-active button:before {
+        opacity: 1;
+    }
+

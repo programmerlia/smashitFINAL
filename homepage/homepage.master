@@ -1,0 +1,122 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="homepage.master.cs" Inherits="Smash_IT.Site1" %>
+
+<!DOCTYPE html>
+<html lang="en">
+<head runat="server">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smash-It Sports Center</title>
+
+    <!-- Global CSS / Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Your global styles -->
+    <link rel="stylesheet" href="~/css/style.css">
+    <link rel="stylesheet" href="~/css/header.css">
+    <link rel="stylesheet" href="~/css/hero.css">
+    <link rel="stylesheet" href="~/css/reserve.css">
+    <link rel="stylesheet" href="~/css/promos.css">
+    <link rel="stylesheet" href="~/css/map.css">
+    <link rel="stylesheet" href="~/css/footer.css">
+    <link rel="stylesheet" href="~/css/SlidingHome.css">
+    <link rel="stylesheet" href="~/css/home_Sliding_promos.css">
+    <link rel="stylesheet" href="~/css/Admin_Announcement.css">
+
+    <!-- Page-specific head content -->
+    <asp:ContentPlaceHolder ID="head" runat="server" />
+</head>
+
+<body class="bg-[#fff] text-[#555] antialiased">
+
+    <form id="form1" runat="server">
+
+        <!-- ================= NAVBAR ================= -->
+        <header class="site-header">
+            <div class="container">
+                <a href='<%= ResolveUrl("~/homepage/Home.aspx") %>' class="logo"">
+                    <img src='<%= ResolveUrl("~/images/logo.png") %>' alt="Smash-It Logo" />
+                    
+                    <div class="logo-text-wrapper">
+                        <span class="logo-text">SMASH IT</span>
+                        <span class="under-text">Badminton & Pickleball</span>
+                    </div>                    
+                </a>
+
+                <nav class="site-nav">
+                    <ul>
+                        <li><a href='<%= ResolveUrl("~/homepage/home.aspx") %>'>Home</a></li>
+                        <li><a href='<%= ResolveUrl("~/homepage/announcement.aspx") %>'>Announcement</a></li>
+                        <li><a href='<%= ResolveUrl("~/homepage/reservation.aspx") %>'>Reservation</a></li>
+                        <li><a href='<%= ResolveUrl("~/homepage/about.aspx") %>'>About</a></li>
+                        <li><a href='<%= ResolveUrl("~/login.aspx") %>'>Admin</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <!-- ================= PAGE CONTENT ================= -->
+        <main>
+            <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+        </main>
+
+        <!-- ================= FOOTER ================= -->
+        <footer class="site-footer">
+            <div class="container">
+                <div class="footer-content">
+
+                    <div class="footer-col about">
+                        <img class="footer-logo" src='<%= ResolveUrl("~/images/logo.png") %>' alt="Smash-It Logo" />
+                        <h3>Smash-It</h3>
+                        <p>San Pedro's Sports Center for Badminton & Pickleball</p>
+                    </div>
+
+                    <div class="footer-col links">
+                        <h3>Quick Links</h3>
+                        <ul>
+                            <li><a href="#">Rates</a></li>
+                            <li><a href="#">Book a Court</a></li>
+                            <li><a href="#">Announcements</a></li>
+                            <li>Weekdays: 9AM - 10 PM</li>
+                            <li>Weekends: 8AM - 10 PM</li>
+                        </ul>
+                    </div>
+
+                    <div class="footer-col contact">
+                        <h3>Contact</h3>
+                        <ul>
+                            <li><i class="fas fa-phone"></i>+63 917 450 7111</li>
+                            <li><i class="fas fa-envelope"></i>smashitsportscenter@gmail.com</li>
+                        </ul>
+
+                        <a href="#" class="btn btn-directions">Get Directions</a>
+
+                        <div class="social-icons">
+                            <a href="#"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#"><i class="fab fa-instagram"></i></a>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="footer-bottom">
+                    <p>©Smash-IT Sports Center. All rights reserved.</p>
+                    <a href="#" class="back-to-top">Back to the Top <i class="fas fa-arrow-up"></i>
+                    </a>
+                </div>
+            </div>
+        </footer>
+
+    </form>
+
+    <!-- Global scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src='<%= ResolveUrl("~/js/script.js") %>'></script>
+    <script src='<%= ResolveUrl("~/js/dotindicator.js") %>'></script>
+    <script src='<%= ResolveUrl("~/js/dotindicator_Promo.js") %>'></script>
+
+</body>
+</html>
