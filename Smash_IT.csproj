@@ -44,6 +44,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Net.Http.Formatting, Version=5.2.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System.Web.DynamicData" />
     <Reference Include="System.Web.Entity" />
     <Reference Include="System.Web.ApplicationServices" />
@@ -73,11 +74,21 @@
     <Content Include="adminpage\admin_customer_account.aspx" />
     <Content Include="adminpage\admin_reservation.aspx" />
     <Content Include="adminpage\admin_users.aspx" />
+    <Content Include="controls\AuthModal.ascx" />
     <Content Include="css\admin_announcement.css" />
     <Content Include="css\announcement.css" />
     <Content Include="css\court-layout.css" />
     <Content Include="css\home_sliding_promos.css" />
+    <Content Include="css\res_active.css" />
+    <Content Include="css\res_main.css" />
     <Content Include="css\SlidingHome.css" />
+    <Content Include="homepage\reservation_archive.aspx" />
+    <Content Include="images\P.png" />
+    <Content Include="proj-doc\seed.sql" />
+    <Content Include="ReservationSuccess.aspx" />
+    <Content Include="homepage\profile.aspx" />
+    <Content Include="images\B.png" />
+    <Content Include="images\Court.png" />
     <Content Include="images\logo.png" />
     <Content Include="images\announcement_draft.jpg" />
     <Content Include="images\Badminton.png" />
@@ -86,8 +97,9 @@
     <Content Include="css\admin-style.css" />
     <Content Include="js\dotindicator.js" />
     <Content Include="js\dotindicator_Promo.js" />
-    <Content Include="images\person.jpg" />
+    <Content Include="uploads\avatars\person.jpg" />
     <Content Include="images\Pickleball.png" />
+    <Content Include="js\reservation.js" />
     <Content Include="receptionistpage\receptionist_dashboard.aspx" />
     <Content Include="css\footer.css" />
     <Content Include="css\header.css" />
@@ -100,12 +112,10 @@
     <Content Include="homepage\announcement.aspx" />
     <Content Include="homepage\home.aspx" />
     <Content Include="homepage\reservation.aspx" />
-    <Content Include="js\script.js" />
     <Content Include="homepage\about.aspx" />
     <Content Include="adminpage\admin_dashboard.aspx" />
     <Content Include="login.aspx" />
-    <Content Include="proj-doc\relationship_diagram.png" />
-    <Content Include="proj-doc\UPDATEDSQLQUERYFORSSMS.sql" />
+    <Content Include="proj-doc\createTables.sql" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
@@ -157,6 +167,27 @@
     </Compile>
     <Compile Include="adminpage\admin_users.aspx.designer.cs">
       <DependentUpon>admin_users.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="controls\AuthModal.ascx.cs">
+      <DependentUpon>AuthModal.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="controls\AuthModal.ascx.designer.cs">
+      <DependentUpon>AuthModal.ascx</DependentUpon>
+    </Compile>
+    <Compile Include="ReservationSuccess.aspx.cs">
+      <DependentUpon>ReservationSuccess.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ReservationSuccess.aspx.designer.cs">
+      <DependentUpon>ReservationSuccess.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="homepage\profile.aspx.cs">
+      <DependentUpon>profile.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="homepage\profile.aspx.designer.cs">
+      <DependentUpon>profile.aspx</DependentUpon>
     </Compile>
     <Compile Include="receptionistpage\receptionist_dashboard.aspx.cs">
       <DependentUpon>receptionist_dashboard.aspx</DependentUpon>
@@ -225,10 +256,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="adminpage\admin.master" />
+    <Content Include="CreateCheckout.ashx" />
     <None Include="packages.config" />
     <Content Include="proj-doc\README.md" />
     <Content Include="homepage\homepage.master" />
     <Content Include="receptionistpage\receptionist.master" />
+    <Content Include="PaymongoWebhook.ashx" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
@@ -252,7 +285,7 @@
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>49774</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
-          <IISUrl>https://localhost:44356/</IISUrl>
+          <IISUrl>http://localhost:5000/</IISUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>

@@ -115,7 +115,6 @@
 
 
     <!-- Page scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
     <script src='<%= ResolveUrl("~/js/script.js") %>'></script>
 
 </asp:Content>

@@ -1,12 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
 
 namespace Smash_IT.homepage
 {
@@ -26,7 +21,7 @@ namespace Smash_IT.homepage
             using (SqlConnection con = new SqlConnection(connStr))
             {
                 // Fetch TOP 5 published announcements for the slider
-                string query = "SELECT TOP 5 AnnouncementID, Title, [Content], ImageFIleData, ImageFileType FROM tblAnnouncement WHERE ViewStatus = 1 ORDER BY DisplayOrder ASC, CreatedAt DESC";
+                string query = "SELECT TOP 5 AnnouncementID, Title, [Content], FilePath  FROM tblAnnouncement WHERE ViewStatus = 1 ORDER BY DisplayOrder ASC, CreatedAt DESC";
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
                     using (SqlDataAdapter sda = new SqlDataAdapter(cmd))

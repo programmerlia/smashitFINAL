@@ -22,7 +22,7 @@ namespace Smash_IT.adminpage
         {
             using (SqlConnection conn = new SqlConnection(connStr))
             {
-                
+
                 string query = @"
             SELECT 
                 c.CourtID, c.Sports, c.Mode, c.Status AS CourtStatus,
@@ -69,7 +69,7 @@ namespace Smash_IT.adminpage
 
             if (e.CommandName == "ToggleStatus")
             {
-              
+
                 sqlQuery = @"UPDATE tblCourt SET Status = 
                      CASE Status 
                         WHEN 'Available' THEN 'Playing' 
@@ -79,7 +79,7 @@ namespace Smash_IT.adminpage
             }
             else if (e.CommandName == "SwitchSport")
             {
-               
+
                 sqlQuery = @"UPDATE tblCourt SET Sports = 
                      CASE Sports 
                         WHEN 'Badminton' THEN 'Pickleball' 
@@ -98,12 +98,12 @@ namespace Smash_IT.adminpage
                         conn.Open();
                         cmd.ExecuteNonQuery();
                     }
-                   
+
                     BindCourts();
                 }
                 catch (Exception ex)
                 {
-                  
+
                 }
             }
         }
