@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Web;
-using System.Web.UI;
 using System.IO;
 
 namespace Smash_IT.adminpage
@@ -66,7 +64,7 @@ namespace Smash_IT.adminpage
 
         protected void btnLogout_Click(object sender, EventArgs e)
         {
-           
+
             Session.Clear();
             Session.Abandon();
 

@@ -1,0 +1,654 @@
+/* /css/reservation.css (FULL rewrite to match the new 3-step logic)
+   Step 1: pick date + time + court (timetable)
+   Step 2: rentals + cart
+   Step 3: player info + payment
+
+   Notes:
+   - Court cards styles removed (because court selection is now Step 1 timetable).
+   - Sport tint + sport-disabled + duration range highlight kept (used in timetable).
+*/
+
+:root {
+    --brand: #1a187c;
+    --accent: #FFC107;
+    --muted: #6c757d;
+    --bg: #ffffff;
+    --bg-soft: #f8f9fa;
+    --border: rgba(0,0,0,.08);
+    --shadow: 0 10px 25px rgba(0,0,0,.06);
+    --good-bg: rgba(25,135,84,.12);
+    --good-fg: #0f5132;
+    --info-bg: rgba(13,202,240,.16);
+    --info-fg: #055160;
+    --bad-bg: rgba(220,53,69,.14);
+    --bad-fg: #842029;
+}
+
+/* =========================
+   Layout shell
+   ========================= */
+
+.reservation-section {
+    max-width: 92vw;
+    padding: 18px;
+}
+
+
+
+.card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--bg);
+}
+
+#dateSelectionSection,
+#rentalSelectionSection,
+#infoSection {
+    width: 100%;
+}
+
+    #dateSelectionSection.d-flex,
+    #rentalSelectionSection.d-flex,
+    #infoSection.d-flex {
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+
+/* =========================
+   Step indicator
+   ========================= */
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.step-item {
+    flex: 1;
+    text-align: center;
+    color: var(--muted);
+}
+
+    .step-item.active {
+        color: var(--brand);
+    }
+
+.step-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-weight: 900;
+    transition: background-color .2s ease, transform .2s ease;
+}
+
+.step-item.active .step-circle {
+    background: var(--brand);
+    color: #fff;
+    transform: scale(1.04);
+}
+
+.step-line {
+    flex: 1;
+    height: 3px;
+    border-radius: 99px;
+    background: #e9ecef;
+}
+
+/* =========================
+   Calendar (asp:Calendar)
+   ========================= */
+
+.calendar-compact {
+    width:100%;
+    font-size: .85rem;
+    border-collapse: collapse;
+}
+
+    .calendar-compact td,
+    .calendar-compact th {
+        padding: .20rem !important;
+        border: 1px solid rgba(0,0,0,.05);
+        text-align: center;
+    }
+
+    .calendar-compact .TitleStyle {
+        font-size: .95rem;
+        padding: .35rem !important;
+    }
+
+    .calendar-compact .DayHeaderStyle {
+        font-size: .75rem;
+        color: var(--muted);
+        padding: .25rem !important;
+    }
+
+    .calendar-compact a {
+        display: block;
+        padding: .15rem 0;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #111;
+    }
+
+        .calendar-compact a:hover {
+            background: rgba(52,152,219,.10);
+        }
+
+    .calendar-compact .SelectedDayStyle {
+        background: var(--brand) !important;
+        color: #fff !important;
+        border-radius: 8px;
+    }
+
+/* legend */
+.legend {
+    gap: 10px;
+}
+
+    .legend .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    .legend .selected {
+        background: var(--brand);
+    }
+
+    .legend .booked {
+        background: #f59f00;
+    }
+
+    .legend .unavailable {
+        background: #ced4da;
+    }
+
+/* =========================
+   Timetable shell (scroll)
+   ========================= */
+
+.timetable-shell {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: auto;
+    max-height: 520px;
+    background: #fff;
+}
+
+.timetable {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .85rem;
+}
+
+    .timetable th,
+    .timetable td {
+        border-bottom: 1px solid rgba(0,0,0,.06);
+        border-right: 1px solid rgba(0,0,0,.05);
+        padding: 8px 10px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+        .timetable th:first-child,
+        .timetable td:first-child {
+            border-left: 1px solid rgba(0,0,0,.05);
+        }
+
+    .timetable thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #fff;
+        box-shadow: 0 1px 0 rgba(0,0,0,.06);
+    }
+
+.time-col {
+    width: 110px;
+    font-weight: 900;
+    background: #fff;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}
+
+.timetable tbody tr:nth-child(even) td {
+    background: rgba(0,0,0,.015);
+}
+
+    .timetable tbody tr:nth-child(even) td.time-col {
+        background: #fff;
+    }
+
+/* =========================
+   Slot styling
+   ========================= */
+
+.slot {
+    min-width: 92px;
+    min-height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    letter-spacing: .2px;
+    user-select: none;
+    transition: transform .12s ease, filter .12s ease, outline-color .12s ease;
+}
+
+    .slot.reservable {
+        background: var(--good-bg);
+        color: var(--good-fg);
+        cursor: pointer;
+    }
+
+        .slot.reservable:hover {
+            filter: brightness(1.03);
+            transform: translateY(-1px);
+        }
+
+    .slot.queue {
+        background: var(--info-bg);
+        color: var(--info-fg);
+        cursor: not-allowed;
+    }
+
+    .slot.blocked {
+        background: var(--bad-bg);
+        color: var(--bad-fg);
+        cursor: not-allowed;
+        opacity: .9;
+    }
+
+    /* Selected start cell */
+    .slot.selected {
+        outline: 3px solid rgba(25,135,84,.85);
+    }
+
+    /* Duration range (continuation) */
+    .slot.selected-range {
+        outline: 2px dashed rgba(25,135,84,.70);
+        opacity: .92;
+    }
+
+    /* Sport filtering (JS adds these classes) */
+    .slot.sport-disabled.reservable {
+        pointer-events: none;
+        cursor: not-allowed;
+        opacity: .35;
+        filter: grayscale(1);
+        background: rgba(0,0,0,.06) !important;
+        color: #6c757d !important;
+    }
+
+    /* Sport tint so user sees which court is which sport */
+    .slot.sport-badminton.reservable {
+        background: rgba(13,110,253,.12);
+        border: 1px solid rgba(13,110,253,.35);
+        color: #0b5ed7;
+    }
+
+    .slot.sport-pickleball.reservable {
+        background: rgba(255,193,7,.18);
+        border: 1px solid rgba(255,193,7,.45);
+        color: #8a6d00;
+    }
+
+/* =========================
+   Summary + totals
+   ========================= */
+
+.summary-details p {
+    margin-bottom: 8px;
+    color: #666;
+    font-size: .9rem;
+}
+
+.summary-text-muted {
+    font-size: .85rem;
+    color: #adb5bd;
+    margin-bottom: 4px;
+}
+
+.player-input-wrapper {
+    border: 1px solid rgba(0,0,0,.10);
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    background: #fff;
+}
+
+.total-price-display {
+    text-align: right;
+}
+
+    .total-price-display .label {
+        font-size: .9rem;
+        color: #adb5bd;
+    }
+
+    .total-price-display .amount {
+        font-size: 1.8rem;
+        font-weight: 300;
+        color: #222;
+        overflow-wrap: anywhere;
+    }
+
+/* =========================
+   Buttons
+   ========================= */
+
+.btn_proceed_details,
+#btn_proceed_details,
+#btn_proceed_rentals {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: 900;
+    margin-top: 14px;
+    box-shadow: 0 10px 18px rgba(52,152,219,.18);
+    transition: transform .15s ease, filter .15s ease;
+}
+
+    .btn_proceed_details:hover,
+    #btn_proceed_rentals:hover {
+        filter: brightness(1.03);
+        transform: translateY(-1px);
+    }
+
+/* =========================
+   Form fields (Step 3)
+   ========================= */
+
+.form-floating-custom {
+    position: relative;
+    border-bottom: 1px solid rgba(0,0,0,.10);
+    margin-bottom: 20px;
+}
+
+.form-control-custom {
+    border: none;
+    border-radius: 0;
+    padding: 18px 0 6px;
+    width: 100%;
+    outline: none;
+    font-size: 1rem;
+}
+
+.form-label-custom {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: .85rem;
+    color: var(--muted);
+    transition: all .2s;
+    pointer-events: none;
+}
+
+/* =========================
+   Rentals + cart (Step 2)
+   ========================= */
+
+#equipmentContainer {
+    row-gap: 14px;
+}
+
+.rental-card {
+    border-radius: 18px;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    box-shadow: var(--shadow);
+    padding: 22px 16px 16px;
+    height: 100%;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+    .rental-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(52,152,219,.35);
+        box-shadow: 0 14px 34px rgba(0,0,0,.09);
+    }
+
+    .rental-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--accent), var(--brand));
+        opacity: .85;
+    }
+
+.rental-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.rental-title {
+    font-weight: 900;
+    font-size: 16px;
+    color: #222;
+    margin-top: 8px;
+    margin-bottom: 2px;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.rental-price {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.rental-stock {
+    font-size: 13px;
+    color: #222;
+}
+
+.rental-badge {
+    display: inline-flex;
+    margin-left: auto;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: .3px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #eaf3ff;
+    color: #0d6efd;
+}
+
+    .rental-badge.low {
+        background: #fff3e0;
+        color: #b35c00;
+    }
+
+    .rental-badge.out {
+        background: #f1f3f5;
+        color: #adb5bd;
+    }
+
+.qty-stepper {
+    display: grid;
+    grid-template-columns: 44px 44px 44px;
+    border: 1px solid rgba(0,0,0,.12);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+    .qty-stepper button {
+        border: 0;
+        background: #fff;
+        font-weight: 900;
+        font-size: 12px;
+        height: 40px;
+        cursor: pointer;
+    }
+
+        .qty-stepper button:hover {
+            background: #f7f8f9;
+        }
+
+    .qty-stepper .qty-val {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        color: #111;
+        border-left: 1px solid rgba(0,0,0,.12);
+        border-right: 1px solid rgba(0,0,0,.12);
+    }
+
+.btn-add-rental {
+    width: 100%;
+    max-width: 220px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--brand);
+    color: #fff;
+    font-weight: 900;
+    padding: 10px 12px;
+    cursor: pointer;
+    box-shadow: 0 10px 18px rgba(26,163,74,.18);
+    transition: transform .15s ease, filter .15s ease;
+}
+
+    .btn-add-rental:hover {
+        filter: brightness(1.03);
+        transform: translateY(-1px);
+    }
+
+    .btn-add-rental:disabled {
+        background: #cfd4da;
+        box-shadow: none;
+        cursor: not-allowed;
+    }
+
+/* cart */
+.cart-line {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(0,0,0,.08);
+}
+
+    .cart-line:last-child {
+        border-bottom: 0;
+    }
+
+.cart-name {
+    font-weight: 900;
+    color: #222;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.cart-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.cart-controls {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.cart-btn {
+    width: 44px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid #9aa4af;
+    background: #fff;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+    .cart-btn:hover {
+        background: #f7f8f9;
+    }
+
+.cart-x {
+    width: 44px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid #ff2a2a;
+    color: #ff2a2a;
+    background: #fff;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+    .cart-x:hover {
+        background: rgba(255,42,42,.06);
+    }
+
+/* =========================
+   Payment modal
+   ========================= */
+
+.custom-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 99999;
+    display: none;
+}
+
+.custom-modal-content {
+    max-width: 420px;
+    margin: 10vh auto;
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+/* =========================
+   Responsive
+   ========================= */
+
+@media (max-width: 992px) {
+    .reservation-section {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .total-price-display {
+        text-align: left;
+        margin-top: 10px;
+    }
+
+    .timetable-shell {
+        max-height: 420px;
+    }
+}
+
+

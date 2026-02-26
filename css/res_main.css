@@ -1,0 +1,128 @@
+
+:root {
+    --brand: #1a187c;
+    --accent: #FFC107;
+    --muted: #6c757d;
+    --bg: #ffffff;
+    --bg-soft: #f8f9fa;
+    --border: rgba(0,0,0,.08);
+    --shadow: 0 10px 25px rgba(0,0,0,.06);
+    --good-bg: rgba(25,135,84,.12);
+    --good-fg: #0f5132;
+    --info-bg: rgba(13,202,240,.16);
+    --info-fg: #055160;
+    --bad-bg: rgba(220,53,69,.14);
+    --bad-fg: #842029;
+}
+
+/* ============ GLOBAL ============ */
+body {
+    font-family: Poppins, sans-serif;
+    background: #f9fbfd;
+    color: #333;
+}
+
+.container {
+    max-width: 1100px;
+}
+
+/* ============ HERO ============ */
+.hero-section {
+    position: relative;
+    background: url('https://wallpapers.com/images/hd/badminton-background-bsegeod1vvch9z1i.jpg') center / cover no-repeat;
+    color: #fff;
+}
+
+.hero-content { max-width: 60vh;
+}
+
+.hero-section h1 {
+    font-size: 3.4rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.hero-subtext {
+    font-size: 1.15rem;
+    opacity: .95;
+}
+
+.btn-reserve-hero {
+    background: #fff;
+    color: var(--brand);
+    border: none;
+    padding: 14px 38px;
+    border-radius: 50px;
+    font-weight: 600;
+}
+
+/* ============ SECTIONS ============ */
+.section-padding {
+    padding: 70px 0;
+}
+
+    .section-padding p {
+        font-size: 1rem;
+    }
+
+.section-header h3 {
+    font-weight: 600;
+    letter-spacing: 1px;
+    font-size: 1.9rem;
+}
+
+.section-header p {
+    font-weight: 400; /* captions NOT bold */
+    color: #6c757d;
+    font-size: 1rem;
+}
+
+/* ============ ABOUT ============ */
+.about-img {
+    width: 100%;
+    height: 420px;
+    object-fit: cover;
+    border-radius: 15px;
+}
+
+/* ============ WHY CHOOSE ============ */
+.image-box {
+    height: 220px;
+    background: #e3f2fd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+    font-weight: 500;
+}
+
+.feature-box {
+    background: #f1f3f5;
+    padding: 25px;
+    border-radius: 15px;
+}
+
+/* ============ COURT ============ */
+.court-layout-img {
+    width: 100%;
+    border: 1px solid #eee;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:768px) {
+    .hero-section {
+        text-align: center;
+    }
+
+    .hero-content {
+        margin: auto;
+    }
+
+    .section-header {
+        text-align: center;
+    }
+
+    .reservation-section {
+        max-width: 90vw;
+    }
+}

@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
 
 namespace Smash_IT.receptionistpage
 {
@@ -27,8 +22,8 @@ namespace Smash_IT.receptionistpage
 
         protected void btnLogout_Click(object sender, EventArgs e)
         {
-            Session.Clear();        
-            Session.Abandon();      
+            Session.Clear();
+            Session.Abandon();
 
             Response.Redirect("~/adminpage/login.aspx");
         }
