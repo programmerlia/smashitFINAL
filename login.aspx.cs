@@ -70,7 +70,7 @@ namespace login
                             }
                             else if (role.Equals("Receptionist", StringComparison.OrdinalIgnoreCase))
                             {
-                                Response.Redirect("~/adminpage/receptionist_dashboard.aspx");
+                                Response.Redirect("~/receptionistpage/receptionist_dashboard.aspx");
                             }
                             else
                             {

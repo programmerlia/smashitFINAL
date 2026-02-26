@@ -41,13 +41,36 @@ namespace Smash_IT.homepage
             return (int)Math.Round(pesos * 100m, MidpointRounding.AwayFromZero);
         }
 
+        private static readonly string[] ReservationConnectionStringCandidates =
+        {
+            "smashit",
+            "SmashIT",
+            "SmashITDb",
+            "DefaultConnection",
+            "soapergandahannali"
+        };
+
+        private static string GetReservationConnectionString()
+        {
+            foreach (var name in ReservationConnectionStringCandidates)
+            {
+                var setting = ConfigurationManager.ConnectionStrings[name];
+                if (setting != null && !string.IsNullOrWhiteSpace(setting.ConnectionString))
+                    return setting.ConnectionString;
+            }
+
+            throw new ConfigurationErrorsException(
+                "No valid database connection string found for reservation flow. " +
+                "Expected one of: " + string.Join(", ", ReservationConnectionStringCandidates));
+        }
+
 
         [WebMethod]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static List<EquipmentAvailabilityRow> GetEquipmentAvailability(string date, string startTime, int durationHours)
         {
             var rows = new List<EquipmentAvailabilityRow>();
-            var cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+            var cs = GetReservationConnectionString();
 
             DateTime d;
             TimeSpan s;
@@ -301,7 +324,7 @@ WHERE ItemID = @ItemID;", con, tx))
                 if (Session["UserID"] != null)
                 {
                     int userId = Convert.ToInt32(Session["UserID"]);
-                    using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+                    using (SqlConnection con = new SqlConnection(GetReservationConnectionString()))
                     using (SqlCommand cmd = new SqlCommand("SELECT FullName, Email, PhoneNumber FROM tblPlayerAccount WHERE UserID=@ID", con))
                     {
                         cmd.Parameters.AddWithValue("@ID", userId);
@@ -349,7 +372,7 @@ FROM tblReservation
 WHERE ResDate = @ResDate
   AND Status NOT IN ('Cancelled','Completed')";
 
-            using (SqlConnection conn = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection conn = new SqlConnection(GetReservationConnectionString()))
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddWithValue("@ResDate", selectedDate.Date);
@@ -381,7 +404,7 @@ WHERE ResDate = @ResDate
         private string GetCourtsJson()
         {
             DataTable dt = new DataTable();
-            using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection con = new SqlConnection(GetReservationConnectionString()))
             using (SqlCommand cmd = new SqlCommand("SELECT CourtID, CourtNumber, Sport, IsActive FROM tblCourt WHERE IsActive = 1", con))
             {
                 new SqlDataAdapter(cmd).Fill(dt);
@@ -396,7 +419,7 @@ WHERE ResDate = @ResDate
         private string GetQueuesJson()
         {
             DataTable dt = new DataTable();
-            using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection con = new SqlConnection(GetReservationConnectionString()))
             using (SqlCommand cmd = new SqlCommand(@"
 SELECT q.CourtID, q.Status, r.ResDate, r.StartTime, r.EndTime
 FROM tblCourtQueue q
@@ -475,7 +498,7 @@ WHERE q.Status NOT IN ('Cancelled','Done')", con))
 
             string baseUrl = scheme + "://" + host;
 
-            var cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+            var cs = GetReservationConnectionString();
 
             int reservationId = 0;
             int rentalId = 0;
@@ -748,7 +771,7 @@ WHERE ReservationID = @RID", con))
 
         private DataTable GetGridData(DateTime date)
         {
-            string cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+            string cs = GetReservationConnectionString();
 
             using (var con = new SqlConnection(cs))
             using (var cmd = new SqlCommand())
