@@ -122,7 +122,12 @@
         </header>
 
         <!-- ================= PAGE CONTENT ================= -->
-        <main>
+        <main style=" display: flex;
+ flex-direction: column;
+ align-content: center;
+ align-items: center;
+ justify-content: flex-start;
+ flex-wrap: nowrap;">
             <asp:ContentPlaceHolder ID="MainContent" runat="server" />
         </main>
 

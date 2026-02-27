@@ -90,15 +90,17 @@ namespace Smash_IT.Controls
         protected void btnSignup_Click(object sender, EventArgs e)
         {
             // Get input values
-            string fullName = txtFullName.Text.Trim();
+            string firstName = txtFirstname.Text.Trim();
+            string lastName = txtLastname.Text.Trim();
             string email = txtEmail.Text.Trim();
             string phone = txtPhone.Text.Trim();
             string username = txtSignupUsername.Text.Trim();
             string password = txtSignupPassword.Text.Trim();
 
             // Validate fields
-            if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(email) ||
-                string.IsNullOrEmpty(phone) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName) ||
+       string.IsNullOrEmpty(email) || string.IsNullOrEmpty(phone) ||
+       string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 lblSignupMsg.Text = "Please fill in all required fields.";
                 return;
@@ -119,7 +121,17 @@ namespace Smash_IT.Controls
                 // Store in session
                 Session["OTP"] = otp;
 
-                Session["SignupData"] = new { fullName, email, phone, username, password };
+                Session["SignupData"] = new
+                {
+                    firstName = firstName,
+                    lastName = lastName,
+                    email = email,
+                    phone = phone,
+                    username = username,
+                    password = password
+                };
+
+
 
                 // Send OTP email
                 SendOTPEmail(email, otp);
@@ -225,13 +237,14 @@ namespace Smash_IT.Controls
                     return;
                 }
 
-                string fullName = data.fullName;
+                string firstname = data.firstname;
+                string lastname = data.lastname;
                 string email = data.email;
                 string phone = data.phone;
                 string username = data.username;
                 string password = data.password;
 
-                int newUserId = InsertUser(fullName, email, phone, username, password);
+                int newUserId = InsertUser(firstname, lastname, email, phone, username, password);
 
                 if (newUserId > 0)
                 {
@@ -277,17 +290,18 @@ namespace Smash_IT.Controls
         }
 
         // Insert new user into database
-        private int InsertUser(string fullName, string email, string phone, string username, string password)
+        private int InsertUser(string firstname, string lastname, string email, string phone, string username, string password)
         {
             using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
             {
                 con.Open();
                 SqlCommand cmd = new SqlCommand(@"
-                INSERT INTO tblPlayerAccount (FullName, Email, PhoneNumber, Username, Password, CreatedAt) 
-                VALUES (@FullName, @Email, @Phone, @Username, @Password, @CreatedAt);
+                INSERT INTO tblPlayerAccount (Firstname, Lastname, Email, PhoneNumber, Username, Password, CreatedAt) 
+                VALUES (@firstname, @lastname, @Email, @Phone, @Username, @Password, @CreatedAt);
                 SELECT SCOPE_IDENTITY();", con);
 
-                cmd.Parameters.AddWithValue("@FullName", fullName);
+                cmd.Parameters.AddWithValue("@firstname", firstname);
+                cmd.Parameters.AddWithValue("@lastname", lastname);
                 cmd.Parameters.AddWithValue("@Email", email);
                 cmd.Parameters.AddWithValue("@Phone", phone);
                 cmd.Parameters.AddWithValue("@Username", username);
@@ -337,7 +351,8 @@ namespace Smash_IT.Controls
         // ================= HELPER METHODS =================
         private void ClearSignupFields()
         {
-            txtFullName.Text = "";
+            txtFirstname.Text = "";
+            txtLastname.Text = "";
             txtEmail.Text = "";
             txtPhone.Text = "";
             txtSignupUsername.Text = "";

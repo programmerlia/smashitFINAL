@@ -102,7 +102,8 @@
 
 
                         <div id="signupStep1">
-                            <asp:TextBox ID="txtFullName" runat="server" CssClass="form-control mb-2" Placeholder="Full Name" />
+                            <asp:TextBox ID="txtFirstname" runat="server" CssClass="form-control mb-2" Placeholder="First Name" />
+                             <asp:TextBox ID="txtLastname" runat="server" CssClass="form-control mb-2" Placeholder="Last Name" />
                             <asp:TextBox ID="txtEmail" runat="server" CssClass="form-control mb-2" Placeholder="Email" />
                             <asp:TextBox ID="txtPhone" runat="server" CssClass="form-control mb-2" Placeholder="Phone Number" />
                             <asp:TextBox ID="txtSignupUsername" runat="server" CssClass="form-control mb-2" Placeholder="Username" />
@@ -156,8 +157,6 @@
             </div>
 
         </div>
-    </div>
-</div>
 
 <script>
     function setStep(activeStep) {

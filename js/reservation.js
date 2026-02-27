@@ -1031,7 +1031,7 @@ window.resetReservationUI = function resetReservationUI() {
         saveState(1);
     }
 
-   
+
 
     // =========================
     // Init

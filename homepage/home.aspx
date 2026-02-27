@@ -101,8 +101,8 @@
 
 
     <!-- ================= MAP ================= -->
-    <section class="map-section">
-        <div class="container">
+    <section class="map-section" style="width: 90vw;">
+        <div class="container" style="width: 90vw;">
             <iframe
                 src="https://www.google.com/maps?q=14.364617,121.041413&z=14&output=embed"
                 width="100%"

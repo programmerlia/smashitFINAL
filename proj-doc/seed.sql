@@ -15,23 +15,16 @@ BEGIN TRY
     /* =========================================================
        1) STAFF + PLAYERS (idempotent)
        ========================================================= */
-    IF NOT EXISTS (SELECT 1 FROM tblStaffAccount WHERE Username='admin')
-        INSERT INTO tblStaffAccount (FullName, Email, Username, [Password], RoleName)
-        VALUES ('Hannali Olayvar','hannaliolayvar@gmail.com','admin','pass','admin');
 
-    IF NOT EXISTS (SELECT 1 FROM tblStaffAccount WHERE Username='receptionist')
-        INSERT INTO tblStaffAccount (FullName, Email, Username, [Password], RoleName)
-        VALUES ('Isaiah Noda','isaiahandreinoda@gmail.com','receptionist','pass','receptionist');
+        INSERT INTO tblStaffAccount (Lastname, Firstname,Email, Username, [Password], RoleName)
+        VALUES ('Olayvar', 'Hannali','hannaliolayvar@gmail.com','admin','pass','admin'),('Noda','Isaiah','isaiahandreinoda@gmail.com','receptionist','pass','receptionist');
 
-    DECLARE @AdminStaffID INT = (SELECT StaffID FROM tblStaffAccount WHERE Username='admin');
+    DECLARE @AdminStaffID INT = 1
 
-    IF NOT EXISTS (SELECT 1 FROM tblPlayerAccount WHERE Username='elyza')
-        INSERT INTO tblPlayerAccount (FullName, Email, PhoneNumber, Username, [Password])
-        VALUES ('Elyza Olayvar','olayvarelyzarosa@gmail.com','09171234567','elyza','pass');
+        INSERT INTO tblPlayerAccount (Lastname, Firstname, Email, PhoneNumber, Username, [Password])
+        VALUES ('Olayvar', 'Elyza','olayvarelyzarosa@gmail.com','09171234567','elyza','pass'),
+        ('Olayvar','Elexali' ,'elexaliolayvar9711@gmail.com','09179876543','elexali','pass');
 
-    IF NOT EXISTS (SELECT 1 FROM tblPlayerAccount WHERE Username='elexali')
-        INSERT INTO tblPlayerAccount (FullName, Email, PhoneNumber, Username, [Password])
-        VALUES ('Elexali Olayvar','elexaliolayvar9711@gmail.com','09179876543','elexali','pass');
 
     DECLARE @UserElyza INT = (SELECT UserID FROM tblPlayerAccount WHERE Username='elyza');
     DECLARE @UserElexali INT = (SELECT UserID FROM tblPlayerAccount WHERE Username='elexali');
@@ -40,18 +33,12 @@ BEGIN TRY
     /* =========================================================
        2) COURTS (6 fixed) (idempotent)  -- SportName now
        ========================================================= */
-    IF NOT EXISTS (SELECT 1 FROM tblCourt WHERE CourtNumber=1)
-        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (1,'badminton',1);
-    IF NOT EXISTS (SELECT 1 FROM tblCourt WHERE CourtNumber=2)
-        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (2,'badminton',1);
-    IF NOT EXISTS (SELECT 1 FROM tblCourt WHERE CourtNumber=3)
-        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (3,'badminton',1);
-    IF NOT EXISTS (SELECT 1 FROM tblCourt WHERE CourtNumber=4)
-        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (4,'badminton',1);
-    IF NOT EXISTS (SELECT 1 FROM tblCourt WHERE CourtNumber=5)
-        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (5,'pickleball',1);
-    IF NOT EXISTS (SELECT 1 FROM tblCourt WHERE CourtNumber=6)
-        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (6,'pickleball',1);
+        INSERT INTO tblCourt(CourtNumber, SportName, IsActive) VALUES (1,'badminton',1),
+        (2,'badminton',1),
+        (3,'badminton',1),
+        (4,'badminton',1),
+        (5,'pickleball',1),
+        (6,'pickleball',1);
 
     DECLARE @Court1 INT = (SELECT CourtID FROM tblCourt WHERE CourtNumber=1);
     DECLARE @Court2 INT = (SELECT CourtID FROM tblCourt WHERE CourtNumber=2);
@@ -64,21 +51,11 @@ BEGIN TRY
     /* =========================================================
        3) EQUIPMENT MODELS + ITEMS (idempotent)
        ========================================================= */
-    IF NOT EXISTS (SELECT 1 FROM tblEquipmentModel WHERE EquipmentType='Badminton Racket' AND EquipmentSpec='JXXS-10')
-        INSERT INTO tblEquipmentModel(EquipmentType, EquipmentSpec, DefaultRentalPrice)
-        VALUES ('Badminton Racket','JXXS-10',100.00);
-
-    IF NOT EXISTS (SELECT 1 FROM tblEquipmentModel WHERE EquipmentType='Badminton Racket' AND EquipmentSpec='JXXS-11')
-        INSERT INTO tblEquipmentModel(EquipmentType, EquipmentSpec, DefaultRentalPrice)
-        VALUES ('Badminton Racket','JXXS-11',100.00);
-
-    IF NOT EXISTS (SELECT 1 FROM tblEquipmentModel WHERE EquipmentType='ShuttleCock' AND EquipmentSpec='AULA')
-        INSERT INTO tblEquipmentModel(EquipmentType, EquipmentSpec, DefaultRentalPrice)
-        VALUES ('ShuttleCock','AULA',100.00);
-
-    IF NOT EXISTS (SELECT 1 FROM tblEquipmentModel WHERE EquipmentType='Pickleball Paddle' AND EquipmentSpec='JOOLA FXS-26')
-        INSERT INTO tblEquipmentModel(EquipmentType, EquipmentSpec, DefaultRentalPrice)
-        VALUES ('Pickleball Paddle','JOOLA FXS-26',100.00);
+     INSERT INTO tblEquipmentModel(EquipmentType, EquipmentSpec, DefaultRentalPrice)
+        VALUES ('Badminton Racket','JXXS-10',100.00),
+        ('Badminton Racket','JXXS-11',100.00),
+        ('ShuttleCock','AULA',100.00),
+        ('Pickleball Paddle','JOOLA FXS-26',100.00);
 
     -- ensure >= 12 items exist
     IF (SELECT COUNT(*) FROM tblEquipmentItem) < 12
@@ -102,21 +79,11 @@ BEGIN TRY
     /* =========================================================
        4) ABOUT US (optional)
        ========================================================= */
-    IF NOT EXISTS (SELECT 1 FROM tblAboutUsMembers WHERE FullName='Richie De Mesa')
-        INSERT INTO tblAboutUsMembers(FullName, Position)
-        VALUES ('Richie De Mesa','CEO Operations Manager');
-
-    IF NOT EXISTS (SELECT 1 FROM tblAboutUsMembers WHERE FullName='May Jonas')
-        INSERT INTO tblAboutUsMembers(FullName, Position)
-        VALUES ('May Jonas','Reception & Queue Manager');
-
-    IF NOT EXISTS (SELECT 1 FROM tblAboutUsMembers WHERE FullName='Harvey Laguente')
-        INSERT INTO tblAboutUsMembers(FullName, Position)
-        VALUES ('Harvey Laguente','UI/UX & Frontend Developer');
-
-    IF NOT EXISTS (SELECT 1 FROM tblAboutUsMembers WHERE FullName='Mark Odrey Unira')
-        INSERT INTO tblAboutUsMembers(FullName, Position)
-        VALUES ('Mark Odrey Unira','Backend & Database Developer');
+   INSERT INTO tblAboutUsMembers(Lastname, Firstname, Position)
+        VALUES ('De Mesa', 'Richie','CEO Operations Manager'),
+        ('Jonas', 'May','Reception & Queue Manager'),
+        ('Laguente', 'Harvey' ,'UI/UX & Frontend Developer'),
+        ('Unira', 'Mark Odrey' ,'Backend & Database Developer');
 
 
     /* =========================================================
@@ -152,71 +119,119 @@ BEGIN TRY
     /* =========================================================
        6) WALK-INS per day (queue + pfa) (idempotent)
        ========================================================= */
-    DECLARE @W TABLE(SeedDate DATE, WalkInName VARCHAR(100), BasePaid BIT, QueuePaid BIT);
+    DECLARE @W TABLE(SeedDate DATE, Lastname VARCHAR(100), Firstname VARCHAR(100),BasePaid BIT, QueuePaid BIT);
 
     INSERT INTO @W VALUES
-    ('2026-02-27','Q-02-27-01',1,1),('2026-02-27','Q-02-27-02',1,1),('2026-02-27','Q-02-27-03',1,1),
-    ('2026-02-27','Q-02-27-04',1,1),('2026-02-27','Q-02-27-05',1,1),('2026-02-27','Q-02-27-06',1,1),
-    ('2026-02-27','PFA-02-27-A',1,0),('2026-02-27','PFA-02-27-B',1,0),
+   ('2026-02-27','Reyes','Juan',1,1),
+('2026-02-27','Santos','Maria',1,1),
+('2026-02-27','Dela Cruz','Paolo',1,1),
+('2026-02-27','Garcia','Anne',1,1),
+('2026-02-27','Mendoza','Carlo',1,1),
+('2026-02-27','Torres','Bianca',1,1),
+('2026-02-27','Navarro','Miguel',1,0),
+('2026-02-27','Castillo','Jasmine',1,0),
 
-    ('2026-02-28','Q-02-28-01',1,1),('2026-02-28','Q-02-28-02',1,1),('2026-02-28','Q-02-28-03',1,1),
-    ('2026-02-28','Q-02-28-04',1,1),('2026-02-28','Q-02-28-05',1,1),('2026-02-28','Q-02-28-06',1,1),
-    ('2026-02-28','PFA-02-28-A',1,0),('2026-02-28','PFA-02-28-B',1,0),
+('2026-02-28','Ramos','Daniel',1,1),
+('2026-02-28','Flores','Angela',1,1),
+('2026-02-28','Aquino','Mark',1,1),
+('2026-02-28','Villanueva','Patricia',1,1),
+('2026-02-28','Cruz','Joshua',1,1),
+('2026-02-28','Valdez','Nina',1,1),
+('2026-02-28','Bautista','Kevin',1,0),
+('2026-02-28','Gutierrez','Lara',1,0),
 
-    ('2026-03-01','Q-03-01-01',1,1),('2026-03-01','Q-03-01-02',1,1),('2026-03-01','Q-03-01-03',1,1),
-    ('2026-03-01','Q-03-01-04',1,1),('2026-03-01','Q-03-01-05',1,1),('2026-03-01','Q-03-01-06',1,1),
-    ('2026-03-01','PFA-03-01-A',1,0),('2026-03-01','PFA-03-01-B',1,0),
+('2026-03-01','Silva','Noah',1,1),
+('2026-03-01','Fernandez','Sofia',1,1),
+('2026-03-01','Lim','Ethan',1,1),
+('2026-03-01','Chua','Isabella',1,1),
+('2026-03-01','Tan','Lucas',1,1),
+('2026-03-01','Go','Mika',1,1),
+('2026-03-01','Morales','Andrei',1,0),
+('2026-03-01','Domingo','Bea',1,0),
 
-    ('2026-03-02','Q-03-02-01',1,1),('2026-03-02','Q-03-02-02',1,1),('2026-03-02','Q-03-02-03',1,1),
-    ('2026-03-02','Q-03-02-04',1,1),('2026-03-02','Q-03-02-05',1,1),('2026-03-02','Q-03-02-06',1,1),
-    ('2026-03-02','PFA-03-02-A',1,0),('2026-03-02','PFA-03-02-B',1,0);
+('2026-03-02','Rivera','Leo',1,1),
+('2026-03-02','Salazar','Clara',1,1),
+('2026-03-02','Ortega','James',1,1),
+('2026-03-02','Del Rosario','Kim',1,1),
+('2026-03-02','Pineda','Sean',1,1),
+('2026-03-02','Alvarez','Ria',1,1),
+('2026-03-02','Lopez','Hannah',1,0),
+('2026-03-02','Sison','Caleb',1,0);
 
-    INSERT INTO tblPlayerWalkIn (UserID, WalkInName, BasePaid, QueuePaid, CreatedAt)
-    SELECT NULL, w.WalkInName, w.BasePaid, w.QueuePaid,
+    INSERT INTO tblPlayerWalkIn (UserID, Lastname, Firstname, BasePaid, QueuePaid, CreatedAt)
+    SELECT NULL, w.Lastname, w.Firstname, w.BasePaid, w.QueuePaid,
            CAST(w.SeedDate AS DATETIME) + CAST('08:00' AS DATETIME)
     FROM @W w
     WHERE NOT EXISTS (
         SELECT 1 FROM tblPlayerWalkIn x
-        WHERE x.WalkInName=w.WalkInName AND CAST(x.CreatedAt AS DATE)=w.SeedDate
+        WHERE x.Lastname=w.Lastname AND CAST(x.CreatedAt AS DATE)=w.SeedDate
     );
 
 
     /* =========================================================
        7) COURT AVAILABILITY (18:00-22:00 slots) all courts all days
-          -- ModeName now
-       ========================================================= */
-    DECLARE @Slots TABLE(StartTime TIME, EndTime TIME);
-    INSERT INTO @Slots VALUES
-    ('18:00','18:30'),('18:30','19:00'),('19:00','19:30'),('19:30','20:00'),
-    ('20:00','20:30'),('20:30','21:00'),('21:00','21:30'),('21:30','22:00');
+          -- ModeName now*/
 
-    INSERT INTO tblCourtAvailability (CourtID, [Date], StartTime, EndTime, ModeName, CreatedByStaffID)
-    SELECT
-        c.CourtID,
-        d.[D],
-        s.StartTime,
-        s.EndTime,
-        CASE
-            WHEN c.CourtNumber IN (2,3,6) THEN 'Queue'
-            WHEN c.CourtNumber = 4 AND s.StartTime < '19:00' THEN 'PlayForAll'
-            WHEN c.CourtNumber = 4 THEN 'Reservation'
-            WHEN c.CourtNumber = 1 AND s.StartTime < '20:00' THEN 'Reservation'
-            WHEN c.CourtNumber = 1 THEN 'Queue'
-            WHEN c.CourtNumber = 5 AND s.StartTime < '21:30' THEN 'Reservation'
-            WHEN c.CourtNumber = 5 THEN 'Closed'
-            ELSE 'Reservation'
-        END,
-        @AdminStaffID
-    FROM tblCourt c
-    CROSS JOIN @SeedDates d
-    CROSS JOIN @Slots s
-    WHERE c.IsActive=1
-      AND NOT EXISTS (
-          SELECT 1 FROM tblCourtAvailability a
-          WHERE a.CourtID=c.CourtID AND a.[Date]=d.[D]
-            AND a.StartTime=s.StartTime AND a.EndTime=s.EndTime
-      );
 
+
+-- Slot generator: 08:00 to 22:00, 30 mins
+DECLARE @Slots TABLE(StartTime TIME, EndTime TIME);
+DECLARE @t TIME = '08:00';
+
+WHILE (@t < '22:00')
+BEGIN
+    INSERT INTO @Slots(StartTime, EndTime)
+    VALUES (@t, DATEADD(MINUTE, 30, @t));
+
+    SET @t = DATEADD(MINUTE, 30, @t);
+END;
+
+-- Insert with variations
+INSERT INTO tblCourtAvailability (CourtID, [Date], StartTime, EndTime, ModeName, CreatedByStaffID)
+SELECT
+    c.CourtID,
+    d.[D],
+    s.StartTime,
+    s.EndTime,
+
+    /* ===========================
+       VARIATION RULES
+       =========================== */
+    CASE
+        /* Court 2,3,6 = Queue always */
+        WHEN c.CourtNumber IN (2,3,6) THEN 'Queue'
+
+        /* Court 4: weekdays = PFA morning, weekends = Reservation whole day */
+        WHEN c.CourtNumber = 4 AND DATENAME(WEEKDAY, d.[D]) IN ('Saturday','Sunday') THEN 'Reservation'
+        WHEN c.CourtNumber = 4 AND s.StartTime < '12:00' THEN 'PlayForAll'
+        WHEN c.CourtNumber = 4 THEN 'Reservation'
+
+        /* Court 1: weekday evenings queue, weekends reservation */
+        WHEN c.CourtNumber = 1 AND DATENAME(WEEKDAY, d.[D]) IN ('Saturday','Sunday') THEN 'Reservation'
+        WHEN c.CourtNumber = 1 AND s.StartTime >= '18:00' THEN 'Queue'
+        WHEN c.CourtNumber = 1 THEN 'Reservation'
+
+        /* Court 5: some days close early */
+        WHEN c.CourtNumber = 5 AND d.[D] IN ('2026-02-28','2026-03-02') AND s.StartTime >= '20:00' THEN 'Closed'
+        WHEN c.CourtNumber = 5 AND s.StartTime >= '21:30' THEN 'Closed'
+        WHEN c.CourtNumber = 5 THEN 'Reservation'
+
+        /* Default */
+        ELSE 'Reservation'
+    END,
+    @AdminStaffID
+FROM tblCourt c
+CROSS JOIN @SeedDates d
+CROSS JOIN @Slots s
+WHERE c.IsActive = 1
+  AND NOT EXISTS (
+      SELECT 1
+      FROM tblCourtAvailability a
+      WHERE a.CourtID = c.CourtID
+        AND a.[Date] = d.[D]
+        AND a.StartTime = s.StartTime
+        AND a.EndTime = s.EndTime
+  );
 
     /* =========================================================
        8) RESERVATIONS (2/day)
@@ -239,7 +254,7 @@ BEGIN TRY
          IsPaid, ReservationStatusName, RequiredAmount, ApprovedByStaffID)
     SELECT
         @UserElexali, NULL, 2, @Court5, d.[D], '19:00','20:00',
-        0, 'Pending', 300, NULL
+        0, 'Pending', 630, NULL
     FROM @SeedDates d
     WHERE NOT EXISTS (
         SELECT 1 FROM tblReservation r
@@ -251,28 +266,37 @@ BEGIN TRY
        9) EVENT PARTICIPANTS
           -- StatusName now (string)
        ========================================================= */
-    ;WITH DayEvent AS (
-        SELECT d.[D] SeedDate, e.EventID
-        FROM @SeedDates d
-        JOIN tblEvent e ON e.EventDate=d.[D]
-        WHERE e.Title = CONCAT('Queue Event (Seed) - ', CONVERT(VARCHAR(10), d.[D], 120))
-    ),
-    QPaid AS (
-        SELECT CAST(w.CreatedAt AS DATE) SeedDate, w.WalkInID, w.WalkInName,
-               ROW_NUMBER() OVER (PARTITION BY CAST(w.CreatedAt AS DATE) ORDER BY w.WalkInName) RN
-        FROM tblPlayerWalkIn w
-        WHERE w.QueuePaid=1
-          AND CAST(w.CreatedAt AS DATE) IN (SELECT [D] FROM @SeedDates)
-    )
-    INSERT INTO tblEventParticipant (EventID, UserID, WalkInID, OrderNo, StatusName)
-    SELECT de.EventID, NULL, qp.WalkInID, qp.RN, 'Waiting'
-    FROM DayEvent de
-    JOIN QPaid qp ON qp.SeedDate=de.SeedDate
-    WHERE qp.RN BETWEEN 1 AND 4
-      AND NOT EXISTS (
-          SELECT 1 FROM tblEventParticipant ep
-          WHERE ep.EventID=de.EventID AND ep.OrderNo=qp.RN
-      );
+;WITH DayEvent AS (
+    SELECT d.[D] SeedDate, e.EventID
+    FROM @SeedDates d
+    JOIN tblEvent e ON e.EventDate = d.[D]
+    WHERE e.Title = CONCAT('Queue Event (Seed) - ', CONVERT(VARCHAR(10), d.[D], 120))
+),
+QPaid AS (
+    SELECT
+        CAST(w.CreatedAt AS DATE) AS SeedDate,
+        w.WalkInID,
+        w.FirstName,
+        w.LastName,
+        ROW_NUMBER() OVER (
+            PARTITION BY CAST(w.CreatedAt AS DATE)
+            ORDER BY w.CreatedAt, w.WalkInID
+        ) AS RN
+    FROM tblPlayerWalkIn w
+    WHERE w.QueuePaid = 1
+      AND CAST(w.CreatedAt AS DATE) IN (SELECT [D] FROM @SeedDates)
+)
+INSERT INTO tblEventParticipant (EventID, UserID, WalkInID, OrderNo, StatusName)
+SELECT de.EventID, NULL, qp.WalkInID, qp.RN, 'Waiting'
+FROM DayEvent de
+JOIN QPaid qp ON qp.SeedDate = de.SeedDate
+WHERE qp.RN BETWEEN 1 AND 4
+  AND NOT EXISTS (
+      SELECT 1
+      FROM tblEventParticipant ep
+      WHERE ep.EventID = de.EventID
+        AND ep.OrderNo = qp.RN
+  );
 
 
     /* =========================================================
@@ -280,44 +304,55 @@ BEGIN TRY
           -- QueueTypeName + StatusName now (strings)
        ========================================================= */
     ;WITH QPaid AS (
-        SELECT CAST(w.CreatedAt AS DATE) SeedDate, w.WalkInID, w.WalkInName,
-               ROW_NUMBER() OVER (PARTITION BY CAST(w.CreatedAt AS DATE) ORDER BY w.WalkInName) RN
-        FROM tblPlayerWalkIn w
-        WHERE w.QueuePaid=1
-          AND CAST(w.CreatedAt AS DATE) IN (SELECT [D] FROM @SeedDates)
-    ),
-    Assign AS (
-        SELECT
-            SeedDate, WalkInID, RN,
-            CASE WHEN RN % 3 = 1 THEN @Court2
-                 WHEN RN % 3 = 2 THEN @Court3
-                 ELSE @Court6 END AS CourtID
-        FROM QPaid
-        WHERE RN BETWEEN 1 AND 6
-    )
-    INSERT INTO tblCourtQueue
-        (CourtID, UserID, WalkInID, ReservationID, QueueDate, EventID,
-         QueueTypeName, QueueNumber, StatusName, LastModifiedByStaffID)
     SELECT
-        a.CourtID,
-        NULL,
-        a.WalkInID,
-        NULL,
-        a.SeedDate,
-        e.EventID,
-        'WalkIn',
-        ROW_NUMBER() OVER (PARTITION BY a.SeedDate, a.CourtID ORDER BY a.RN),
-        'Waiting',
-        @AdminStaffID
-    FROM Assign a
-    JOIN tblEvent e
-      ON e.EventDate=a.SeedDate
-     AND e.Title = CONCAT('Queue Event (Seed) - ', CONVERT(VARCHAR(10), a.SeedDate, 120))
-    WHERE NOT EXISTS (
-        SELECT 1 FROM tblCourtQueue q
-        WHERE q.QueueDate=a.SeedDate AND q.CourtID=a.CourtID AND q.WalkInID=a.WalkInID
-    );
-
+        CAST(w.CreatedAt AS DATE) AS SeedDate,
+        w.WalkInID,
+        w.FirstName,
+        w.LastName,
+        ROW_NUMBER() OVER (
+            PARTITION BY CAST(w.CreatedAt AS DATE)
+            ORDER BY w.CreatedAt, w.WalkInID
+        ) AS RN
+    FROM tblPlayerWalkIn w
+    WHERE w.QueuePaid = 1
+      AND CAST(w.CreatedAt AS DATE) IN (SELECT [D] FROM @SeedDates)
+),
+Assign AS (
+    SELECT
+        SeedDate, WalkInID, RN,
+        CASE
+            WHEN RN % 3 = 1 THEN @Court2
+            WHEN RN % 3 = 2 THEN @Court3
+            ELSE @Court6
+        END AS CourtID
+    FROM QPaid
+    WHERE RN BETWEEN 1 AND 6
+)
+INSERT INTO tblCourtQueue
+    (CourtID, UserID, WalkInID, ReservationID, QueueDate, EventID,
+     QueueTypeName, QueueNumber, StatusName, LastModifiedByStaffID)
+SELECT
+    a.CourtID,
+    NULL,
+    a.WalkInID,
+    NULL,
+    a.SeedDate,
+    e.EventID,
+    'WalkIn',
+    ROW_NUMBER() OVER (PARTITION BY a.SeedDate, a.CourtID ORDER BY a.RN) AS QueueNumber,
+    'Waiting',
+    @AdminStaffID
+FROM Assign a
+JOIN tblEvent e
+  ON e.EventDate = a.SeedDate
+ AND e.Title = CONCAT('Queue Event (Seed) - ', CONVERT(VARCHAR(10), a.SeedDate, 120))
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM tblCourtQueue q
+    WHERE q.QueueDate = a.SeedDate
+      AND q.CourtID = a.CourtID
+      AND q.WalkInID = a.WalkInID
+);
     -- Reservation queue entry on Court1 (QueueNumber=1)
     INSERT INTO tblCourtQueue
         (CourtID, UserID, WalkInID, ReservationID, QueueDate, EventID,
@@ -346,25 +381,32 @@ BEGIN TRY
        11) PAYC (1 play-all-you-can walk-in/day)
           -- SportName + StatusName now (strings)
        ========================================================= */
-    ;WITH PFA AS (
-        SELECT CAST(w.CreatedAt AS DATE) SeedDate, w.WalkInID, w.WalkInName,
-               ROW_NUMBER() OVER (PARTITION BY CAST(w.CreatedAt AS DATE) ORDER BY w.WalkInName) RN
-        FROM tblPlayerWalkIn w
-        WHERE w.QueuePaid=0
-          AND CAST(w.CreatedAt AS DATE) IN (SELECT [D] FROM @SeedDates)
-    )
-    INSERT INTO tblPlayAllYouCanRegistry (WalkInID, SportName, CheckInTime, StatusName)
+   ;WITH PFA AS (
     SELECT
-        p.WalkInID,
-        CASE WHEN p.SeedDate IN ('2026-02-27','2026-02-28') THEN 'badminton' ELSE 'pickleball' END,
-        CAST(p.SeedDate AS DATETIME) + CAST('18:00' AS DATETIME),
-        'Active'
-    FROM PFA p
-    WHERE p.RN=1
-      AND NOT EXISTS (
-          SELECT 1 FROM tblPlayAllYouCanRegistry x
-          WHERE x.WalkInID=p.WalkInID AND CAST(x.CheckInTime AS DATE)=p.SeedDate
-      );
+        CAST(w.CreatedAt AS DATE) AS SeedDate,
+        w.WalkInID,
+        ROW_NUMBER() OVER (
+            PARTITION BY CAST(w.CreatedAt AS DATE)
+            ORDER BY w.CreatedAt, w.WalkInID
+        ) AS RN
+    FROM tblPlayerWalkIn w
+    WHERE w.QueuePaid = 0
+      AND CAST(w.CreatedAt AS DATE) IN (SELECT [D] FROM @SeedDates)
+)
+INSERT INTO tblPlayAllYouCanRegistry (WalkInID, SportName, CheckInTime, StatusName)
+SELECT
+    p.WalkInID,
+    CASE WHEN p.SeedDate IN ('2026-02-27','2026-02-28') THEN 'badminton' ELSE 'pickleball' END,
+    DATEADD(HOUR, 18, CAST(p.SeedDate AS DATETIME)),  -- 18:00
+    'Active'
+FROM PFA p
+WHERE p.RN = 1
+  AND NOT EXISTS (
+      SELECT 1
+      FROM tblPlayAllYouCanRegistry x
+      WHERE x.WalkInID = p.WalkInID
+        AND CAST(x.CheckInTime AS DATE) = p.SeedDate
+  );
 
 
     /* =========================================================
@@ -445,7 +487,7 @@ BEGIN TRY
         NULL,
         (SELECT TOP 1 WalkInID FROM tblPlayerWalkIn w
          WHERE CAST(w.CreatedAt AS DATE)=d.[D] AND w.QueuePaid=1
-         ORDER BY w.WalkInName),
+         ORDER BY w.Lastname),
         NULL,
         @ItemB,
         CAST(d.[D] AS DATETIME) + CAST('19:15' AS DATETIME),

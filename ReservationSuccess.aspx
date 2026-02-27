@@ -48,19 +48,20 @@
         <div class="countdown">Redirecting to Home…</div>
     </div>
 
-    <script>
+    <script type="text/javascript">
         (function () {
             try {
-                sessionStorage.removeItem("pendingBooking"); 
-                sessionStorage.removeItem("rentalCart");     
-                sessionStorage.removeItem("isPaying");
-            } catch (e) {}
+                if (window.sessionStorage) {
+                    sessionStorage.removeItem("pendingBooking");
+                    sessionStorage.removeItem("rentalCart");
+                    sessionStorage.removeItem("isPaying");
+                }
+            } catch (e) { }
 
-            // optional: if you used any other keys, clear them too here
+            var redirectUrl = '<%= HttpUtility.JavaScriptStringEncode(ResolveUrl("~/homepage/reservation.aspx?reset=1")) %>';
 
-            // redirect after 3 seconds
             setTimeout(function () {
-                window.location.href = "<%= ResolveUrl("~/homepage/reservation.aspx?reset=1") %>";
+                window.location.replace(redirectUrl);
             }, 3000);
         })();
     </script>

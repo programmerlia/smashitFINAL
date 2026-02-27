@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Security.Cryptography;
@@ -23,46 +24,28 @@ namespace Smash_IT
                 return;
             }
 
-            // 1) Read raw body FIRST
             string raw;
             using (var reader = new StreamReader(context.Request.InputStream))
-            {
                 raw = reader.ReadToEnd();
-            }
 
-            // 2) Debug dump (optional)
-            try
+            // (Optional) debug dump
+            try { File.WriteAllText(context.Server.MapPath("~/App_Data/paymongo_webhook_last.json"), raw); } catch { }
+
+            string sigHeader = context.Request.Headers["Paymongo-Signature"] ?? "";
+            string whSecret = ConfigurationManager.AppSettings["PaymongoWebhookSecret"];
+
+            if (!string.IsNullOrWhiteSpace(whSecret))
             {
-                File.WriteAllText(context.Server.MapPath("~/App_Data/paymongo_webhook.json"), raw);
+                if (!IsValidSignature(sigHeader, whSecret, raw))
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.Write("Invalid signature");
+                    return;
+                }
             }
-            catch { /* ignore */ }
 
-            // 3) Verify signature (optional during testing)
-string sigHeader = context.Request.Headers["Paymongo-Signature"] ?? "";
-try
-{
-    File.WriteAllText(context.Server.MapPath("~/App_Data/paymongo_webhook_debug.txt"),
-        "SigHeader: " + sigHeader + "\n\nRaw:\n" + raw);
-}
-catch { }
-string whSecret = ConfigurationManager.AppSettings["PaymongoWebhookSecret"];
-
-// Skip signature verification if no secret configured (DEV ONLY)
-if (!string.IsNullOrWhiteSpace(whSecret))
-{
-    if (!IsValidSignature(sigHeader, whSecret, raw))
-    {
-        context.Response.StatusCode = 400;
-        context.Response.Write("Invalid signature");
-        return;
-    }
-}
-
-
-            // 4) Parse JSON (NON-generic)
             var js = new JavaScriptSerializer();
             var evt = js.DeserializeObject(raw) as Dictionary<string, object>;
-
             if (evt == null)
             {
                 context.Response.StatusCode = 400;
@@ -70,17 +53,12 @@ if (!string.IsNullOrWhiteSpace(whSecret))
                 return;
             }
 
-            // evt["data"] -> dict
             var data = evt.ContainsKey("data") ? evt["data"] as Dictionary<string, object> : null;
-            var attributes = (data != null && data.ContainsKey("attributes"))
-                ? data["attributes"] as Dictionary<string, object>
-                : null;
+            var attributes = (data != null && data.ContainsKey("attributes")) ? data["attributes"] as Dictionary<string, object> : null;
 
-            string eventType = null;
-if (attributes != null && attributes.ContainsKey("type") && attributes["type"] != null)
-{
-    eventType = attributes["type"].ToString();
-}
+            string eventType = (attributes != null && attributes.ContainsKey("type") && attributes["type"] != null)
+                ? attributes["type"].ToString()
+                : null;
 
             if (string.IsNullOrWhiteSpace(eventType))
             {
@@ -89,38 +67,21 @@ if (attributes != null && attributes.ContainsKey("type") && attributes["type"] !
                 return;
             }
 
-            // ✅ Handle paid event
             if (eventType == "checkout_session.payment.paid")
             {
                 string checkoutSessionId = null;
 
-                // usually attributes["data"]["id"] (but may vary)
+                // PayMongo: data.attributes.data.id
                 var innerData = (attributes != null && attributes.ContainsKey("data"))
                     ? attributes["data"] as Dictionary<string, object>
                     : null;
 
-                if (innerData != null && innerData.ContainsKey("id"))
-                {
-                    if (innerData["id"] != null) checkoutSessionId = innerData["id"].ToString();
-                }
+                if (innerData != null && innerData.ContainsKey("id") && innerData["id"] != null)
+                    checkoutSessionId = innerData["id"].ToString();
 
                 if (!string.IsNullOrWhiteSpace(checkoutSessionId))
                 {
-                    MarkReservationPaidByCheckoutSession(checkoutSessionId);
-                }
-                else
-                {
-                    // dump for debugging payload shape
-                    try
-                    {
-                        File.WriteAllText(
-                            context.Server.MapPath("~/App_Data/paymongo_webhook_debug.txt"),
-                            "Could not find checkout session id.\n" +
-                            "attributes keys: " + (attributes == null ? "(null)" : string.Join(",", attributes.Keys)) + "\n\n" +
-                            raw
-                        );
-                    }
-                    catch { /* ignore */ }
+                    ApplyPaidCheckoutSession(checkoutSessionId);
                 }
             }
 
@@ -130,19 +91,156 @@ if (attributes != null && attributes.ContainsKey("type") && attributes["type"] !
 
         public bool IsReusable { get { return false; } }
 
-        private static void MarkReservationPaidByCheckoutSession(string checkoutSessionId)
+        private static void ApplyPaidCheckoutSession(string checkoutSessionId)
         {
-            using (SqlConnection con = new SqlConnection(
-                ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
-            using (SqlCommand cmd = new SqlCommand(@"
+            string cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+
+            using (var con = new SqlConnection(cs))
+            {
+                con.Open();
+                using (var tx = con.BeginTransaction(IsolationLevel.ReadCommitted))
+                {
+                    try
+                    {
+                        // 1) Lock + get reservation
+                        int reservationId = 0;
+                        int requiredAmount = 0;
+                        string paymentStatus = null;
+
+                        using (var cmd = new SqlCommand(@"
+SELECT TOP 1 ReservationID, RequiredAmount, ISNULL(PaymentStatus,'') AS PaymentStatus
+FROM tblReservation WITH (UPDLOCK, HOLDLOCK)
+WHERE PaymongoCheckoutSessionID = @CSID;", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@CSID", checkoutSessionId);
+
+                            using (var dr = cmd.ExecuteReader())
+                            {
+                                if (dr.Read())
+                                {
+                                    reservationId = Convert.ToInt32(dr["ReservationID"]);
+                                    requiredAmount = Convert.ToInt32(dr["RequiredAmount"]);
+                                    paymentStatus = dr["PaymentStatus"].ToString();
+                                }
+                            }
+                        }
+
+                        if (reservationId <= 0)
+                        {
+                            tx.Commit();
+                            return; // no matching reservation
+                        }
+
+                        // 2) Idempotency guard
+                        // If already marked halfpaid/paid, skip
+                        if (string.Equals(paymentStatus, "HalfPaid", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(paymentStatus, "Paid", StringComparison.OrdinalIgnoreCase))
+                        {
+                            tx.Commit();
+                            return;
+                        }
+
+                        // Also guard against duplicate payment inserts (webhook retries)
+                        int existingPayments = 0;
+                        using (var cmd = new SqlCommand(@"
+SELECT COUNT(*)
+FROM tblPayment
+WHERE ReservationID = @RID
+  AND PaymentTypeName IN ('Rental','Reservation');", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            existingPayments = Convert.ToInt32(cmd.ExecuteScalar());
+                        }
+
+                        if (existingPayments >= 2)
+                        {
+                            // Payments already inserted; just ensure statuses are consistent
+                            using (var cmd = new SqlCommand(@"
+UPDATE tblReservation
+SET IsPaid = 1, PaymentStatus = 'HalfPaid'
+WHERE ReservationID = @RID;", con, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@RID", reservationId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            using (var cmd = new SqlCommand(@"
+UPDATE tblRental
+SET IsPaid = 1
+WHERE ReservationID = @RID;", con, tx))
+                            {
+                                cmd.Parameters.AddWithValue("@RID", reservationId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            tx.Commit();
+                            return;
+                        }
+
+                        // 3) Compute rentals total centavos from tblRental.UnitPrice
+                        // UnitPrice is DECIMAL(10,2) pesos; Amount in tblPayment is INT (centavos)
+                        int rentalsTotal = 0;
+                        using (var cmd = new SqlCommand(@"
+SELECT ISNULL(SUM(CAST(ROUND(UnitPrice * 100.0, 0) AS INT)), 0)
+FROM tblRental
+WHERE ReservationID = @RID;", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            rentalsTotal = Convert.ToInt32(cmd.ExecuteScalar());
+                        }
+
+                        // 4) Compute court full and deposit from RequiredAmount rule:
+                        // RequiredAmount = courtFull + rentalsFull
+                        int courtFull = requiredAmount - rentalsTotal;
+                        if (courtFull < 0) courtFull = 0; // safety
+
+                        int courtDeposit = courtFull / 2; // 50%
+                        // If you want rounding up for odd centavos:
+                        // int courtDeposit = (courtFull + 1) / 2;
+
+                        // 5) Insert TWO payment rows (Rental + Reservation deposit)
+                        using (var cmd = new SqlCommand(@"
+INSERT INTO tblPayment (PaymentTypeName, ReservationID, PaymentDate, Amount)
+VALUES ('Rental', @RID, CAST(GETDATE() AS date), @AmtRental);
+
+INSERT INTO tblPayment (PaymentTypeName, ReservationID, PaymentDate, Amount)
+VALUES ('Reservation', @RID, CAST(GETDATE() AS date), @AmtDeposit);", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            cmd.Parameters.AddWithValue("@AmtRental", rentalsTotal);
+                            cmd.Parameters.AddWithValue("@AmtDeposit", courtDeposit);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // 6) Mark rentals paid
+                        using (var cmd = new SqlCommand(@"
+UPDATE tblRental
+SET IsPaid = 1
+WHERE ReservationID = @RID;", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        // 7) Mark reservation as HalfPaid (deposit paid)
+                        using (var cmd = new SqlCommand(@"
 UPDATE tblReservation
 SET IsPaid = 1,
-    PaymentStatus = 'Paid'
-WHERE PaymongoCheckoutSessionID = @CSID", con))
-            {
-                cmd.Parameters.AddWithValue("@CSID", checkoutSessionId);
-                con.Open();
-                cmd.ExecuteNonQuery();
+    PaymentStatus = 'HalfPaid'
+WHERE ReservationID = @RID;", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        tx.Commit();
+                    }
+                    catch
+                    {
+                        try { tx.Rollback(); } catch { }
+                        throw;
+                    }
+                }
             }
         }
 
@@ -166,7 +264,7 @@ WHERE PaymongoCheckoutSessionID = @CSID", con))
                 if (key == "li") li = val;
             }
 
-            if (t == null) return false;
+            if (string.IsNullOrWhiteSpace(t)) return false;
 
             string signed = t + "." + rawBody;
 
@@ -175,9 +273,9 @@ WHERE PaymongoCheckoutSessionID = @CSID", con))
                 var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(signed));
                 var computed = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
 
-             bool testMatch = !string.IsNullOrEmpty(te) && computed == te;
-bool liveMatch = !string.IsNullOrEmpty(li) && computed == li;
-return testMatch || liveMatch;
+                bool testMatch = !string.IsNullOrEmpty(te) && computed == te;
+                bool liveMatch = !string.IsNullOrEmpty(li) && computed == li;
+                return testMatch || liveMatch;
             }
         }
     }

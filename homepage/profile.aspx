@@ -75,14 +75,15 @@
 
 
     <!-- HERO -->
-    <div class="profile-hero text-center" style="margin-top:50px;">
+    <div class="profile-hero text-center" style="margin-top:80px;">
         <div class="container">
             <div class="avatar-wrap">
                 <asp:Image ID="imgAvatar" runat="server" />
             </div>
             <div style="font-size:1.7rem; font-weight:800;">
-                <asp:Label ID="lblFullName" runat="server" />
+                <asp:Label ID="lblFirstname" runat="server" />  <span>  </span><asp:Label ID="lblLastname" runat="server" />
             </div>
+      
             <div style="opacity:.9;">
                 <asp:Label ID="lblEmail" runat="server" />
             </div>
@@ -108,8 +109,9 @@
                     <div class="mt-3">
                         <div class="info-row">
                             <span class="info-label">Full Name</span>
-                            <span class="info-value"><asp:Label ID="lblFullName2" runat="server" /></span>
+                            <span class="info-value"><asp:Label ID="lblFirstname2" runat="server" /> <span>  </span><asp:Label ID="lblLastname2" runat="server" /> </span>
                         </div>
+                    
                         <div class="info-row">
                             <span class="info-label">Phone Number</span>
                             <span class="info-value"><asp:Label ID="lblPhone" runat="server" /></span>
@@ -139,62 +141,19 @@
 
                         <asp:Panel ID="pnlPendingTop1" runat="server" />
 
-                        <div class="mt-2">
-                            <button class="btn btn-outline-secondary btn-outline-soft" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#collapseAllRes" aria-expanded="false">
-                                View all reservations
-                            </button>
+                    <button type="button"
+        class="btn btn-outline-secondary btn-outline-soft"
+        data-bs-toggle="modal"
+        data-bs-target="#allResModal">
+  View all reservations
+</button>
                         </div>
 
-                        <div class="collapse mt-3" id="collapseAllRes">
-                            <asp:Repeater ID="rptReservations" runat="server" OnItemCommand="rptReservations_ItemCommand" OnItemDataBound="rptReservations_ItemDataBound">
-                                <ItemTemplate>
-                                    <div class="res-item">
-                                        <div class="res-top">
-                                            <div>
-                                                <div style="font-weight:800;">
-                                                    Reservation #<%# Eval("ReservationID") %> • Court <%# Eval("CourtNumber") %> • <%# Eval("Sport") %>
-                                                </div>
-                                                <div class="muted">
-                                                    <%# Eval("ResDate","{0:yyyy-MM-dd}") %> • <%# Eval("StartStr") %> - <%# Eval("EndStr") %>
-                                                </div>
-                                                <div class="mt-1">
-                                                    <span class="badge-status <%# Eval("StatusBadgeClass") %>"><%# Eval("Status") %></span>
-                                                    <%# Eval("RequestStatus") != DBNull.Value && !string.IsNullOrWhiteSpace(Convert.ToString(Eval("RequestStatus"))) 
-                                                        ? "<span class='badge-status badge-request ms-1'>Request: " + Eval("RequestStatus") + "</span>" 
-                                                        : "" %>
-                                                </div>
-                                            </div>
-
-                                            <div class="text-end">
-                                                <div class="muted">Payment</div>
-                                                <div style="font-weight:800;"><%# Eval("PaymentStatusDisplay") %></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="res-actions">
-                                            <asp:Button ID="btnCancelReq" runat="server"
-                                                CssClass="btn btn-outline-danger btn-outline-soft"
-                                                Text="Request Cancel"
-                                                CommandName="cancel"
-                                                CommandArgument='<%# Eval("ReservationID") %>' />
-
-                                            <asp:Button ID="btnRefundReq" runat="server"
-                                                CssClass="btn btn-outline-warning btn-outline-soft"
-                                                Text="Request Refund"
-                                                CommandName="refund"
-                                                CommandArgument='<%# Eval("ReservationID") %>' />
-                                        </div>
-
-                                        <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
-                                    </div>
-                                </ItemTemplate>
-                            </asp:Repeater>
-                        </div>
+                        <!-- MODAL FOR RESERVATION CANCELLATIONS AT BOTTOM OF THE PAGE-->
                     </div>
                 </div>
 
-            </div>
+               
 
             <!-- RIGHT -->
             <div class="col-lg-4">
@@ -222,6 +181,7 @@
                         </div>
                     </div>
                 </div>
+            
 
                 <!-- LOGOUT -->
                 <div class="cardx text-center">
@@ -239,9 +199,7 @@
                     </a>
                 </div>
             </div>
-        </div>
-
-        <div style="height:40px;"></div>
+             </div>
     </div>
 
     <!-- EDIT MODAL -->
@@ -294,26 +252,354 @@
         </div>
     </div>
 
-    <script>
-(function () {
-  function setState(open) {
-    sessionStorage.setItem("collapseAllRes", open ? "open" : "closed");
-  }
+<script type="text/javascript">
+    (function () {
+        function setState(open) {
+            try { sessionStorage.setItem("collapseAllRes", open ? "open" : "closed"); } catch (e) { }
+        }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    var el = document.getElementById("collapseAllRes");
-    if (!el) return;
+        document.addEventListener("DOMContentLoaded", function () {
+            var el = document.getElementById("collapseAllRes");
+            if (!el) return;
 
-    // restore previous state
-    if (sessionStorage.getItem("collapseAllRes") === "open") {
-      el.classList.add("show");
-    }
+            // restore previous state
+            try {
+                if (sessionStorage.getItem("collapseAllRes") === "open") {
+                    if (window.bootstrap && bootstrap.Collapse) {
 
-    // save state on toggle
-    el.addEventListener("shown.bs.collapse", function () { setState(true); });
-    el.addEventListener("hidden.bs.collapse", function () { setState(false); });
-  });
-})();
-    </script>
+                        new bootstrap.Collapse(el, { toggle: true }); // Bootstrap 5
+                    } else if (window.jQuery && jQuery.fn && jQuery.fn.collapse) {
+                        jQuery(el).collapse("show"); // Bootstrap 4 fallback
+                    } else {
+                        // fallback: at least show it
+                        el.className += " show";
+                    }
+                }
+            } catch (e) { }
 
+            el.addEventListener("shown.bs.collapse", function () { setState(true); });
+            el.addEventListener("hidden.bs.collapse", function () { setState(false); });
+        });
+    })();
+</script>
+
+
+<div class="modal fade" id="allResModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">All Reservations</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- TABS -->
+        <ul class="nav nav-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabApproved" type="button" role="tab">
+              Approved
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabPending" type="button" role="tab">
+              Pending
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabRequests" type="button" role="tab">
+              Requests
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCancelled" type="button" role="tab">
+              Cancelled
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCompleted" type="button" role="tab">
+              Completed
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content pt-3">
+
+          <!-- APPROVED -->
+          <div class="tab-pane fade show active" id="tabApproved" role="tabpanel">
+
+            <asp:Repeater ID="rptApproved" runat="server"
+                OnItemCommand="rptReservations_ItemCommand"
+                OnItemDataBound="rptReservations_ItemDataBound">
+              <ItemTemplate>
+                <div class="res-item mb-3">
+                  <div class="res-top d-flex justify-content-between">
+                    <div>
+                      <div style="font-weight:800;">
+                        Reservation #<%# Eval("ReservationID") %>
+                        • Court <%# Eval("CourtNumber") %>
+                        • <%# Eval("SportName") %>
+                      </div>
+
+                      <div class="muted">
+                        <%# Eval("ResDate","{0:yyyy-MM-dd}") %> •
+                        <%# Eval("StartStr") %> - <%# Eval("EndStr") %>
+                      </div>
+
+                      <div class="mt-1">
+                        <span class='badge-status <%# Eval("StatusBadgeClass") %>'>
+                          <%# Eval("ReservationStatusName") %>
+                        </span>
+
+                        <%# Convert.ToString(Eval("RequestStatus")).Trim().Length > 0
+                            ? "<span class='badge-status badge-request ms-1'>Request: " + Eval("RequestStatus") + "</span>"
+                            : "" %>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <div class="muted">Payment</div>
+                      <div style="font-weight:800;">
+                        <%# Eval("PaymentStatusDisplay") %>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="res-actions mt-2">
+                    <asp:Button ID="btnCancelReq" runat="server"
+                        CssClass="btn btn-outline-danger btn-outline-soft"
+                        Text="Request Cancel"
+                        CommandName="cancel"
+                        CommandArgument='<%# Eval("ReservationID") %>' />
+
+                    <asp:Button ID="btnRefundReq" runat="server"
+                        CssClass="btn btn-outline-warning btn-outline-soft"
+                        Text="Request Refund"
+                        CommandName="refund"
+                        CommandArgument='<%# Eval("ReservationID") %>' />
+                  </div>
+
+                  <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
+                </div>
+              </ItemTemplate>
+            </asp:Repeater>
+
+            <asp:Panel ID="pnlEmptyApproved" runat="server" Visible="false">
+              <div class="muted">No approved reservations.</div>
+            </asp:Panel>
+
+          </div>
+
+          <!-- PENDING -->
+          <div class="tab-pane fade" id="tabPending" role="tabpanel">
+
+            <asp:Repeater ID="rptPending" runat="server"
+                OnItemCommand="rptReservations_ItemCommand"
+                OnItemDataBound="rptReservations_ItemDataBound">
+              <ItemTemplate>
+                <div class="res-item mb-3">
+                  <div class="res-top d-flex justify-content-between">
+                    <div>
+                      <div style="font-weight:800;">
+                        Reservation #<%# Eval("ReservationID") %>
+                        • Court <%# Eval("CourtNumber") %>
+                        • <%# Eval("SportName") %>
+                      </div>
+
+                      <div class="muted">
+                        <%# Eval("ResDate","{0:yyyy-MM-dd}") %> •
+                        <%# Eval("StartStr") %> - <%# Eval("EndStr") %>
+                      </div>
+
+                      <div class="mt-1">
+                        <span class='badge-status <%# Eval("StatusBadgeClass") %>'><%# Eval("ReservationStatusName") %></span>
+                        <%# Convert.ToString(Eval("RequestStatus")).Trim().Length > 0
+                            ? "<span class='badge-status badge-request ms-1'>Request: " + Eval("RequestStatus") + "</span>"
+                            : "" %>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <div class="muted">Payment</div>
+                      <div style="font-weight:800;"><%# Eval("PaymentStatusDisplay") %></div>
+                    </div>
+                  </div>
+
+                  <div class="res-actions mt-2">
+                    <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
+                        Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
+                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
+                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
+                  </div>
+
+                  <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
+                </div>
+              </ItemTemplate>
+            </asp:Repeater>
+
+            <asp:Panel ID="pnlEmptyPending" runat="server" Visible="false">
+              <div class="muted">No pending reservations.</div>
+            </asp:Panel>
+
+          </div>
+
+          <!-- REQUESTS -->
+          <div class="tab-pane fade" id="tabRequests" role="tabpanel">
+
+            <asp:Repeater ID="rptRequests" runat="server"
+                OnItemCommand="rptReservations_ItemCommand"
+                OnItemDataBound="rptReservations_ItemDataBound">
+              <ItemTemplate>
+                <div class="res-item mb-3">
+                  <div class="res-top d-flex justify-content-between">
+                    <div>
+                      <div style="font-weight:800;">
+                        Reservation #<%# Eval("ReservationID") %> • Court <%# Eval("CourtNumber") %> • <%# Eval("SportName") %>
+                      </div>
+
+                      <div class="muted">
+                        <%# Eval("ResDate","{0:yyyy-MM-dd}") %> • <%# Eval("StartStr") %> - <%# Eval("EndStr") %>
+                      </div>
+
+                      <div class="mt-1">
+                        <span class='badge-status <%# Eval("StatusBadgeClass") %>'><%# Eval("ReservationStatusName") %></span>
+                        <%# Convert.ToString(Eval("RequestStatus")).Trim().Length > 0
+                            ? "<span class='badge-status badge-request ms-1'>Request: " + Eval("RequestStatus") + "</span>"
+                            : "" %>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <div class="muted">Payment</div>
+                      <div style="font-weight:800;"><%# Eval("PaymentStatusDisplay") %></div>
+                    </div>
+                  </div>
+
+                  <div class="res-actions mt-2">
+                    <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
+                        Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
+                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
+                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
+                  </div>
+
+                  <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
+                </div>
+              </ItemTemplate>
+            </asp:Repeater>
+
+            <asp:Panel ID="pnlEmptyRequests" runat="server" Visible="false">
+              <div class="muted">No requests yet.</div>
+            </asp:Panel>
+
+          </div>
+
+          <!-- CANCELLED -->
+          <div class="tab-pane fade" id="tabCancelled" role="tabpanel">
+
+            <asp:Repeater ID="rptCancelled" runat="server"
+                OnItemCommand="rptReservations_ItemCommand"
+                OnItemDataBound="rptReservations_ItemDataBound">
+              <ItemTemplate>
+                <div class="res-item mb-3">
+                  <div class="res-top d-flex justify-content-between">
+                    <div>
+                      <div style="font-weight:800;">
+                        Reservation #<%# Eval("ReservationID") %> • Court <%# Eval("CourtNumber") %> • <%# Eval("SportName") %>
+                      </div>
+
+                      <div class="muted">
+                        <%# Eval("ResDate","{0:yyyy-MM-dd}") %> • <%# Eval("StartStr") %> - <%# Eval("EndStr") %>
+                      </div>
+
+                      <div class="mt-1">
+                        <span class='badge-status <%# Eval("StatusBadgeClass") %>'><%# Eval("ReservationStatusName") %></span>
+                        <%# Convert.ToString(Eval("RequestStatus")).Trim().Length > 0
+                            ? "<span class='badge-status badge-request ms-1'>Request: " + Eval("RequestStatus") + "</span>"
+                            : "" %>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <div class="muted">Payment</div>
+                      <div style="font-weight:800;"><%# Eval("PaymentStatusDisplay") %></div>
+                    </div>
+                  </div>
+
+                  <div class="res-actions mt-2">
+                    <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
+                        Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
+                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
+                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
+                  </div>
+
+                  <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
+                </div>
+              </ItemTemplate>
+            </asp:Repeater>
+
+            <asp:Panel ID="pnlEmptyCancelled" runat="server" Visible="false">
+              <div class="muted">No cancelled reservations.</div>
+            </asp:Panel>
+
+          </div>
+
+          <!-- COMPLETED -->
+          <div class="tab-pane fade" id="tabCompleted" role="tabpanel">
+
+            <asp:Repeater ID="rptCompleted" runat="server"
+                OnItemCommand="rptReservations_ItemCommand"
+                OnItemDataBound="rptReservations_ItemDataBound">
+              <ItemTemplate>
+                <div class="res-item mb-3">
+                  <div class="res-top d-flex justify-content-between">
+                    <div>
+                      <div style="font-weight:800;">
+                        Reservation #<%# Eval("ReservationID") %> • Court <%# Eval("CourtNumber") %> • <%# Eval("SportName") %>
+                      </div>
+
+                      <div class="muted">
+                        <%# Eval("ResDate","{0:yyyy-MM-dd}") %> • <%# Eval("StartStr") %> - <%# Eval("EndStr") %>
+                      </div>
+
+                      <div class="mt-1">
+                        <span class='badge-status <%# Eval("StatusBadgeClass") %>'><%# Eval("ReservationStatusName") %></span>
+                        <%# Convert.ToString(Eval("RequestStatus")).Trim().Length > 0
+                            ? "<span class='badge-status badge-request ms-1'>Request: " + Eval("RequestStatus") + "</span>"
+                            : "" %>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <div class="muted">Payment</div>
+                      <div style="font-weight:800;"><%# Eval("PaymentStatusDisplay") %></div>
+                    </div>
+                  </div>
+
+                  <div class="res-actions mt-2">
+                    <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
+                        Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
+                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
+                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
+                  </div>
+
+                  <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
+                </div>
+              </ItemTemplate>
+            </asp:Repeater>
+
+            <asp:Panel ID="pnlEmptyCompleted" runat="server" Visible="false">
+              <div class="muted">No completed reservations.</div>
+            </asp:Panel>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </asp:Content>
+
+
+

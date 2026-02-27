@@ -9,7 +9,8 @@ GO
 
 CREATE TABLE tblStaffAccount (
     StaffID INT IDENTITY PRIMARY KEY,
-    FullName VARCHAR(100) NOT NULL,
+    Firstname VARCHAR(100) NOT NULL,
+     Lastname VARCHAR(100) NOT NULL,
     Email VARCHAR(100) NOT NULL,
     Username VARCHAR(50) NOT NULL UNIQUE,
     [Password] VARCHAR(255) NOT NULL,
@@ -23,7 +24,8 @@ GO
 
 CREATE TABLE tblPlayerAccount (
     UserID INT IDENTITY PRIMARY KEY,
-    FullName VARCHAR(100) NOT NULL,
+    Firstname VARCHAR(100) NOT NULL,
+     Lastname VARCHAR(100) NOT NULL,
     Email VARCHAR(150) NULL UNIQUE,
     PhoneNumber VARCHAR(30) NULL,
     Username VARCHAR(50) NULL UNIQUE,
@@ -36,7 +38,8 @@ GO
 CREATE TABLE tblPlayerWalkIn (
     WalkInID INT IDENTITY PRIMARY KEY,
     UserID INT NULL, -- optional link if later register
-    WalkInName VARCHAR(100) NOT NULL,
+    Firstname VARCHAR(100) NOT NULL,
+    Lastname VARCHAR(100) NOT NULL,
 
     BasePaid BIT DEFAULT 1,
     QueuePaid BIT DEFAULT 0,
@@ -390,7 +393,8 @@ GO
 
 CREATE TABLE tblAboutUsMembers (
     MemberID INT IDENTITY PRIMARY KEY,
-    FullName VARCHAR(150) NOT NULL,
+    Firstname VARCHAR(150) NOT NULL,
+    Lastname VARCHAR(150) NOT NULL,
     Position VARCHAR(100) NULL,
     ImgPath VARCHAR(MAX) NOT NULL DEFAULT 'uploads/avatars/person.jpg'
 );

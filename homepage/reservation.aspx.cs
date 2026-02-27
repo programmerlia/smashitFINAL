@@ -1,4 +1,13 @@
-﻿// reservation.aspx.cs (FULL rewrite to match the new Step flow)
+﻿// reservation.aspx.cs (FULL rewrite — MATCHES YOUR DB + C# 4)
+// DB assumptions based on your schema:
+// - tblCourt(CourtID, CourtNumber, SportName, IsActive)
+// - tblReservation(..., ResDate, StartTime, EndTime, ReservationStatusName, RequestStatus, IsPaid, PaymentStatus, RequiredAmount, PaymongoCheckoutSessionID)
+// - tblEquipmentModel(ModelID, EquipmentType, EquipmentSpec, DefaultRentalPrice)
+// - tblEquipmentItem(ItemID, ModelID)
+// - tblRental(RentalID, ReservationID, ItemID, ReturnedAt, UnitPrice, IsPaid) + trigger sets UnitPrice
+// - tblCourtQueue(StatusName, ReservationID, CourtID, QueueDate, ...)
+// - tblEvent(EventDate, IsActive), tblEventCourtPool(EventID, CourtID)
+
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -6,7 +15,6 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Web;
@@ -19,7 +27,84 @@ namespace Smash_IT.homepage
 {
     public partial class reservation : Page
     {
-        // -------------------- RENTALS SUPPORT --------------------
+        private string CS
+        {
+            get { return ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString; }
+        }
+
+        // ===== Helpers: Parse Date/Time (handles "language"/culture issues) =====
+        private static bool TryParseDateFlexible(string input, out DateTime date)
+        {
+            date = DateTime.MinValue;
+            input = (input ?? "").Trim();
+            if (input.Length == 0) return false;
+
+            string[] formats = new string[]
+            {
+                "yyyy-MM-dd",
+                "MM/dd/yyyy",
+                "M/d/yyyy",
+                "dd/MM/yyyy",
+                "d/M/yyyy"
+            };
+
+            // Try exact formats first
+            if (DateTime.TryParseExact(input, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+                return true;
+
+            // Fallback: current culture parse
+            return DateTime.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.None, out date);
+        }
+
+        private static bool TryParseTimeFlexible(string input, out TimeSpan time)
+        {
+            time = TimeSpan.Zero;
+            input = (input ?? "").Trim();
+            if (input.Length == 0) return false;
+
+            // Most of your JS should send "HH:mm"
+            string[] formats = new string[] { @"hh\:mm", @"h\:mm", @"hh\:mm\:ss", @"h\:mm\:ss" };
+
+            if (TimeSpan.TryParseExact(input, formats, CultureInfo.InvariantCulture, out time))
+                return true;
+
+            // Fallback: allow "8:00 PM" etc.
+            DateTime dt;
+            if (DateTime.TryParse(input, CultureInfo.CurrentCulture, DateTimeStyles.None, out dt))
+            {
+                time = dt.TimeOfDay;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static int ToCentavos(decimal pesos)
+        {
+            return (int)Math.Round(pesos * 100m, MidpointRounding.AwayFromZero);
+        }
+
+        private static string NormalizeSport(string sport)
+        {
+            sport = (sport ?? "").Trim().ToLowerInvariant();
+            if (sport == "badminton" || sport == "pickleball") return sport;
+            return "";
+        }
+
+        private string GetSelectedSport()
+        {
+            // your ddlSport likely contains badminton/pickleball
+            string s = "";
+            try
+            {
+                if (ddlSport != null && ddlSport.SelectedValue != null)
+                    s = ddlSport.SelectedValue;
+            }
+            catch { }
+            return NormalizeSport(s);
+        }
+
+        // ==================== RENTALS SUPPORT ====================
 
         private sealed class RentalCartLine
         {
@@ -36,100 +121,102 @@ namespace Smash_IT.homepage
             public int AvailableQty { get; set; }
         }
 
-        private static int ToCentavos(decimal pesos)
-        {
-            return (int)Math.Round(pesos * 100m, MidpointRounding.AwayFromZero);
-        }
-
+        // ==================== AJAX: EQUIPMENT AVAILABILITY ====================
+        // Busy definition:
+        // - tblRental.ReturnedAt IS NULL
+        // - rental is linked to a reservation that overlaps chosen slot on same ResDate
+        // - reservation is not Cancelled/Completed
 
         [WebMethod]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static List<EquipmentAvailabilityRow> GetEquipmentAvailability(string date, string startTime, int durationHours)
         {
-            var rows = new List<EquipmentAvailabilityRow>();
-            var cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+            List<EquipmentAvailabilityRow> rows = new List<EquipmentAvailabilityRow>();
+            string cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
 
             DateTime d;
             TimeSpan s;
 
-            // If date/startTime missing, return simple stock grouped by Type+Spec
-            if (!DateTime.TryParseExact(date ?? "", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d) ||
-                !TimeSpan.TryParseExact(startTime ?? "", @"hh\:mm", CultureInfo.InvariantCulture, out s))
-            {
-                var sqlSimple = @"
-SELECT
-  EquipmentType,
-  ISNULL(EquipmentSpec,'') AS EquipmentSpec,
-  MAX(RentalPrice) AS RentalPrice,
-  COUNT(*) AS AvailableQty
-FROM tblEquipmentItem
-WHERE Status = 'Available'
-GROUP BY EquipmentType, ISNULL(EquipmentSpec,'')
-ORDER BY EquipmentType, ISNULL(EquipmentSpec,'');";
+            bool hasDate = TryParseDateFlexible(date, out d);
+            bool hasTime = TryParseTimeFlexible(startTime, out s);
 
-                using (var con = new SqlConnection(cs))
-                using (var cmd = new SqlCommand(sqlSimple, con))
+            // If no slot info, just show "not currently rented"
+            if (!hasDate || !hasTime)
+            {
+                string sqlSimple = @"
+SELECT
+  m.EquipmentType,
+  ISNULL(m.EquipmentSpec,'') AS EquipmentSpec,
+  m.DefaultRentalPrice AS RentalPrice,
+  SUM(CASE WHEN ar.ItemID IS NULL THEN 1 ELSE 0 END) AS AvailableQty
+FROM tblEquipmentItem ei
+JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
+LEFT JOIN tblRental ar ON ar.ItemID = ei.ItemID AND ar.ReturnedAt IS NULL
+GROUP BY m.EquipmentType, ISNULL(m.EquipmentSpec,''), m.DefaultRentalPrice
+ORDER BY m.EquipmentType, ISNULL(m.EquipmentSpec,'');";
+
+                using (SqlConnection con = new SqlConnection(cs))
+                using (SqlCommand cmd = new SqlCommand(sqlSimple, con))
                 {
                     con.Open();
-                    using (var dr = cmd.ExecuteReader())
+                    using (SqlDataReader dr = cmd.ExecuteReader())
                     {
                         while (dr.Read())
                         {
-                            rows.Add(new EquipmentAvailabilityRow
-                            {
-                                EquipmentType = dr["EquipmentType"].ToString(),
-                                EquipmentSpec = dr["EquipmentSpec"].ToString(),
-                                RentalPrice = Convert.ToDecimal(dr["RentalPrice"]),
-                                AvailableQty = Convert.ToInt32(dr["AvailableQty"])
-                            });
+                            EquipmentAvailabilityRow r = new EquipmentAvailabilityRow();
+                            r.EquipmentType = Convert.ToString(dr["EquipmentType"]);
+                            r.EquipmentSpec = Convert.ToString(dr["EquipmentSpec"]);
+                            r.RentalPrice = Convert.ToDecimal(dr["RentalPrice"]);
+                            r.AvailableQty = Convert.ToInt32(dr["AvailableQty"]);
+                            rows.Add(r);
                         }
                     }
                 }
+
                 return rows;
             }
 
-            var end = s.Add(TimeSpan.FromHours(durationHours <= 0 ? 1 : durationHours));
+            TimeSpan end = s.Add(TimeSpan.FromHours(durationHours <= 0 ? 1 : durationHours));
 
-            var sql = @"
-;WITH ConflictedItems AS (
+            string sqlSlot = @"
+;WITH BusyItems AS (
   SELECT rntl.ItemID
   FROM tblRental rntl
-  INNER JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
-  WHERE res.ResDate = @ResDate
-    AND res.Status NOT IN ('Cancelled','Completed')
+  JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
+  WHERE rntl.ReturnedAt IS NULL
+    AND res.ResDate = @ResDate
+    AND res.ReservationStatusName NOT IN ('Cancelled','Completed')
     AND (@StartTime < res.EndTime AND @EndTime > res.StartTime)
-    AND rntl.ReturnedAt IS NULL
 )
 SELECT
-  ei.EquipmentType,
-  ISNULL(ei.EquipmentSpec,'') AS EquipmentSpec,
-  MAX(ei.RentalPrice) AS RentalPrice,
-  COUNT(*) AS AvailableQty
+  m.EquipmentType,
+  ISNULL(m.EquipmentSpec,'') AS EquipmentSpec,
+  m.DefaultRentalPrice AS RentalPrice,
+  SUM(CASE WHEN b.ItemID IS NULL THEN 1 ELSE 0 END) AS AvailableQty
 FROM tblEquipmentItem ei
-WHERE ei.Status = 'Available'
-  AND ei.ItemID NOT IN (SELECT ItemID FROM ConflictedItems)
-GROUP BY ei.EquipmentType, ISNULL(ei.EquipmentSpec,'')
-ORDER BY ei.EquipmentType, ISNULL(ei.EquipmentSpec,'');";
+JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
+LEFT JOIN BusyItems b ON b.ItemID = ei.ItemID
+GROUP BY m.EquipmentType, ISNULL(m.EquipmentSpec,''), m.DefaultRentalPrice
+ORDER BY m.EquipmentType, ISNULL(m.EquipmentSpec,'');";
 
-            using (var con = new SqlConnection(cs))
-            using (var cmd = new SqlCommand(sql, con))
+            using (SqlConnection con2 = new SqlConnection(cs))
+            using (SqlCommand cmd2 = new SqlCommand(sqlSlot, con2))
             {
-                cmd.Parameters.AddWithValue("@ResDate", d.Date);
-                cmd.Parameters.AddWithValue("@StartTime", s);
-                cmd.Parameters.AddWithValue("@EndTime", end);
+                cmd2.Parameters.AddWithValue("@ResDate", d.Date);
+                cmd2.Parameters.AddWithValue("@StartTime", s);
+                cmd2.Parameters.AddWithValue("@EndTime", end);
 
-                con.Open();
-                using (var dr = cmd.ExecuteReader())
+                con2.Open();
+                using (SqlDataReader dr = cmd2.ExecuteReader())
                 {
                     while (dr.Read())
                     {
-                        rows.Add(new EquipmentAvailabilityRow
-                        {
-                            EquipmentType = dr["EquipmentType"].ToString(),
-                            EquipmentSpec = dr["EquipmentSpec"].ToString(),
-                            RentalPrice = Convert.ToDecimal(dr["RentalPrice"]),
-                            AvailableQty = Convert.ToInt32(dr["AvailableQty"])
-                        });
+                        EquipmentAvailabilityRow r = new EquipmentAvailabilityRow();
+                        r.EquipmentType = Convert.ToString(dr["EquipmentType"]);
+                        r.EquipmentSpec = Convert.ToString(dr["EquipmentSpec"]);
+                        r.RentalPrice = Convert.ToDecimal(dr["RentalPrice"]);
+                        r.AvailableQty = Convert.ToInt32(dr["AvailableQty"]);
+                        rows.Add(r);
                     }
                 }
             }
@@ -137,39 +224,83 @@ ORDER BY ei.EquipmentType, ISNULL(ei.EquipmentSpec,'');";
             return rows;
         }
 
+        // ==================== RENTAL CART PARSE ====================
+        // Expects JSON like: { "Racket||Yonex": 2, "Shuttlecock||": 1 }
         private List<RentalCartLine> ParseRentalCart(string rawJson)
         {
-            var lines = new List<RentalCartLine>();
+            List<RentalCartLine> lines = new List<RentalCartLine>();
             if (string.IsNullOrWhiteSpace(rawJson)) return lines;
 
-            Dictionary<string, object> dict;
+            Dictionary<string, object> dict = null;
             try { dict = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(rawJson); }
             catch { return lines; }
 
-            foreach (var kv in dict)
+            foreach (KeyValuePair<string, object> kv in dict)
             {
-                var key = (kv.Key ?? "").Trim();
+                string key = (kv.Key ?? "").Trim();
                 if (string.IsNullOrWhiteSpace(key)) continue;
 
                 int qty;
                 try { qty = Convert.ToInt32(kv.Value); }
                 catch { continue; }
+
                 if (qty <= 0) continue;
 
-                var parts = key.Split(new[] { "||" }, StringSplitOptions.None);
-                var type = parts.Length > 0 ? parts[0].Trim() : "";
-                var spec = parts.Length > 1 ? parts[1].Trim() : "";
+                string[] parts = key.Split(new string[] { "||" }, StringSplitOptions.None);
+                string type = parts.Length > 0 ? (parts[0] ?? "").Trim() : "";
+                string spec = parts.Length > 1 ? (parts[1] ?? "").Trim() : "";
 
                 if (string.IsNullOrWhiteSpace(type)) continue;
 
-                lines.Add(new RentalCartLine { EquipmentType = type, EquipmentSpec = spec, Quantity = qty });
+                RentalCartLine line = new RentalCartLine();
+                line.EquipmentType = type;
+                line.EquipmentSpec = spec;
+                line.Quantity = qty;
+                lines.Add(line);
             }
 
             return lines;
         }
 
-        private (List<int> RentalIDs, List<(string DisplayName, decimal UnitPrice, int Qty)> Summary)
-          CreateRentalRowsForReservation(
+        // ==================== RENTAL PRICING ====================
+        // Uses tblEquipmentModel.DefaultRentalPrice
+        private int ComputeRentalsTotalCentavos(SqlConnection con, SqlTransaction tx, List<RentalCartLine> cartLines)
+        {
+            if (cartLines == null || cartLines.Count == 0) return 0;
+
+            int total = 0;
+
+            foreach (RentalCartLine line in cartLines)
+            {
+                decimal unitPricePesos;
+
+                using (SqlCommand cmd = new SqlCommand(@"
+SELECT DefaultRentalPrice
+FROM tblEquipmentModel
+WHERE EquipmentType = @Type
+  AND ISNULL(EquipmentSpec,'') = @Spec;", con, tx))
+                {
+                    cmd.Parameters.AddWithValue("@Type", line.EquipmentType);
+                    cmd.Parameters.AddWithValue("@Spec", line.EquipmentSpec ?? "");
+
+                    object p = cmd.ExecuteScalar();
+                    if (p == null || p == DBNull.Value)
+                        throw new Exception("Unknown equipment model: " + line.EquipmentType + " " + (line.EquipmentSpec ?? ""));
+
+                    unitPricePesos = Convert.ToDecimal(p);
+                }
+
+                int unitCentavos = ToCentavos(unitPricePesos);
+                checked { total += unitCentavos * line.Quantity; }
+            }
+
+            return total;
+        }
+
+        // ==================== RENTAL ALLOCATION ====================
+        // Inserts tblRental rows, relies on trigger trg_Rental_SetUnitPrice to set UnitPrice.
+        // No equipment item status updates (your tblEquipmentItem has no Status column).
+        private void CreateRentalRowsForReservation(
             SqlConnection con,
             SqlTransaction tx,
             int reservationId,
@@ -178,47 +309,28 @@ ORDER BY ei.EquipmentType, ISNULL(ei.EquipmentSpec,'');";
             TimeSpan end,
             List<RentalCartLine> cartLines)
         {
-            var rentalIds = new List<int>();
-            var summary = new List<(string DisplayName, decimal UnitPrice, int Qty)>();
+            if (cartLines == null || cartLines.Count == 0) return;
 
-            if (cartLines == null || cartLines.Count == 0)
-                return (rentalIds, summary);
-
-            foreach (var line in cartLines)
+            foreach (RentalCartLine line in cartLines)
             {
-                decimal unitPrice;
-                using (var cmdPrice = new SqlCommand(@"
-SELECT TOP 1 RentalPrice
-FROM tblEquipmentItem
-WHERE EquipmentType = @Type
-  AND ISNULL(EquipmentSpec,'') = @Spec
-ORDER BY ItemID;", con, tx))
-                {
-                    cmdPrice.Parameters.AddWithValue("@Type", line.EquipmentType);
-                    cmdPrice.Parameters.AddWithValue("@Spec", line.EquipmentSpec ?? "");
-                    var p = cmdPrice.ExecuteScalar();
-                    if (p == null || p == DBNull.Value)
-                        throw new Exception("Unknown equipment: " + line.EquipmentType + " " + line.EquipmentSpec);
-                    unitPrice = Convert.ToDecimal(p);
-                }
+                List<int> picked = new List<int>();
 
-                var picked = new List<int>();
-                using (var cmdPick = new SqlCommand(@"
-;WITH ConflictedItems AS (
+                using (SqlCommand cmdPick = new SqlCommand(@"
+;WITH BusyItems AS (
   SELECT rntl.ItemID
   FROM tblRental rntl
-  INNER JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
-  WHERE res.ResDate = @ResDate
-    AND res.Status NOT IN ('Cancelled','Completed')
+  JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
+  WHERE rntl.ReturnedAt IS NULL
+    AND res.ResDate = @ResDate
+    AND res.ReservationStatusName NOT IN ('Cancelled','Completed')
     AND (@StartTime < res.EndTime AND @EndTime > res.StartTime)
-    AND rntl.ReturnedAt IS NULL
 )
 SELECT TOP (@Qty) ei.ItemID
 FROM tblEquipmentItem ei WITH (UPDLOCK, HOLDLOCK)
-WHERE ei.EquipmentType = @Type
-  AND ISNULL(ei.EquipmentSpec,'') = @Spec
-  AND ei.Status = 'Available'
-  AND ei.ItemID NOT IN (SELECT ItemID FROM ConflictedItems)
+JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
+WHERE m.EquipmentType = @Type
+  AND ISNULL(m.EquipmentSpec,'') = @Spec
+  AND ei.ItemID NOT IN (SELECT ItemID FROM BusyItems)
 ORDER BY ei.ItemID;", con, tx))
                 {
                     cmdPick.Parameters.AddWithValue("@ResDate", resDate.Date);
@@ -228,48 +340,36 @@ ORDER BY ei.ItemID;", con, tx))
                     cmdPick.Parameters.AddWithValue("@Spec", line.EquipmentSpec ?? "");
                     cmdPick.Parameters.AddWithValue("@Qty", line.Quantity);
 
-                    using (var dr = cmdPick.ExecuteReader())
-                        while (dr.Read()) picked.Add(Convert.ToInt32(dr["ItemID"]));
+                    using (SqlDataReader dr = cmdPick.ExecuteReader())
+                    {
+                        while (dr.Read())
+                            picked.Add(Convert.ToInt32(dr["ItemID"]));
+                    }
                 }
 
                 if (picked.Count < line.Quantity)
-                    throw new Exception($"Not enough stock for {line.EquipmentType} {line.EquipmentSpec}. Requested {line.Quantity}, available {picked.Count}.");
-
-                foreach (var itemId in picked)
                 {
-                    int rentalId;
-                    using (var cmdIns = new SqlCommand(@"
+                    throw new Exception(
+                        "Not enough stock for " + line.EquipmentType + " " + (line.EquipmentSpec ?? "") +
+                        ". Requested " + line.Quantity + ", available " + picked.Count + "."
+                    );
+                }
+
+                foreach (int itemId in picked)
+                {
+                    using (SqlCommand cmdIns = new SqlCommand(@"
 INSERT INTO tblRental (ReservationID, ItemID, IsPaid)
-VALUES (@ReservationID, @ItemID, 0);
-SELECT SCOPE_IDENTITY();", con, tx))
+VALUES (@ReservationID, @ItemID, 0);", con, tx))
                     {
                         cmdIns.Parameters.AddWithValue("@ReservationID", reservationId);
                         cmdIns.Parameters.AddWithValue("@ItemID", itemId);
-                        rentalId = Convert.ToInt32(cmdIns.ExecuteScalar());
-                    }
-                    rentalIds.Add(rentalId);
-
-                    using (var cmdUpd = new SqlCommand(@"
-UPDATE tblEquipmentItem
-SET Status = 'Rented'
-WHERE ItemID = @ItemID;", con, tx))
-                    {
-                        cmdUpd.Parameters.AddWithValue("@ItemID", itemId);
-                        cmdUpd.ExecuteNonQuery();
+                        cmdIns.ExecuteNonQuery();
                     }
                 }
-
-                var display = string.IsNullOrWhiteSpace(line.EquipmentSpec)
-                  ? line.EquipmentType
-                  : $"{line.EquipmentType} ({line.EquipmentSpec})";
-
-                summary.Add((display, unitPrice, line.Quantity));
             }
-
-            return (rentalIds, summary);
         }
 
-        // -------------------- PAGE LIFECYCLE --------------------
+        // ==================== PAGE LIFECYCLE ====================
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -279,30 +379,24 @@ WHERE ItemID = @ItemID;", con, tx))
             {
                 if (Request.QueryString["reset"] == "1")
                 {
-                    // clear server-side fields so user can book again clean
                     hfSelectedCourtID.Value = "";
                     hfStartTime.Value = "";
                     hfEndTime.Value = "";
                     hfRentalCart.Value = "{}";
 
-                    // optional: clear these too if you want totally blank date
-                    // hfSelectedDate.Value = "";
-                    // hfResDate.Value = "";
-
-                    // clear UI labels if you have them
                     lblSelectedSlot.Text = "No slot selected.";
-
-                    // also clear dropdowns if needed
-                    ddlSport.ClearSelection();
-                    ddlDuration.SelectedValue = "1";
+                    try { ddlSport.ClearSelection(); } catch { }
+                    if (ddlDuration != null && ddlDuration.Items.FindByValue("1") != null)
+                        ddlDuration.SelectedValue = "1";
                 }
-
 
                 if (Session["UserID"] != null)
                 {
                     int userId = Convert.ToInt32(Session["UserID"]);
-                    using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
-                    using (SqlCommand cmd = new SqlCommand("SELECT FullName, Email, PhoneNumber FROM tblPlayerAccount WHERE UserID=@ID", con))
+
+                    using (SqlConnection con = new SqlConnection(CS))
+                    using (SqlCommand cmd = new SqlCommand(
+                        "SELECT Firstname, Lastname, Email, PhoneNumber FROM tblPlayerAccount WHERE UserID=@ID", con))
                     {
                         cmd.Parameters.AddWithValue("@ID", userId);
                         con.Open();
@@ -310,46 +404,45 @@ WHERE ItemID = @ItemID;", con, tx))
                         {
                             if (dr.Read())
                             {
-                                txtFName.Text = dr["FullName"].ToString();
-                                txtEmail.Text = dr["Email"].ToString();
-                                txtContact.Text = dr["PhoneNumber"].ToString();
-
-                                Session["FName"] = dr["FullName"].ToString();
-                                Session["Email"] = dr["Email"].ToString();
-                                Session["PhoneNumber"] = dr["PhoneNumber"].ToString();
+                                txtFirstname.Text = Convert.ToString(dr["Firstname"]);
+                                txtLastname.Text = Convert.ToString(dr["Lastname"]);
+                                txtEmail.Text = Convert.ToString(dr["Email"]);
+                                txtContact.Text = Convert.ToString(dr["PhoneNumber"]);
+                                Session["Firstname"] = txtFirstname.Text;
+                                Session["Lastname"] = txtLastname.Text;
+                                Session["Email"] = txtEmail.Text;
+                                Session["PhoneNumber"] = txtContact.Text;
                             }
                         }
                     }
                 }
 
-                // default: render timetable for today so Step 1 isn't empty
                 Calendar1.VisibleDate = DateTime.Today;
                 Calendar1.SelectedDates.Clear();
                 Calendar1.SelectedDate = DateTime.MinValue;
 
-                // ✅ Keep date as today (so timetable shows), even after reset
                 hfSelectedDate.Value = DateTime.Today.ToString("yyyy-MM-dd");
                 hfResDate.Value = hfSelectedDate.Value;
 
-                RenderTimeTable(DateTime.Today);
+                RenderTimeTable(DateTime.Today, GetSelectedSport());
             }
         }
 
         protected void Calendar1_SelectionChanged(object sender, EventArgs e)
         {
-            var selectedDate = Calendar1.SelectedDate;
-
+            DateTime selectedDate = Calendar1.SelectedDate;
             hfSelectedDate.Value = selectedDate.ToString("yyyy-MM-dd");
             hfResDate.Value = hfSelectedDate.Value;
 
-            RenderTimeTable(selectedDate);
+            RenderTimeTable(selectedDate, GetSelectedSport());
+
             string query = @"
 SELECT StartTime, EndTime
 FROM tblReservation
 WHERE ResDate = @ResDate
-  AND Status NOT IN ('Cancelled','Completed')";
+  AND ReservationStatusName NOT IN ('Cancelled','Completed');";
 
-            using (SqlConnection conn = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection conn = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddWithValue("@ResDate", selectedDate.Date);
@@ -360,17 +453,35 @@ WHERE ResDate = @ResDate
                 {
                     while (reader.Read())
                     {
-                         TimeSpan start = (TimeSpan)reader["StartTime"];
+                        TimeSpan start = (TimeSpan)reader["StartTime"];
                         TimeSpan end = (TimeSpan)reader["EndTime"];
                         unavailable.Add(string.Format("{0:hh\\:mm} - {1:hh\\:mm}", start, end));
                     }
                 }
 
-                lblUnavailableHours.Text = unavailable.Count > 0 ? string.Join(", ", unavailable) : "All hours are available";
+                lblUnavailableHours.Text = unavailable.Count > 0
+                    ? string.Join(", ", unavailable.ToArray())
+                    : "All hours are available";
             }
 
-            RenderTimeTable(selectedDate);
+            // already rendered above, no need to render again
         }
+
+        protected void ddlSport_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            DateTime d;
+            if (!TryParseDateFlexible(hfSelectedDate.Value, out d))
+            {
+                d = DateTime.Today;
+                hfSelectedDate.Value = d.ToString("yyyy-MM-dd");
+                hfResDate.Value = hfSelectedDate.Value;
+            }
+
+            LoadCourtData();
+            RenderTimeTable(d, GetSelectedSport());
+        }
+
+        // ==================== COURT JSON LOADERS ====================
 
         protected void LoadCourtData()
         {
@@ -381,38 +492,60 @@ WHERE ResDate = @ResDate
         private string GetCourtsJson()
         {
             DataTable dt = new DataTable();
-            using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
-            using (SqlCommand cmd = new SqlCommand("SELECT CourtID, CourtNumber, Sport, IsActive FROM tblCourt WHERE IsActive = 1", con))
+            using (SqlConnection con = new SqlConnection(CS))
+            using (SqlCommand cmd = new SqlCommand(
+                "SELECT CourtID, CourtNumber, SportName, IsActive FROM tblCourt WHERE IsActive = 1", con))
             {
                 new SqlDataAdapter(cmd).Fill(dt);
             }
 
             JavaScriptSerializer js = new JavaScriptSerializer();
-            return js.Serialize(dt.AsEnumerable().Select(r =>
-              dt.Columns.Cast<DataColumn>().ToDictionary(c => c.ColumnName, c => r[c])
-            ));
+            return js.Serialize(DataTableToList(dt));
         }
 
         private string GetQueuesJson()
         {
+            // Your DB: tblCourtQueue.StatusName
             DataTable dt = new DataTable();
-            using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(@"
-SELECT q.CourtID, q.Status, r.ResDate, r.StartTime, r.EndTime
+SELECT q.CourtID,
+       q.StatusName,
+       r.ResDate,
+       r.StartTime,
+       r.EndTime
 FROM tblCourtQueue q
 INNER JOIN tblReservation r ON q.ReservationID = r.ReservationID
-WHERE q.Status NOT IN ('Cancelled','Done')", con))
+WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
             {
                 new SqlDataAdapter(cmd).Fill(dt);
             }
 
             JavaScriptSerializer js = new JavaScriptSerializer();
-            return js.Serialize(dt.AsEnumerable().Select(r =>
-              dt.Columns.Cast<DataColumn>().ToDictionary(c => c.ColumnName, c => r[c])
-            ));
+            return js.Serialize(DataTableToList(dt));
         }
 
-        // -------------------- BOOKING SUBMIT (PayMongo) --------------------
+        private static List<Dictionary<string, object>> DataTableToList(DataTable dt)
+        {
+            List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+            foreach (DataRow row in dt.Rows)
+            {
+                Dictionary<string, object> dict = new Dictionary<string, object>();
+                foreach (DataColumn col in dt.Columns)
+                {
+                    dict[col.ColumnName] = row[col];
+                }
+                list.Add(dict);
+            }
+            return list;
+        }
+
+        // ==================== BOOKING SUBMIT (PayMongo checkout creation) ====================
+        // RULES:
+        // - Store RequiredAmount in tblReservation as: CourtFull (100%) + RentalsFull (100%)
+        // - Charge in PayMongo only once: RentalsFull + CourtDeposit (50% of court)
+        // - DO NOT insert tblPayment here
+        // - DO NOT mark reservation as paid here
         protected void btnSubmitReservation_Click(object sender, EventArgs e)
         {
             if (Session["UserID"] == null)
@@ -422,31 +555,33 @@ WHERE q.Status NOT IN ('Cancelled','Done')", con))
                 return;
             }
 
-            // -------- Validate inputs --------
-            string rawDate = (hfSelectedDate.Value ?? "").Trim();
-            if (!DateTime.TryParseExact(rawDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime resDate))
+            // Validate inputs
+            DateTime resDate;
+            if (!TryParseDateFlexible((hfSelectedDate.Value ?? "").Trim(), out resDate))
             {
                 Response.StatusCode = 400;
                 Response.Write("Missing/invalid date.");
                 return;
             }
 
-            if (!int.TryParse((hfSelectedCourtID.Value ?? "").Trim(), out int courtId) || courtId <= 0)
+            int courtId;
+            if (!int.TryParse((hfSelectedCourtID.Value ?? "").Trim(), out courtId) || courtId <= 0)
             {
                 Response.StatusCode = 400;
                 Response.Write("Missing/invalid court.");
                 return;
             }
 
-            string rawStart = (hfStartTime.Value ?? "").Trim();
-            if (!TimeSpan.TryParseExact(rawStart, @"hh\:mm", CultureInfo.InvariantCulture, out TimeSpan startTime))
+            TimeSpan startTime;
+            if (!TryParseTimeFlexible((hfStartTime.Value ?? "").Trim(), out startTime))
             {
                 Response.StatusCode = 400;
                 Response.Write("Missing/invalid start time.");
                 return;
             }
 
-            if (!int.TryParse(ddlDuration.SelectedValue, out int duration) || duration <= 0)
+            int duration;
+            if (!int.TryParse(ddlDuration.SelectedValue, out duration) || duration <= 0)
             {
                 Response.StatusCode = 400;
                 Response.Write("Missing/invalid duration.");
@@ -456,17 +591,32 @@ WHERE q.Status NOT IN ('Cancelled','Done')", con))
             TimeSpan endTime = startTime.Add(TimeSpan.FromHours(duration));
             int userId = Convert.ToInt32(Session["UserID"]);
 
+            // Optional: ensure court exists and is active
+            using (SqlConnection conCheck = new SqlConnection(CS))
+            using (SqlCommand cmdCheck = new SqlCommand(
+                "SELECT COUNT(*) FROM tblCourt WHERE CourtID=@CID AND IsActive=1", conCheck))
+            {
+                cmdCheck.Parameters.AddWithValue("@CID", courtId);
+                conCheck.Open();
+                int ok = Convert.ToInt32(cmdCheck.ExecuteScalar());
+                if (ok <= 0)
+                {
+                    Response.StatusCode = 400;
+                    Response.Write("Selected court is not active.");
+                    return;
+                }
+            }
+
             // rentals cart (optional)
-            var cartJson = (hfRentalCart.Value ?? "").Trim();
-            var cartLines = ParseRentalCart(cartJson);
+            string cartJson = (hfRentalCart.Value ?? "").Trim();
+            List<RentalCartLine> cartLines = ParseRentalCart(cartJson);
 
-            // -------- Money (TOTAL ONLY) --------
+            // Money (CENTAVOS)
             const int courtPricePerHourCentavos = 33000;
-            int courtAmount = checked(duration * courtPricePerHourCentavos);
+            int courtFull = checked(duration * courtPricePerHourCentavos);
+            int courtDeposit = courtFull / 2;
 
-            int rentalsTotal = 0;
-
-            // -------- Base URL --------
+            // Base URL
             string scheme = Request.Headers["X-Forwarded-Proto"];
             if (string.IsNullOrEmpty(scheme)) scheme = Request.Url.Scheme;
 
@@ -475,22 +625,47 @@ WHERE q.Status NOT IN ('Cancelled','Done')", con))
 
             string baseUrl = scheme + "://" + host;
 
-            var cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
-
             int reservationId = 0;
-            int rentalId = 0;
+            int rentalsFull = 0;
 
-            // -------- Create reservation + allocate rentals (transaction) --------
-            using (var con = new SqlConnection(cs))
+            // Create reservation + allocate rentals (transaction)
+            using (SqlConnection con = new SqlConnection(CS))
             {
                 con.Open();
-                using (var tx = con.BeginTransaction(IsolationLevel.ReadCommitted))
+                using (SqlTransaction tx = con.BeginTransaction(IsolationLevel.ReadCommitted))
                 {
                     try
                     {
-                        using (var cmd = new SqlCommand(@"
-INSERT INTO tblReservation (UserID, CourtID, ResDate, StartTime, EndTime, Status, IsPaid, PaymentStatus)
-VALUES (@UserID, @CourtID, @ResDate, @StartTime, @EndTime, 'Pending', 1, 'Paid');
+                        // Prevent overlap on same court (basic protection)
+                        using (SqlCommand cmdOverlap = new SqlCommand(@"
+SELECT COUNT(*)
+FROM tblReservation
+WHERE CourtID=@CourtID
+  AND ResDate=@ResDate
+  AND ReservationStatusName IN ('Pending','Approved')
+  AND (@StartTime < EndTime AND @EndTime > StartTime);", con, tx))
+                        {
+                            cmdOverlap.Parameters.AddWithValue("@CourtID", courtId);
+                            cmdOverlap.Parameters.AddWithValue("@ResDate", resDate.Date);
+                            cmdOverlap.Parameters.AddWithValue("@StartTime", startTime);
+                            cmdOverlap.Parameters.AddWithValue("@EndTime", endTime);
+                            int overlap = Convert.ToInt32(cmdOverlap.ExecuteScalar());
+                            if (overlap > 0)
+                                throw new Exception("That court/time is already reserved. Please choose another slot.");
+                        }
+
+                        // rentals 100%
+                        rentalsFull = ComputeRentalsTotalCentavos(con, tx, cartLines);
+
+                        // RequiredAmount stored = 100% court + 100% rentals
+                        int requiredAmountStored = checked(courtFull + rentalsFull);
+
+                        // Insert reservation (UNPAID)
+                        using (SqlCommand cmd = new SqlCommand(@"
+INSERT INTO tblReservation
+(UserID, CourtID, ResDate, StartTime, EndTime, ReservationStatusName, IsPaid, PaymentStatus, RequiredAmount)
+VALUES
+(@UserID, @CourtID, @ResDate, @StartTime, @EndTime, 'Pending', 0, 'Unpaid', @RequiredAmount);
 SELECT SCOPE_IDENTITY();", con, tx))
                         {
                             cmd.Parameters.AddWithValue("@UserID", userId);
@@ -498,27 +673,15 @@ SELECT SCOPE_IDENTITY();", con, tx))
                             cmd.Parameters.AddWithValue("@ResDate", resDate.Date);
                             cmd.Parameters.AddWithValue("@StartTime", startTime);
                             cmd.Parameters.AddWithValue("@EndTime", endTime);
+                            cmd.Parameters.AddWithValue("@RequiredAmount", requiredAmountStored);
 
                             reservationId = Convert.ToInt32(cmd.ExecuteScalar());
                         }
 
-                        // Allocate rentals and compute rentals subtotal in centavos
-                        if (cartLines.Count > 0)
+                        // allocate rentals
+                        if (cartLines != null && cartLines.Count > 0)
                         {
-                            var result = CreateRentalRowsForReservation(con, tx, reservationId, resDate.Date, startTime, endTime, cartLines);
-                            rentalId = result.RentalIDs.Count > 0 ? result.RentalIDs[0] : 0;
-
-                            foreach (var rs in result.Summary)
-                            {
-                                int qty = rs.Qty;
-                                if (qty <= 0) throw new Exception("Invalid qty for " + rs.DisplayName);
-
-                                // rs.UnitPrice is decimal PESOS (e.g. 100.00)
-                                int unitCentavos = (int)Math.Round(rs.UnitPrice * 100m, MidpointRounding.AwayFromZero);
-                                if (unitCentavos < 1) throw new Exception("Invalid unit price for " + rs.DisplayName + ": " + rs.UnitPrice);
-
-                                checked { rentalsTotal += unitCentavos * qty; }
-                            }
+                            CreateRentalRowsForReservation(con, tx, reservationId, resDate.Date, startTime, endTime, cartLines);
                         }
 
                         tx.Commit();
@@ -533,11 +696,12 @@ SELECT SCOPE_IDENTITY();", con, tx))
                 }
             }
 
-            int grandTotal = checked(courtAmount + rentalsTotal);
+            // PayMongo charge NOW = rentals full + 50% court
+            int paymongoChargeNow = checked(rentalsFull + courtDeposit);
 
             string successUrl = baseUrl + "/ReservationSuccess.aspx?resId=" + reservationId;
 
-            var payload = new
+            object payload = new
             {
                 data = new
                 {
@@ -547,24 +711,21 @@ SELECT SCOPE_IDENTITY();", con, tx))
                         reference_number = "RES-" + reservationId,
                         success_url = successUrl,
                         send_email_receipt = true,
-                        payment_method_types = new[] { "gcash" },
-
-                        // ✅ REQUIRED: 1 line item only (TOTAL ONLY)
-                        show_line_items = false, // hides the line item on checkout UI
-                        line_items = new[]
-             {
-                new
-                {
-                    name = "Reservation Total",
-                    description =
-                        "CourtID " + courtId + " • " + resDate.ToString("yyyy-MM-dd") +
-                        " • " + startTime.ToString(@"hh\:mm") + "-" + endTime.ToString(@"hh\:mm"),
-                    amount = grandTotal,   // ✅ centavos
-                    currency = "PHP",
-                    quantity = 1
-                }
-            },
-
+                        payment_method_types = new string[] { "gcash" },
+                        show_line_items = false,
+                        line_items = new object[]
+                        {
+                            new
+                            {
+                                name = "Reservation Payment",
+                                description =
+                                    "CourtID " + courtId + " • " + resDate.ToString("yyyy-MM-dd") +
+                                    " • " + startTime.ToString(@"hh\:mm") + "-" + endTime.ToString(@"hh\:mm"),
+                                amount = paymongoChargeNow,
+                                currency = "PHP",
+                                quantity = 1
+                            }
+                        },
                         metadata = new
                         {
                             reservation_id = reservationId.ToString(),
@@ -572,14 +733,16 @@ SELECT SCOPE_IDENTITY();", con, tx))
                             date = resDate.ToString("yyyy-MM-dd"),
                             start = startTime.ToString(@"hh\:mm"),
                             end = endTime.ToString(@"hh\:mm"),
-                            rental_id = rentalId > 0 ? rentalId.ToString() : "",
-                            court_amount = courtAmount.ToString(),
-                            rentals_amount = rentalsTotal.ToString(),
-                            total_amount = grandTotal.ToString()
+                            court_full = courtFull.ToString(),
+                            court_deposit = courtDeposit.ToString(),
+                            rentals_full = rentalsFull.ToString(),
+                            paymongo_charge_now = paymongoChargeNow.ToString(),
+                            required_amount_stored = (courtFull + rentalsFull).ToString()
                         }
                     }
                 }
             };
+
             string secretKey = ConfigurationManager.AppSettings["PaymongoSecretKey"];
             if (string.IsNullOrWhiteSpace(secretKey))
             {
@@ -591,7 +754,6 @@ SELECT SCOPE_IDENTITY();", con, tx))
             string json = new JavaScriptSerializer().Serialize(payload);
             string basic = Convert.ToBase64String(Encoding.UTF8.GetBytes(secretKey + ":"));
 
-            string body = null;
             string checkoutUrl = null;
             string checkoutSessionId = null;
 
@@ -602,33 +764,36 @@ SELECT SCOPE_IDENTITY();", con, tx))
                 req.ContentType = "application/json";
                 req.Headers["Authorization"] = "Basic " + basic;
 
-                using (var sw = new StreamWriter(req.GetRequestStream()))
+                using (StreamWriter sw = new StreamWriter(req.GetRequestStream()))
+                {
                     sw.Write(json);
+                }
 
                 using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse())
-                using (var reader = new StreamReader(resp.GetResponseStream()))
-                    body = reader.ReadToEnd();
+                using (StreamReader reader = new StreamReader(resp.GetResponseStream()))
+                {
+                    string body = reader.ReadToEnd();
+                    Dictionary<string, object> parsed = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(body);
+                    Dictionary<string, object> data = (Dictionary<string, object>)parsed["data"];
+                    Dictionary<string, object> attrs = (Dictionary<string, object>)data["attributes"];
 
-                var parsed = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(body);
-                var data = (Dictionary<string, object>)parsed["data"];
-                var attrs = (Dictionary<string, object>)data["attributes"];
-
-                checkoutUrl = attrs["checkout_url"].ToString();
-                checkoutSessionId = data["id"].ToString();
+                    checkoutUrl = Convert.ToString(attrs["checkout_url"]);
+                    checkoutSessionId = Convert.ToString(data["id"]);
+                }
             }
             catch (WebException ex)
             {
                 string errBody = "";
-                var errResp = ex.Response as HttpWebResponse;
+                HttpWebResponse errResp = ex.Response as HttpWebResponse;
                 if (errResp != null)
                 {
-                    using (var reader = new StreamReader(errResp.GetResponseStream()))
-                        errBody = reader.ReadToEnd();
+                    using (StreamReader r = new StreamReader(errResp.GetResponseStream()))
+                        errBody = r.ReadToEnd();
                 }
 
                 try
                 {
-                    File.WriteAllText(Server.MapPath("~/App_Data/paymongo_create_checkout_error.txt"),
+                    File.WriteAllText(HttpContext.Current.Server.MapPath("~/App_Data/paymongo_create_checkout_error.txt"),
                         DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n" + errBody);
                 }
                 catch { }
@@ -638,16 +803,17 @@ SELECT SCOPE_IDENTITY();", con, tx))
                 return;
             }
 
-            using (SqlConnection con = new SqlConnection(cs))
-            using (SqlCommand cmd = new SqlCommand(@"
+            // Save checkout session ID on reservation
+            using (SqlConnection con3 = new SqlConnection(CS))
+            using (SqlCommand cmd3 = new SqlCommand(@"
 UPDATE tblReservation
 SET PaymongoCheckoutSessionID = @CSID
-WHERE ReservationID = @RID", con))
+WHERE ReservationID = @RID;", con3))
             {
-                cmd.Parameters.AddWithValue("@CSID", checkoutSessionId);
-                cmd.Parameters.AddWithValue("@RID", reservationId);
-                con.Open();
-                cmd.ExecuteNonQuery();
+                cmd3.Parameters.AddWithValue("@CSID", checkoutSessionId ?? "");
+                cmd3.Parameters.AddWithValue("@RID", reservationId);
+                con3.Open();
+                cmd3.ExecuteNonQuery();
             }
 
             if (string.IsNullOrWhiteSpace(checkoutUrl))
@@ -660,25 +826,99 @@ WHERE ReservationID = @RID", con))
             Response.Redirect(checkoutUrl, false);
             Context.ApplicationInstance.CompleteRequest();
         }
-        // -------------------- TIMETABLE RENDER --------------------
-        private void RenderTimeTable(DateTime date)
-        {
-            var dt = GetGridData(date);
 
-            var map = new Dictionary<string, DataRow>();
+        // ==================== FINALIZE PAYMENTS AFTER PAYMONGO CONFIRMS PAID ====================
+        // Your tblPayment has NO PaymentStatus / ExternalPaymentID columns, so:
+        // - Idempotency rule: if ANY payment exists for ReservationID, skip.
+        public static void FinalizePaymentsAfterPaymongoPaid(int reservationId, int userId, int rentalsFullCentavos, int courtDepositCentavos)
+        {
+            if (reservationId <= 0) throw new ArgumentException("reservationId invalid");
+            if (userId <= 0) throw new ArgumentException("userId invalid");
+
+            string cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+
+            using (SqlConnection con = new SqlConnection(cs))
+            {
+                con.Open();
+                using (SqlTransaction tx = con.BeginTransaction(IsolationLevel.ReadCommitted))
+                {
+                    using (SqlCommand chk = new SqlCommand("SELECT COUNT(*) FROM tblPayment WHERE ReservationID=@RID;", con, tx))
+                    {
+                        chk.Parameters.AddWithValue("@RID", reservationId);
+                        int exists = Convert.ToInt32(chk.ExecuteScalar());
+                        if (exists > 0)
+                        {
+                            tx.Commit();
+                            return;
+                        }
+                    }
+
+                    if (rentalsFullCentavos > 0)
+                    {
+                        using (SqlCommand cmd = new SqlCommand(@"
+INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
+VALUES ('Rental', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@UserID", userId);
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            cmd.Parameters.AddWithValue("@Amt", rentalsFullCentavos);
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        using (SqlCommand cmd = new SqlCommand("UPDATE tblRental SET IsPaid=1 WHERE ReservationID=@RID;", con, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@RID", reservationId);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    using (SqlCommand cmd2 = new SqlCommand(@"
+INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
+VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx))
+                    {
+                        cmd2.Parameters.AddWithValue("@UserID", userId);
+                        cmd2.Parameters.AddWithValue("@RID", reservationId);
+                        cmd2.Parameters.AddWithValue("@Amt", courtDepositCentavos);
+                        cmd2.ExecuteNonQuery();
+                    }
+
+                    using (SqlCommand upd = new SqlCommand(@"
+UPDATE tblReservation
+SET IsPaid=1, PaymentStatus='HalfPaid'
+WHERE ReservationID=@RID;", con, tx))
+                    {
+                        upd.Parameters.AddWithValue("@RID", reservationId);
+                        upd.ExecuteNonQuery();
+                    }
+
+                    tx.Commit();
+                }
+            }
+        }
+
+        // ==================== TIMETABLE RENDER ====================
+        // Sport rule:
+        // - Sport is in tblCourt.SportName
+        // - If ddlSport selected, we restrict reservable slots to courts of that sport.
+        private void RenderTimeTable(DateTime date, string sport)
+        {
+            DataTable dt = GetGridData(date, sport);
+
+            Dictionary<string, DataRow> map = new Dictionary<string, DataRow>();
             foreach (DataRow r in dt.Rows)
             {
                 int courtId = Convert.ToInt32(r["CourtID"]);
                 TimeSpan slot = (TimeSpan)r["SlotStart"];
-                map[$"{courtId}|{slot}"] = r;
+                string key = courtId.ToString() + "|" + slot.ToString();
+                map[key] = r;
             }
 
-            var sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder();
             sb.Append("<div class='table-responsive'>");
             sb.Append("<table class='timetable'>");
             sb.Append("<thead><tr>");
             sb.Append("<th class='time-col'>Time</th>");
-            for (int c = 1; c <= 6; c++) sb.Append($"<th>Court {c}</th>");
+            for (int c = 1; c <= 6; c++) sb.Append("<th>Court " + c + "</th>");
             sb.Append("</tr></thead>");
             sb.Append("<tbody>");
 
@@ -689,20 +929,27 @@ WHERE ReservationID = @RID", con))
             {
                 TimeSpan tEnd = t.Add(TimeSpan.FromMinutes(30));
                 sb.Append("<tr>");
-                sb.Append($"<td class='time-col'>{DateTime.Today.Add(t):hh:mm tt}</td>");
+                sb.Append("<td class='time-col'>" + DateTime.Today.Add(t).ToString("hh:mm tt") + "</td>");
 
                 for (int courtNum = 1; courtNum <= 6; courtNum++)
                 {
                     int courtId = GetCourtIdByNumber(dt, courtNum);
 
-                    string key = $"{courtId}|{t}";
+                    // If court doesn't exist for this sport filter, show disabled
+                    if (courtId <= 0)
+                    {
+                        sb.Append("<td><div class='slot blocked'>N/A</div></td>");
+                        continue;
+                    }
+
+                    string k = courtId.ToString() + "|" + t.ToString();
                     bool blocked = false;
                     bool isQueue = false;
 
-                    if (map.ContainsKey(key))
+                    if (map.ContainsKey(k))
                     {
-                        blocked = Convert.ToInt32(map[key]["IsReservedBlocked"]) == 1;
-                        isQueue = Convert.ToInt32(map[key]["IsQueueCourt"]) == 1;
+                        blocked = Convert.ToInt32(map[k]["IsReservedBlocked"]) == 1;
+                        isQueue = Convert.ToInt32(map[k]["IsQueueCourt"]) == 1;
                     }
 
                     if (blocked)
@@ -716,13 +963,13 @@ WHERE ReservationID = @RID", con))
                     else
                     {
                         string dateStr = date.ToString("yyyy-MM-dd");
-                        string startStr = $"{(int)t.TotalHours:D2}:{t.Minutes:D2}";
-                        string endStr = $"{(int)tEnd.TotalHours:D2}:{tEnd.Minutes:D2}";
+                        string startStr = ((int)t.TotalHours).ToString("D2") + ":" + t.Minutes.ToString("D2");
+                        string endStr = ((int)tEnd.TotalHours).ToString("D2") + ":" + tEnd.Minutes.ToString("D2");
 
                         sb.Append("<td>");
-                        sb.Append($"<div class='slot reservable' " +
-                                  $"data-date='{dateStr}' data-court='{courtId}' data-courtnum='{courtNum}' " +
-                                  $"data-start='{startStr}' data-end='{endStr}'>Reserve</div>");
+                        sb.Append("<div class='slot reservable' " +
+                                  "data-date='" + dateStr + "' data-court='" + courtId + "' data-courtnum='" + courtNum + "' " +
+                                  "data-start='" + startStr + "' data-end='" + endStr + "'>Reserve</div>");
                         sb.Append("</td>");
                     }
                 }
@@ -736,6 +983,8 @@ WHERE ReservationID = @RID", con))
             phTimeTable.Controls.Add(new LiteralControl(sb.ToString()));
         }
 
+        // This now respects sport filter because dt is already filtered.
+        // If a court number is not present in dt (because different sport), returns -1.
         private int GetCourtIdByNumber(DataTable dt, int courtNumber)
         {
             foreach (DataRow r in dt.Rows)
@@ -743,17 +992,18 @@ WHERE ReservationID = @RID", con))
                 if (Convert.ToInt32(r["CourtNumber"]) == courtNumber)
                     return Convert.ToInt32(r["CourtID"]);
             }
-            return courtNumber;
+            return -1;
         }
 
-        private DataTable GetGridData(DateTime date)
+        private DataTable GetGridData(DateTime date, string sport)
         {
-            string cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+            sport = NormalizeSport(sport);
 
-            using (var con = new SqlConnection(cs))
-            using (var cmd = new SqlCommand())
+            using (SqlConnection con = new SqlConnection(CS))
+            using (SqlCommand cmd = new SqlCommand())
             {
                 cmd.Connection = con;
+
                 cmd.CommandText = @"
 DECLARE @d date = @ResDate;
 
@@ -767,13 +1017,15 @@ WITH Slots AS (
 Courts AS (
   SELECT CourtID, CourtNumber
   FROM tblCourt
-  WHERE IsActive = 1 AND CourtNumber BETWEEN 1 AND 6
+  WHERE IsActive = 1
+    AND CourtNumber BETWEEN 1 AND 6
+    AND (@Sport = '' OR SportName = @Sport)
 ),
 Res AS (
   SELECT CourtID, StartTime, EndTime
   FROM tblReservation
   WHERE ResDate = @d
-    AND Status IN ('Pending','Approved')
+    AND ReservationStatusName IN ('Pending','Approved')
 ),
 Evt AS (
   SELECT TOP 1 EventID
@@ -803,9 +1055,10 @@ CROSS JOIN Slots s
 OPTION (MAXRECURSION 1000);";
 
                 cmd.Parameters.AddWithValue("@ResDate", date.Date);
+                cmd.Parameters.AddWithValue("@Sport", sport);
 
-                var dt = new DataTable();
-                using (var da = new SqlDataAdapter(cmd))
+                DataTable dt = new DataTable();
+                using (SqlDataAdapter da = new SqlDataAdapter(cmd))
                 {
                     da.Fill(dt);
                 }
@@ -813,43 +1066,23 @@ OPTION (MAXRECURSION 1000);";
             }
         }
 
-        protected void ddlSport_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            // keep the currently selected date
-            DateTime d;
-            if (!DateTime.TryParseExact(hfSelectedDate.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out d))
-            {
-                d = DateTime.Today;
-                hfSelectedDate.Value = d.ToString("yyyy-MM-dd");
-                hfResDate.Value = hfSelectedDate.Value;
-            }
-
-            RenderTimeTable(d); // OR RenderTimeTable(d, ddlSport.SelectedValue) if you implement filtering
-            LoadCourtData();    // if courts json depends on sport
-        }
-
         protected void btnResetReservation_Click(object sender, EventArgs e)
         {
-            // dropdowns
-            ddlSport.ClearSelection();
-            ddlSport.SelectedIndex = 0;
+            try { ddlSport.ClearSelection(); } catch { }
+            if (ddlSport != null && ddlSport.Items.Count > 0) ddlSport.SelectedIndex = 0;
 
-            ddlDuration.ClearSelection();
-            if (ddlDuration.Items.FindByValue("1") != null)
+            try { ddlDuration.ClearSelection(); } catch { }
+            if (ddlDuration != null && ddlDuration.Items.FindByValue("1") != null)
                 ddlDuration.SelectedValue = "1";
-            else
+            else if (ddlDuration != null && ddlDuration.Items.Count > 0)
                 ddlDuration.SelectedIndex = 0;
 
-            // textboxes
-            txtFName.Text = "";
+            txtFirstname.Text = "";
+            txtLastname.Text = "";
             txtEmail.Text = "";
             txtContact.Text = "";
-
-            // label
             lblSelectedSlot.Text = "No slot selected.";
 
-            // hidden fields
             hfSelectedCourtID.Value = "";
             hfSelectedDate.Value = "";
             hfCourtID.Value = "";
@@ -858,23 +1091,16 @@ OPTION (MAXRECURSION 1000);";
             hfStartTime.Value = "";
             hfEndTime.Value = "";
 
-            hfRentalCart.Value = "";
+            hfRentalCart.Value = "{}";
             hfRentalItems.Value = "";
             hfRentalStock.Value = "";
 
-            // session cleanup (optional)
             Session.Remove("ReservationDraft");
             Session.Remove("RentalCart");
 
-            // clear timetable
             phTimeTable.Controls.Clear();
-
-            // hide reservation section (server-side)
             reservationSection.Style["display"] = "none";
-
-            // updatepanel refresh (only needed if the button is inside the updatepanel)
             updReservation.Update();
         }
-
     }
 }
