@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
@@ -13,8 +14,11 @@ namespace Smash_IT.homepage
 {
     public partial class profile : System.Web.UI.Page
     {
+
+        //---------------------------------HELPER CLASSES
         private string CS => ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
 
+        
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Session["UserID"] == null)
@@ -40,6 +44,8 @@ namespace Smash_IT.homepage
 
                 BindTopReservation(dt);      // ✅ 1 top upcoming APPROVED (fallback pending)
                 BindReservationLists(dt);    // ✅ modal categories
+                BindPaymentsModal(userId);
+                BindRentalsModal(userId);
             }
         }
 
@@ -380,16 +386,14 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             bool paid = isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase);
 
             Button btnCancel = (Button)e.Item.FindControl("btnCancelReq");
-            Button btnRefund = (Button)e.Item.FindControl("btnRefundReq");
             Label hint = (Label)e.Item.FindControl("lblRuleHint");
 
             bool alreadyRequested = !string.IsNullOrWhiteSpace(req);
 
             bool canCancel = !alreadyRequested && CanRequestCancel(resDate, status);
-            bool canRefund = !alreadyRequested && CanRequestRefund(resDate, status, paid);
+            
 
             if (btnCancel != null) btnCancel.Enabled = canCancel;
-            if (btnRefund != null) btnRefund.Enabled = canRefund;
 
             if (hint != null)
             {
@@ -408,7 +412,6 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             int reservationId = Convert.ToInt32(e.CommandArgument);
 
             if (e.CommandName == "cancel") HandleCancelRequest(userId, reservationId);
-            else if (e.CommandName == "refund") HandleRefundRequest(userId, reservationId);
 
             // Rebind everything
             DataTable dt = GetReservationsForUser(userId);
@@ -463,61 +466,7 @@ WHERE ReservationID=@RID AND UserID=@UID;", con))
             ShowMsg("Cancel request sent. Please wait for admin approval.", false);
         }
 
-        private void HandleRefundRequest(int userId, int reservationId)
-        {
-            DateTime resDate;
-            string status;
-            string req;
-            bool isPaid;
-            string pay;
-
-            using (SqlConnection con = new SqlConnection(CS))
-            using (SqlCommand cmd = new SqlCommand(@"
-SELECT ResDate, ReservationStatusName, ISNULL(RequestStatus,'') AS RequestStatus,
-       ISNULL(IsPaid,0) AS IsPaid, ISNULL(PaymentStatus,'') AS PaymentStatus
-FROM tblReservation
-WHERE ReservationID=@RID AND UserID=@UID;", con))
-            {
-                cmd.Parameters.AddWithValue("@RID", reservationId);
-                cmd.Parameters.AddWithValue("@UID", userId);
-                con.Open();
-
-                using (SqlDataReader dr = cmd.ExecuteReader())
-                {
-                    if (!dr.Read()) { ShowMsg("Reservation not found.", true); return; }
-
-                    resDate = Convert.ToDateTime(dr["ResDate"]);
-                    status = Convert.ToString(dr["ReservationStatusName"] ?? "");
-                    req = Convert.ToString(dr["RequestStatus"] ?? "");
-                    isPaid = dr["IsPaid"] != DBNull.Value && Convert.ToBoolean(dr["IsPaid"]);
-                    pay = Convert.ToString(dr["PaymentStatus"] ?? "");
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(req)) { ShowMsg("You already submitted a request for this reservation.", true); return; }
-
-            bool paid = isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase);
-            if (!CanRequestRefund(resDate, status, paid))
-            {
-                ShowMsg("Refund request not allowed for this reservation (must be paid and not completed/cancelled).", true);
-                return;
-            }
-
-            using (SqlConnection con = new SqlConnection(CS))
-            using (SqlCommand cmd = new SqlCommand(@"
-UPDATE tblReservation
-SET RequestStatus='RefundRequest'
-WHERE ReservationID=@RID AND UserID=@UID;", con))
-            {
-                cmd.Parameters.AddWithValue("@RID", reservationId);
-                cmd.Parameters.AddWithValue("@UID", userId);
-                con.Open();
-                cmd.ExecuteNonQuery();
-            }
-
-            ShowMsg("Refund request sent. Please wait for admin approval.", false);
-        }
-
+    
         private void ShowMsg(string text, bool isError)
         {
             string css = isError ? "alert alert-danger" : "alert alert-success";
@@ -638,6 +587,239 @@ SET PhoneNumber=@P,
 
             Response.Redirect(ResolveUrl("~/homepage/home.aspx"), false);
             Context.ApplicationInstance.CompleteRequest();
+        }
+
+        //------------------- SHOW PAYMENTS -----------------
+        private sealed class PaymentRowVM
+        {
+            public int PaymentID { get; set; }
+            public DateTime? PaymentDate { get; set; }
+            public string PaymentTypeName { get; set; }
+            public int? ReservationID { get; set; }
+            public int? RentalID { get; set; }
+
+            public string DetailsLine1 { get; set; }
+            public string DetailsLine2 { get; set; }
+
+            public decimal AmountPhp { get; set; }
+        }
+
+        private void BindPaymentsModal(int userId)
+        {
+            var list = new List<PaymentRowVM>();
+
+            using (SqlConnection con = new SqlConnection(CS))
+            using (SqlCommand cmd = new SqlCommand(@"
+SELECT TOP 400
+  p.PaymentID,
+  p.PaymentDate,
+  p.PaymentTypeName,
+  p.ReservationID,
+  p.RentalID,
+  p.Amount,
+
+  -- Reservation info (if linked)
+  res.ResDate AS ResDate,
+  res.StartTime AS ResStart,
+  res.EndTime AS ResEnd,
+  c.CourtNumber,
+  ISNULL(res.SportName, c.SportName) AS SportName,
+
+  -- Rental info (if linked)
+  rntl.RentalDate,
+  rntl.ReturnedAt,
+  m.EquipmentType,
+  ISNULL(m.EquipmentSpec,'') AS EquipmentSpec,
+  rntl.UnitPrice
+
+FROM tblPayment p
+LEFT JOIN tblReservation res ON res.ReservationID = p.ReservationID
+LEFT JOIN tblCourt c ON c.CourtID = res.CourtID
+
+LEFT JOIN tblRental rntl ON rntl.RentalID = p.RentalID
+LEFT JOIN tblEquipmentItem ei ON ei.ItemID = rntl.ItemID
+LEFT JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
+
+WHERE p.UserID = @UID
+ORDER BY 
+  ISNULL(p.PaymentDate, '19000101') DESC,
+  p.PaymentID DESC;", con))
+            {
+                cmd.Parameters.AddWithValue("@UID", userId);
+                con.Open();
+
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    while (dr.Read())
+                    {
+                        int amountCentavos = Convert.ToInt32(dr["Amount"]);
+                        decimal amountPhp = amountCentavos / 100m;
+
+                        string type = Convert.ToString(dr["PaymentTypeName"] ?? "");
+                        int? reservationId = dr["ReservationID"] == DBNull.Value ? (int?)null : Convert.ToInt32(dr["ReservationID"]);
+                        int? rentalId = dr["RentalID"] == DBNull.Value ? (int?)null : Convert.ToInt32(dr["RentalID"]);
+
+                        // Build details depending on what it links to
+                        string line1 = "";
+                        string line2 = "";
+
+                        // If it’s reservation-linked
+                        if (reservationId.HasValue && dr["ResDate"] != DBNull.Value)
+                        {
+                            var resDate = Convert.ToDateTime(dr["ResDate"]);
+                            var st = (TimeSpan)dr["ResStart"];
+                            var et = (TimeSpan)dr["ResEnd"];
+
+                            string startStr = DateTime.Today.Add(st).ToString("hh:mm tt");
+                            string endStr = DateTime.Today.Add(et).ToString("hh:mm tt");
+
+                            string sport = Convert.ToString(dr["SportName"] ?? "");
+                            string court = dr["CourtNumber"] == DBNull.Value ? "" : ("Court " + Convert.ToInt32(dr["CourtNumber"]));
+
+                            line1 = $"Reservation #{reservationId.Value} • {court} • {sport}";
+                            line2 = $"{resDate:yyyy-MM-dd} • {startStr} - {endStr}";
+                        }
+                        // Else if it’s rental-linked
+                        else if (rentalId.HasValue && dr["RentalDate"] != DBNull.Value)
+                        {
+                            DateTime rentalDate = Convert.ToDateTime(dr["RentalDate"]);
+                            string equipType = Convert.ToString(dr["EquipmentType"] ?? "");
+                            string spec = Convert.ToString(dr["EquipmentSpec"] ?? "");
+                            string itemName = string.IsNullOrWhiteSpace(spec) ? equipType : $"{equipType} ({spec})";
+
+                            string returned = (dr["ReturnedAt"] == DBNull.Value)
+                                ? "Not returned"
+                                : Convert.ToDateTime(dr["ReturnedAt"]).ToString("yyyy-MM-dd HH:mm");
+
+                            line1 = $"Rental #{rentalId.Value} • {itemName}";
+                            line2 = $"{rentalDate:yyyy-MM-dd HH:mm} • Returned: {returned}";
+                        }
+                        else
+                        {
+                            line1 = $"Payment #{Convert.ToInt32(dr["PaymentID"])}";
+                            line2 = "—";
+                        }
+
+                        list.Add(new PaymentRowVM
+                        {
+                            PaymentID = Convert.ToInt32(dr["PaymentID"]),
+                            PaymentDate = dr["PaymentDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(dr["PaymentDate"]),
+                            PaymentTypeName = type,
+                            ReservationID = reservationId,
+                            RentalID = rentalId,
+                            DetailsLine1 = line1,
+                            DetailsLine2 = line2,
+                            AmountPhp = amountPhp * 100
+                        });
+                    }
+                }
+            }
+
+            pnlPaymentsEmpty.Visible = (list.Count == 0);
+            rptPayments.DataSource = list;
+            rptPayments.DataBind();
+        }
+        // --------------RENTALS MODAL --------------
+        private sealed class RentalRowVM
+        {
+            public int RentalID { get; set; }
+            public int? ReservationID { get; set; }
+            public DateTime RentalDate { get; set; }
+            public DateTime? ReturnedAt { get; set; }
+
+            public string ItemName { get; set; }
+            public decimal UnitPrice { get; set; }
+            public string IsPaidDisplay { get; set; }
+
+            public string ReservationInfo { get; set; } // court/sport/date/time if linked
+            public string ReturnedAtDisplay { get; set; }
+        }
+
+        private void BindRentalsModal(int userId)
+        {
+            var list = new List<RentalRowVM>();
+
+            using (SqlConnection con = new SqlConnection(CS))
+            using (SqlCommand cmd = new SqlCommand(@"
+SELECT TOP 500
+  rntl.RentalID,
+  rntl.ReservationID,
+  rntl.RentalDate,
+  rntl.ReturnedAt,
+  rntl.UnitPrice,
+  rntl.IsPaid,
+
+  m.EquipmentType,
+  ISNULL(m.EquipmentSpec,'') AS EquipmentSpec,
+
+  -- reservation info if linked
+  res.ResDate,
+  res.StartTime,
+  res.EndTime,
+  c.CourtNumber,
+  ISNULL(res.SportName, c.SportName) AS SportName
+
+FROM tblRental rntl
+JOIN tblEquipmentItem ei ON ei.ItemID = rntl.ItemID
+JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
+
+LEFT JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
+LEFT JOIN tblCourt c ON c.CourtID = res.CourtID
+
+WHERE rntl.UserID = @UID
+ORDER BY rntl.RentalDate DESC, rntl.RentalID DESC;", con))
+            {
+                cmd.Parameters.AddWithValue("@UID", userId);
+                con.Open();
+
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    while (dr.Read())
+                    {
+                        string type = Convert.ToString(dr["EquipmentType"]);
+                        string spec = Convert.ToString(dr["EquipmentSpec"]);
+                        string itemName = string.IsNullOrWhiteSpace(spec) ? type : $"{type} ({spec})";
+
+                        bool isPaid = Convert.ToBoolean(dr["IsPaid"]);
+                        DateTime rentalDate = Convert.ToDateTime(dr["RentalDate"]);
+
+                        DateTime? returnedAt = dr["ReturnedAt"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(dr["ReturnedAt"]);
+                        string returnedDisplay = returnedAt.HasValue ? returnedAt.Value.ToString("yyyy-MM-dd HH:mm") : "Not returned";
+
+                        string reservationInfo = "Walk-in / No reservation";
+                        if (dr["ReservationID"] != DBNull.Value && dr["ResDate"] != DBNull.Value)
+                        {
+                            int rid = Convert.ToInt32(dr["ReservationID"]);
+                            var resDate = Convert.ToDateTime(dr["ResDate"]);
+                            var st = (TimeSpan)dr["StartTime"];
+                            var et = (TimeSpan)dr["EndTime"];
+                            string startStr = DateTime.Today.Add(st).ToString("hh:mm tt");
+                            string endStr = DateTime.Today.Add(et).ToString("hh:mm tt");
+                            string sport = Convert.ToString(dr["SportName"] ?? "");
+                            string court = dr["CourtNumber"] == DBNull.Value ? "" : ("Court " + Convert.ToInt32(dr["CourtNumber"]));
+
+                            reservationInfo = $"Reservation #{rid} • {court} • {sport} • {resDate:yyyy-MM-dd} • {startStr}-{endStr}";
+                        }
+
+                        list.Add(new RentalRowVM
+                        {
+                            RentalID = Convert.ToInt32(dr["RentalID"]),
+                            ReservationID = dr["ReservationID"] == DBNull.Value ? (int?)null : Convert.ToInt32(dr["ReservationID"]),
+                            RentalDate = rentalDate,
+                            ReturnedAt = returnedAt,
+                            ItemName = itemName,
+                            UnitPrice = Convert.ToDecimal(dr["UnitPrice"]),
+                            IsPaidDisplay = isPaid ? "Yes" : "No",
+                            ReservationInfo = reservationInfo,
+                            ReturnedAtDisplay = returnedDisplay
+                        });
+                    }
+                }
+            }
+
+            pnlRentalsEmpty.Visible = (list.Count == 0);
+            rptRentals.DataSource = list;
+            rptRentals.DataBind();
         }
     }
 }

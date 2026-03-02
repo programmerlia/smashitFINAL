@@ -285,7 +285,7 @@
 
     /* Duration range (continuation) */
     .slot.selected-range {
-        outline: 2px dashed rgba(25,135,84,.70);
+        outline: 2px rgba(25,135,84,.70);
         opacity: .92;
     }
 

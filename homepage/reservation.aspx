@@ -8,20 +8,7 @@
   <link rel="stylesheet" href='<%= ResolveUrl("~/css/res_active.css") %>' />
 
   <script>
-      // NOTE:
-      // - This ASPX keeps your UI layout.
-      // - It is "revamped" to align with your DB/payment rules:
-      //   * PayMongo charge NOW = rentals (100%) + court (50%)
-      //   * Reservation.RequiredAmount stored = rentals (100%) + court (100%)
-      // - Court full price and deposit are computed SERVER-SIDE (in btnSubmitReservation_Click).
-      // - In UI, we show: Court Total (100%), Rentals Total (100%), Pay Now (rentals + 50% court), Required Amount (grand total).
-      //
-      // Important for DB:
-      // - tblPayment 2 inserts are NOT done here. They happen after PayMongo confirms PAID
-      //   (success page with verification or webhook), same ReservationID, 2 rows:
-      //     1) PaymentType='Rental' Amount=RentalsFull  PaymentStatus='Paid'
-      //     2) PaymentType='Reservation' Amount=CourtDeposit PaymentStatus='HalfPaid'
-
+    
       window.resConfig = {
           ids: {
               btnReserveNow: "<%= btnReserveNow.ClientID %>",
@@ -112,12 +99,13 @@
   <asp:HiddenField ID="hfRentalCart" runat="server" ClientIDMode="Static" />
   <asp:HiddenField ID="hfRentalItems" runat="server" ClientIDMode="Static" />
   <asp:HiddenField ID="hfRentalStock" runat="server" ClientIDMode="Static" />
-
+  <div style="display:flex;  align-items: flex-start;
+    justify-content: center;">
   <div id="reservationSection"
        runat="server"
        ClientIDMode="Static"
        class="reservation-section"
-       style="display:none;  flex-direction: column;">
+       style="display:none; ">
 
        <div class="container" style="display:block">
     <!-- Step indicator -->
@@ -162,7 +150,7 @@
           CssClass="row g-4">
         <ContentTemplate>
 
-          <div style="display:block; padding:5px; ">
+          <div style="display:flex; padding:5px; ">
             <!-- LEFT: Calendar -->
             <div class="col-12 col-lg-4">
               <div class="card shadow-sm p-3">
@@ -305,20 +293,16 @@
             </div>
 
             <!-- Required Amount (Court 100% + Rentals 100%) -->
-            <div class="p-3">
-              <div class="d-flex justify-content-between">
-                <span class="fw-bold">Required Amount (Stored)</span>
+            <div style="display:none;">
+              
                 <span id="requiredAmountStored" class="fw-bold">₱ 0</span>
-              </div>
-              <div class="small text-muted mt-1">
-                This is saved to the reservation record (court full + rentals full).
-              </div>
+             
             </div>
 
             <!-- Pay Now (Rentals 100% + Court 50%) -->
             <div class="total-price-display mb-3">
               <div class="label">Pay Now (PayMongo):</div>
-              <div id="payNowTotal" class="amount">₱ 0</div>
+              <div id="summary-totalPrice" class="amount">₱ 0</div>
               <div class="small text-muted mt-1">
                 You pay rentals (100%) + court deposit (50%) once via PayMongo.
               </div>
@@ -389,7 +373,7 @@
             <!-- Pay Now total shown here too -->
             <div class="total-price-display">
               <div class="label">Pay Now (PayMongo):</div>
-              <div id="summary-payNowTotal" class="amount">₱ 0</div>
+              <div id="summary-totalPrice" class="amount">₱ 0</div>
             </div>
           </div>
 
@@ -440,7 +424,7 @@
     </div>
   </div>
   </div>
-
+  </div>
   <!-- ============ ABOUT (3/4 IMAGE + 1/4 TEXT) ============ -->
   <div class="container section-padding">
     <div class="row align-items-center g-5 text-center text-md-start">

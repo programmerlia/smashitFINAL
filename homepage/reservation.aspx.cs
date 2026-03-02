@@ -1,14 +1,4 @@
-﻿// reservation.aspx.cs (FULL rewrite — MATCHES YOUR DB + C# 4)
-// DB assumptions based on your schema:
-// - tblCourt(CourtID, CourtNumber, SportName, IsActive)
-// - tblReservation(..., ResDate, StartTime, EndTime, ReservationStatusName, RequestStatus, IsPaid, PaymentStatus, RequiredAmount, PaymongoCheckoutSessionID)
-// - tblEquipmentModel(ModelID, EquipmentType, EquipmentSpec, DefaultRentalPrice)
-// - tblEquipmentItem(ItemID, ModelID)
-// - tblRental(RentalID, ReservationID, ItemID, ReturnedAt, UnitPrice, IsPaid) + trigger sets UnitPrice
-// - tblCourtQueue(StatusName, ReservationID, CourtID, QueueDate, ...)
-// - tblEvent(EventDate, IsActive), tblEventCourtPool(EventID, CourtID)
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -436,16 +426,59 @@ VALUES (@ReservationID, @ItemID, 0);", con, tx))
 
             RenderTimeTable(selectedDate, GetSelectedSport());
 
+            string sport = GetSelectedSport(); // badminton/pickleball or ""
             string query = @"
+DECLARE @d date = @ResDate;
+
+;WITH Courts AS (
+    SELECT CourtID
+    FROM tblCourt
+    WHERE IsActive = 1
+  AND (
+        @Sport = '' 
+        OR SportName = @Sport
+        OR CourtNumber IN (5,6)
+      )
+),
+NonReservableSlots AS (
+    -- slots that are NOT Reservation mode
+    SELECT a.StartTime, a.EndTime
+    FROM tblCourtAvailability a
+    JOIN Courts c ON c.CourtID = a.CourtID
+    WHERE a.[Date] = @d
+      AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
+),
+ReservedSlots AS (
+    -- slots blocked by APPROVED reservations
+    SELECT a.StartTime, a.EndTime
+    FROM tblCourtAvailability a
+    JOIN Courts c ON c.CourtID = a.CourtID
+    WHERE a.[Date] = @d
+      AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
+      AND EXISTS (
+          SELECT 1
+          FROM tblReservation r
+          WHERE r.CourtID = a.CourtID
+            AND r.ResDate = @d
+            AND r.ReservationStatusName NOT IN  ('Approved', 'Pending')
+            AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
+      )
+),
+AllBad AS (
+    SELECT StartTime, EndTime FROM NonReservableSlots
+    UNION
+    SELECT StartTime, EndTime FROM ReservedSlots
+)
 SELECT StartTime, EndTime
-FROM tblReservation
-WHERE ResDate = @ResDate
-  AND ReservationStatusName NOT IN ('Cancelled','Completed');";
+FROM AllBad
+GROUP BY StartTime, EndTime
+ORDER BY StartTime;";
 
             using (SqlConnection conn = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.AddWithValue("@ResDate", selectedDate.Date);
+                cmd.Parameters.AddWithValue("@Sport", sport);
                 conn.Open();
 
                 List<string> unavailable = new List<string>();
@@ -636,6 +669,31 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
                 {
                     try
                     {
+
+                        // Validate: chosen slot must be Reservation mode in tblCourtAvailability
+                        using (SqlCommand cmdMode = new SqlCommand(@"
+IF EXISTS (
+    SELECT 1
+    FROM tblCourtAvailability a
+    WHERE a.CourtID = @CourtID
+      AND a.[Date]  = @ResDate
+      AND a.StartTime < @EndTime
+      AND a.EndTime   > @StartTime
+     AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
+)
+    SELECT 1;
+ELSE
+    SELECT 0;", con, tx))
+                        {
+                            cmdMode.Parameters.AddWithValue("@CourtID", courtId);
+                            cmdMode.Parameters.AddWithValue("@ResDate", resDate.Date);
+                            cmdMode.Parameters.AddWithValue("@StartTime", startTime);
+                            cmdMode.Parameters.AddWithValue("@EndTime", endTime);
+
+                            int notReservable = Convert.ToInt32(cmdMode.ExecuteScalar());
+                            if (notReservable == 1)
+                                throw new Exception("That time is not reservable (Queue / PlayForAll / Closed).");
+                        }
                         // Prevent overlap on same court (basic protection)
                         using (SqlCommand cmdOverlap = new SqlCommand(@"
 SELECT COUNT(*)
@@ -943,35 +1001,62 @@ WHERE ReservationID=@RID;", con, tx))
                     }
 
                     string k = courtId.ToString() + "|" + t.ToString();
-                    bool blocked = false;
+                    bool blocked = true;       // default blocked if no row exists
                     bool isQueue = false;
+                    bool isClosed = false;
+                    bool isPfa = false;
+                    bool isReservable = false;
 
                     if (map.ContainsKey(k))
                     {
                         blocked = Convert.ToInt32(map[k]["IsReservedBlocked"]) == 1;
                         isQueue = Convert.ToInt32(map[k]["IsQueueCourt"]) == 1;
+                        isClosed = Convert.ToInt32(map[k]["IsClosed"]) == 1;
+                        isPfa = Convert.ToInt32(map[k]["IsPlayForAll"]) == 1;
+                        isReservable = Convert.ToInt32(map[k]["IsReservable"]) == 1;
+                    }
+                    else
+                    {
+                        // No availability row = treat as Closed/Blocked
+                        blocked = true;
                     }
 
-                    if (blocked)
+                    if (isClosed)
                     {
-                        sb.Append("<td><div class='slot blocked'>Blocked</div></td>");
+                        sb.Append("<td><div class='slot blocked'>Closed</div></td>");
+                    }
+                    else if (isPfa)
+                    {
+                        sb.Append("<td><div class='slot blocked'>PFA</div></td>");
                     }
                     else if (isQueue)
                     {
                         sb.Append("<td><div class='slot queue'>Queue</div></td>");
                     }
+                    else if (blocked)
+                    {
+                        sb.Append("<td><div class='slot blocked'>Reserved</div></td>");
+                    }
+                    else if (!isReservable)
+                    {
+                        sb.Append("<td><div class='slot blocked'>N/A</div></td>");
+                    }
                     else
                     {
                         string dateStr = date.ToString("yyyy-MM-dd");
-                        string startStr = ((int)t.TotalHours).ToString("D2") + ":" + t.Minutes.ToString("D2");
-                        string endStr = ((int)tEnd.TotalHours).ToString("D2") + ":" + tEnd.Minutes.ToString("D2");
+                        string startStr = t.ToString(@"hh\:mm"); // 24h "HH:mm"
 
                         sb.Append("<td>");
-                        sb.Append("<div class='slot reservable' " +
-                                  "data-date='" + dateStr + "' data-court='" + courtId + "' data-courtnum='" + courtNum + "' " +
-                                  "data-start='" + startStr + "' data-end='" + endStr + "'>Reserve</div>");
+                        sb.Append("<div class='slot reservable available' " +
+                                  "data-court='" + courtId + "' " +
+                                  "data-courtnum='" + courtNum + "' " +
+                                  "data-date='" + dateStr + "' " +
+                                  "data-start='" + startStr + "'>");
+                        sb.Append("Available");
+                        sb.Append("</div>");
                         sb.Append("</td>");
                     }
+
                 }
 
                 sb.Append("</tr>");
@@ -1007,55 +1092,39 @@ WHERE ReservationID=@RID;", con, tx))
                 cmd.CommandText = @"
 DECLARE @d date = @ResDate;
 
-WITH Slots AS (
-  SELECT CAST('08:00:00' AS time) AS SlotStart
-  UNION ALL
-  SELECT DATEADD(MINUTE, 30, SlotStart)
-  FROM Slots
-  WHERE SlotStart < '23:30:00'
-),
-Courts AS (
-  SELECT CourtID, CourtNumber
-  FROM tblCourt
-  WHERE IsActive = 1
-    AND CourtNumber BETWEEN 1 AND 6
-    AND (@Sport = '' OR SportName = @Sport)
-),
-Res AS (
-  SELECT CourtID, StartTime, EndTime
-  FROM tblReservation
-  WHERE ResDate = @d
-    AND ReservationStatusName IN ('Pending','Approved')
-),
-Evt AS (
-  SELECT TOP 1 EventID
-  FROM tblEvent
-  WHERE EventDate = @d AND IsActive = 1
-),
-EvtCourts AS (
-  SELECT ecp.CourtID
-  FROM tblEventCourtPool ecp
-  JOIN Evt ON Evt.EventID = ecp.EventID
-)
 SELECT
-  c.CourtID,
-  c.CourtNumber,
-  s.SlotStart,
-  CASE WHEN EXISTS (
-    SELECT 1 FROM Res r
-    WHERE r.CourtID = c.CourtID
-      AND s.SlotStart >= r.StartTime
-      AND s.SlotStart <  r.EndTime
-  ) THEN 1 ELSE 0 END AS IsReservedBlocked,
-  CASE WHEN EXISTS (
-    SELECT 1 FROM EvtCourts ec WHERE ec.CourtID = c.CourtID
-  ) THEN 1 ELSE 0 END AS IsQueueCourt
-FROM Courts c
-CROSS JOIN Slots s
-OPTION (MAXRECURSION 1000);";
+    c.CourtID,
+    c.CourtNumber,
+    a.StartTime AS SlotStart,
+
+    CASE WHEN EXISTS (
+        SELECT 1
+        FROM tblReservation r
+        WHERE r.CourtID = c.CourtID
+          AND r.ResDate = @d
+          AND r.ReservationStatusName IN ('Approved', 'Pending')
+          AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
+    ) THEN 1 ELSE 0 END AS IsReservedBlocked,
+
+    CASE WHEN a.ModeName = 'Queue' THEN 1 ELSE 0 END AS IsQueueCourt,
+    CASE WHEN a.ModeName = 'Closed' THEN 1 ELSE 0 END AS IsClosed,
+    CASE WHEN a.ModeName = 'PlayForAll' THEN 1 ELSE 0 END AS IsPlayForAll,
+    CASE WHEN a.ModeName = 'Reservation' THEN 1 ELSE 0 END AS IsReservable
+
+FROM tblCourtAvailability a
+JOIN tblCourt c ON c.CourtID = a.CourtID
+WHERE a.[Date] = @d
+  AND c.IsActive = 1
+  AND c.CourtNumber BETWEEN 1 AND 6
+  AND (
+        @SportName = ''
+        OR c.SportName = @SportName
+        OR c.CourtNumber IN (5,6)
+      )
+ORDER BY c.CourtNumber, a.StartTime;";
 
                 cmd.Parameters.AddWithValue("@ResDate", date.Date);
-                cmd.Parameters.AddWithValue("@Sport", sport);
+                cmd.Parameters.AddWithValue("@SportName", sport);
 
                 DataTable dt = new DataTable();
                 using (SqlDataAdapter da = new SqlDataAdapter(cmd))

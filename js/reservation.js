@@ -57,7 +57,8 @@ window.resetReservationUI = function resetReservationUI() {
     const ids = window.resConfig?.ids || {};
     const clearById = (domId) => { const el = document.getElementById(domId); if (el) el.value = ""; };
 
-    if (ids.txtFName) clearById(ids.txtFName);
+    if (ids.txtFirstname) clearById(ids.txtFirstname);
+    if (ids.txtLastname) clearById(ids.txtLastname);
     if (ids.txtEmail) clearById(ids.txtEmail);
     if (ids.txtContact) clearById(ids.txtContact);
 
@@ -97,7 +98,8 @@ window.resetReservationUI = function resetReservationUI() {
     setText("summaryTime", "---");
     setText("summaryDuration", "---");
     setText("summaryPlayers", "1");
-    setText("summaryFName", "------");
+    setText("summaryFirstname", "------");
+    setText("summaryLastname", "------");
     setText("summaryContact", "------");
     setText("summaryEmail", "------");
 
@@ -242,7 +244,8 @@ window.resetReservationUI = function resetReservationUI() {
             start: HF.start()?.value || "",
             end: HF.end()?.value || "",
             players: $("numPlayers")?.value || "1",
-            fullName: $id("txtFName")?.value || "",
+            firstname: $id("txtFirstname")?.value || "",
+            lastname: $id("txtLastname")?.value || "",
             email: $id("txtEmail")?.value || "",
             contact: $id("txtContact")?.value || ""
         };
@@ -269,7 +272,8 @@ window.resetReservationUI = function resetReservationUI() {
         if ($("numPlayers") && sel.players) $("numPlayers").value = sel.players;
 
         // info inputs (don’t overwrite if user already typed)
-        if ($id("txtFName") && sel.fullName && !$id("txtFName").value) $id("txtFName").value = sel.fullName;
+        if ($id("txtFirstname") && sel.firstname && !$id("txtFirstname").value) $id("txtFirstname").value = sel.firstname;
+        if ($id("txtLastname") && sel.lastname && !$id("txtLastname").value) $id("txtLastname").value = sel.lastname;
         if ($id("txtEmail") && sel.email && !$id("txtEmail").value) $id("txtEmail").value = sel.email;
         if ($id("txtContact") && sel.contact && !$id("txtContact").value) $id("txtContact").value = sel.contact;
     }
@@ -308,7 +312,7 @@ window.resetReservationUI = function resetReservationUI() {
             if (!courtId) return;
 
             const court = (courts || []).find(x => String(x.CourtID) === String(courtId));
-            const sport = String(court?.Sport || "").toLowerCase();
+            const sport = String(court?.SportName || "").toLowerCase();
 
             el.classList.remove("sport-badminton", "sport-pickleball", "sport-disabled");
 
@@ -337,7 +341,7 @@ window.resetReservationUI = function resetReservationUI() {
         const cur = getSelection();
         if (cur.courtId) {
             const court = (courts || []).find(x => String(x.CourtID) === String(cur.courtId));
-            const sport = String(court?.Sport || "").toLowerCase();
+            const sport = String(court?.SportName || "").toLowerCase();
             if (sport && sport !== selected) {
                 setSelection({ ...cur, courtId: "", start: "", end: "" });
                 clearSlotVisuals();
@@ -664,7 +668,7 @@ window.resetReservationUI = function resetReservationUI() {
         // compute court display
         const court = (courts || []).find(c => String(c.CourtID) === String(sel.courtId));
         const courtNum = court ? court.CourtNumber : "---";
-        const sport = court ? court.Sport : (sel.sport ? sel.sport : "---");
+        const sport = court ? court.SportName : (sel.sport ? sel.sport : "---");
 
         const timeRange = (sel.start && sel.end)
             ? `${formatTime12Hour(sel.start)} - ${formatTime12Hour(sel.end)}`
@@ -697,7 +701,8 @@ window.resetReservationUI = function resetReservationUI() {
         if ($("summary-totalPrice")) $("summary-totalPrice").innerText = "₱ " + grand.toFixed(2);
 
         // user summary text (Step3)
-        if ($("summaryFName")) $("summaryFName").innerText = $id("txtFName")?.value || "------";
+        if ($("summaryFirstname")) $("summaryFirstname").innerText = $id("txtFirstname")?.value || "------";
+        if ($("summaryLastname")) $("summaryLastname").innerText = $id("txtLastname")?.value || "------";
         if ($("summaryEmail")) $("summaryEmail").innerText = $id("txtEmail")?.value || "------";
         if ($("summaryContact")) $("summaryContact").innerText = $id("txtContact")?.value || "------";
 
@@ -767,17 +772,19 @@ window.resetReservationUI = function resetReservationUI() {
     // Player info auto-fill + live binding
     // =========================
     function fillUserInfoIfEmpty() {
-        const n = $id("txtFName");
+        const fn = $id("txtFirstname");
+        const ln = $id("txtLastname");
         const e = $id("txtEmail");
         const p = $id("txtContact");
 
-        if (n && !n.value) n.value = sessionUser.fullName || "";
+        if (fn && !fn.value) fn.value = sessionUser.firstname || "";
+        if (ln && !ln.value) ln.value = sessionUser.lastname || "";
         if (e && !e.value) e.value = sessionUser.email || "";
         if (p && !p.value) p.value = sessionUser.phone || "";
     }
 
     function bindInfoInputsOnce() {
-        const inputs = [$id("txtFName"), $id("txtEmail"), $id("txtContact")];
+        const inputs = [$id("txtFLastname"), $id("txtFirstname"), $id("txtEmail"), $id("txtContact")];
         inputs.forEach(i => {
             if (!i) return;
             if (i.dataset.bound === "1") return;
@@ -1013,9 +1020,6 @@ window.resetReservationUI = function resetReservationUI() {
     function resetInitialNoPreselect() {
         const sport = $id("ddlSport");
         if (sport) sport.value = "";
-
-        if (HF.selectedDate()) HF.selectedDate().value = "";
-        if (HF.resDate()) HF.resDate().value = "";
 
         const cur = getSelection();
         setSelection({ ...cur, courtId: "", start: "", end: "" });

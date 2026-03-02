@@ -160,6 +160,7 @@
                 <!-- STATS -->
                 <div class="cardx">
                     <h4>Your Stats</h4>
+                    <!--Bookings-->
                     <div class="row g-2 mt-2">
                         <div class="col-6">
                             <div class="stat">
@@ -180,6 +181,20 @@
                             </div>
                         </div>
                     </div>
+                    <!--Buttons for payments and REntals-->
+                    <div style="display: flex;
+    justify-content: space-evenly;
+    margin: 10px 10px 10px;">
+  <button type="button" class="btn btn-outline-success btn-outline-soft"
+          data-bs-toggle="modal" data-bs-target="#paymentsModal">
+    Payments
+  </button>
+
+  <button type="button" class="btn btn-outline-success btn-outline-soft"
+          data-bs-toggle="modal" data-bs-target="#rentalsModal">
+    Rentals
+  </button>
+</div>
                 </div>
             
 
@@ -284,6 +299,7 @@
 </script>
 
 
+<!--MODAL FOR RESERVATOIN-->
 <div class="modal fade" id="allResModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -373,11 +389,7 @@
                         CommandName="cancel"
                         CommandArgument='<%# Eval("ReservationID") %>' />
 
-                    <asp:Button ID="btnRefundReq" runat="server"
-                        CssClass="btn btn-outline-warning btn-outline-soft"
-                        Text="Request Refund"
-                        CommandName="refund"
-                        CommandArgument='<%# Eval("ReservationID") %>' />
+
                   </div>
 
                   <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
@@ -429,8 +441,6 @@
                   <div class="res-actions mt-2">
                     <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
                         Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
-                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
-                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
                   </div>
 
                   <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
@@ -479,8 +489,8 @@
                   <div class="res-actions mt-2">
                     <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
                         Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
-                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
-                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
+
+
                   </div>
 
                   <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
@@ -529,8 +539,6 @@
                   <div class="res-actions mt-2">
                     <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
                         Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
-                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
-                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
                   </div>
 
                   <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
@@ -579,8 +587,6 @@
                   <div class="res-actions mt-2">
                     <asp:Button ID="btnCancelReq" runat="server" CssClass="btn btn-outline-danger btn-outline-soft"
                         Text="Request Cancel" CommandName="cancel" CommandArgument='<%# Eval("ReservationID") %>' />
-                    <asp:Button ID="btnRefundReq" runat="server" CssClass="btn btn-outline-warning btn-outline-soft"
-                        Text="Request Refund" CommandName="refund" CommandArgument='<%# Eval("ReservationID") %>' />
                   </div>
 
                   <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
@@ -595,6 +601,112 @@
           </div>
 
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--MODAL FOR PAYMENTT-->
+<div class="modal fade" id="paymentsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-weight:800;">My Payments</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <asp:Panel ID="pnlPaymentsEmpty" runat="server" Visible="false">
+          <div class="muted">No payments yet.</div>
+        </asp:Panel>
+
+      <asp:Repeater ID="rptPayments" runat="server">
+  <HeaderTemplate>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Details</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+  </HeaderTemplate>
+
+  <ItemTemplate>
+    <tr>
+      <td><%# Eval("PaymentDate") == null ? "—" : ((DateTime)Eval("PaymentDate")).ToString("yyyy-MM-dd") %></td>
+      <td style="font-weight:800;"><%# Eval("PaymentTypeName") %></td>
+      <td class="muted">
+        <div style="font-weight:700; color:#333;"><%# Eval("DetailsLine1") %></div>
+        <div class="small muted"><%# Eval("DetailsLine2") %></div>
+      </td>
+      <td class="text-end" style="font-weight:900;">₱ <%# Eval("AmountPhp","{0:N2}") %></td>
+    </tr>
+  </ItemTemplate>
+
+  <FooterTemplate>
+        </tbody>
+      </table>
+    </div>
+  </FooterTemplate>
+</asp:Repeater>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-outline-soft" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!--MODAL FOR RENTAL-->
+<div class="modal fade" id="rentalsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-weight:800;">My Rentals</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <asp:Panel ID="pnlRentalsEmpty" runat="server" Visible="false">
+          <div class="muted">No rentals yet.</div>
+        </asp:Panel>
+
+     <asp:Repeater ID="rptRentals" runat="server">
+  <ItemTemplate>
+    <div class="res-item mb-3">
+      <div style="font-weight:900;">
+        Rental #<%# Eval("RentalID") %> • <%# Eval("ItemName") %>
+      </div>
+
+      <div class="muted small">
+        <%# Eval("ReservationInfo") %>
+      </div>
+
+      <div class="mt-2 d-flex justify-content-between flex-wrap">
+        <div class="muted small">
+          Rented: <b><%# Eval("RentalDate","{0:yyyy-MM-dd HH:mm}") %></b><br />
+          Returned: <b><%# Eval("ReturnedAtDisplay") %></b>
+        </div>
+
+        <div class="text-end">
+          <div class="muted small">Unit Price</div>
+          <div style="font-weight:900;">₱ <%# Eval("UnitPrice","{0:N2}") %></div>
+          <div class="muted small">Paid: <b><%# Eval("IsPaidDisplay") %></b></div>
+        </div>
+      </div>
+    </div>
+  </ItemTemplate>
+</asp:Repeater>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-outline-soft" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
