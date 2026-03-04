@@ -42,7 +42,8 @@
     window.hfCourtIDClientID = "<%= hfCourtID.ClientID %>";
     window.hfCourtNumClientID = "<%= hfCourtNum.ClientID %>";
     window.hfResDateClientID = "<%= hfResDate.ClientID %>";
-    window.hfStartTimeClientID = "<%= hfStartTime.ClientID %>";
+      window.hfStartTimeClientID = "<%= hfStartTime.ClientID %>";
+      window.ddlSportClientID = "<%= ddlSport.ClientID %>"; // optional but helpful
     window.hfEndTimeClientID = "<%= hfEndTime.ClientID %>";
     window.lblSelectedSlotClientID = "<%= lblSelectedSlot.ClientID %>";
 
@@ -150,7 +151,7 @@
           CssClass="row g-4">
         <ContentTemplate>
 
-          <div style="display:flex; padding:5px; ">
+         <div class="row g-3">
             <!-- LEFT: Calendar -->
             <div class="col-12 col-lg-4">
               <div class="card shadow-sm p-3">
@@ -158,6 +159,7 @@
 
                 <asp:Calendar ID="Calendar1" runat="server"
                   OnSelectionChanged="Calendar1_SelectionChanged"
+                    OnDayRender="Calendar1_DayRender"
                   CssClass="calendar-compact w-100">
                   <SelectedDayStyle BackColor="#1a187c" ForeColor="White" />
                   <TitleStyle Font-Bold="True" />
@@ -221,11 +223,10 @@
 
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
                   <small class="text-muted">
-                    <span class="badge bg-success">Reservable</span>
-                    <span class="badge bg-info text-dark">Queue</span>
-                    <span class="badge bg-danger">Blocked</span>
-                    <span class="badge bg-primary">Badminton</span>
-                    <span class="badge bg-warning text-dark">Pickleball</span>
+                    <span class="badge" style="background-color:#DEE9FB; color:#0B61DD;">Reservable</span>
+                    <span class="badge" style="background-color:#D8F6FD; color:#055160;">Queue</span>
+                    <span class="badge" style="background-color: #F8E2E5; color:#90363E; ">Blocked</span>
+             
                   </small>
 
                   <asp:Button ID="btn_proceed_rentals"
@@ -243,11 +244,13 @@
           <asp:AsyncPostBackTrigger ControlID="Calendar1" EventName="SelectionChanged" />
           <asp:PostBackTrigger ControlID="btnSubmitReservation" />
           <asp:AsyncPostBackTrigger ControlID="btnResetReservation" EventName="Click" />
+          <asp:AsyncPostBackTrigger ControlID="ddlSport" EventName="SelectedIndexChanged" />
         </Triggers>
       </asp:UpdatePanel>
     </div>
 
     <!-- ===================== STEP 2: RENTALS ===================== -->
+    <div style="display:block;">
     <div id="rentalSelectionSection" class="row g-4" style="display:none;">
       <div class="row">
         <div class="col-lg-8">
@@ -317,8 +320,9 @@
         </div>
       </div>
     </div>
-
+    </div>
     <!-- ===================== STEP 3: INFO/PAYMENT ===================== -->
+    <div style="display:block">
     <div id="infoSection" class="row g-5" style="display:none;">
       <div class="row">
         <div class="col-lg-8">
@@ -373,12 +377,12 @@
             <!-- Pay Now total shown here too -->
             <div class="total-price-display">
               <div class="label">Pay Now (PayMongo):</div>
-              <div id="summary-totalPrice" class="amount">₱ 0</div>
+              <div id="summary-totalPriceInfo" class="amount">₱ 0</div>
             </div>
           </div>
 
           <!-- Also show Required Amount stored -->
-          <div class="mt-3 small text-muted">
+          <div class="mt-3 small text-muted" style="display:none;">
             Required Amount stored in reservation (Court 100% + Rentals 100%):
             <b><span id="summary-requiredAmountStored">₱ 0</span></b>
           </div>
@@ -422,6 +426,7 @@
         </div>
       </div>
     </div>
+  </div>
   </div>
   </div>
   </div>

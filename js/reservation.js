@@ -93,6 +93,7 @@ window.resetReservationUI = function resetReservationUI() {
     setText("rentalsTotal", "₱ 0");
     setText("totalFinal", "₱ 0");
     setText("summary-totalPrice", "");
+    setText("summary-totalPriceInfo", "");
     setText("summaryCourt", "---");
     setText("summarySport", "---");
     setText("summaryTime", "---");
@@ -313,11 +314,6 @@ window.resetReservationUI = function resetReservationUI() {
 
             const court = (courts || []).find(x => String(x.CourtID) === String(courtId));
             const sport = String(court?.SportName || "").toLowerCase();
-
-            el.classList.remove("sport-badminton", "sport-pickleball", "sport-disabled");
-
-            if (sport === "badminton") el.classList.add("sport-badminton");
-            if (sport === "pickleball") el.classList.add("sport-pickleball");
 
             if (!selected) return;
 
@@ -699,13 +695,13 @@ window.resetReservationUI = function resetReservationUI() {
         if ($("totalPrice")) $("totalPrice").innerText = "₱ " + courtTotal.toFixed(2);
         if ($("totalFinal")) $("totalFinal").innerText = "₱ " + grand.toFixed(2);
         if ($("summary-totalPrice")) $("summary-totalPrice").innerText = "₱ " + grand.toFixed(2);
-
+     
         // user summary text (Step3)
         if ($("summaryFirstname")) $("summaryFirstname").innerText = $id("txtFirstname")?.value || "------";
         if ($("summaryLastname")) $("summaryLastname").innerText = $id("txtLastname")?.value || "------";
         if ($("summaryEmail")) $("summaryEmail").innerText = $id("txtEmail")?.value || "------";
         if ($("summaryContact")) $("summaryContact").innerText = $id("txtContact")?.value || "------";
-
+        if ($("summary-totalPriceInfo")) $("summary-totalPriceInfo").innerText = "₱ " + grand.toFixed(2);
         // keep hidden rentalCart up to date for postback
         if (HF.rentalCart()) HF.rentalCart().value = SafeStore.get(KEY_CART) || "{}";
     }
@@ -784,7 +780,7 @@ window.resetReservationUI = function resetReservationUI() {
     }
 
     function bindInfoInputsOnce() {
-        const inputs = [$id("txtFLastname"), $id("txtFirstname"), $id("txtEmail"), $id("txtContact")];
+        const inputs = [$id("txtLastname"), $id("txtFirstname"), $id("txtEmail"), $id("txtContact")];
         inputs.forEach(i => {
             if (!i) return;
             if (i.dataset.bound === "1") return;
@@ -959,6 +955,9 @@ window.resetReservationUI = function resetReservationUI() {
                 syncSummaries();
             });
         }
+        const hfSport = document.getElementById(window.hfSelectedSportClientID);
+        if (hfSport) hfSport.value = getSelectedSport(); // "badminton"/"pickleball"/""
+
 
         const dur = $id("ddlDuration");
         if (dur && dur.dataset.bound !== "1") {
@@ -1050,6 +1049,9 @@ window.resetReservationUI = function resetReservationUI() {
         wireUpdatePanelHookOnce();
         bindControlsOnce();
         initTimeTableClicks();
+
+        const hfSportInit = document.getElementById(window.hfSelectedSportClientID);
+        if (hfSportInit) hfSportInit.value = getSelectedSport();
 
         if (HF.rentalCart()) HF.rentalCart().value = SafeStore.get(KEY_CART) || "{}";
 

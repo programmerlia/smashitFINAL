@@ -42,8 +42,8 @@ body {
     background: url('https://wallpapers.com/images/hd/badminton-background-bsegeod1vvch9z1i.jpg') center / cover no-repeat;
     color: #fff;
 }
-
-.hero-content { max-width: 60vh;
+.hero-content {
+    max-width: min(620px, 92vw);
 }
 
 .hero-section h1 {

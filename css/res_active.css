@@ -285,7 +285,7 @@
 
     /* Duration range (continuation) */
     .slot.selected-range {
-        outline: 2px rgba(25,135,84,.70);
+        outline: 2px solid rgba(25,135,84,.70);
         opacity: .92;
     }
 
@@ -299,17 +299,14 @@
         color: #6c757d !important;
     }
 
-    /* Sport tint so user sees which court is which sport */
-    .slot.sport-badminton.reservable {
-        background: rgba(13,110,253,.12);
-        border: 1px solid rgba(13,110,253,.35);
-        color: #0b5ed7;
-    }
 
-    .slot.sport-pickleball.reservable {
-        background: rgba(255,193,7,.18);
-        border: 1px solid rgba(255,193,7,.45);
-        color: #8a6d00;
+
+    .slot.past {
+        background: #fff !important;
+        border: 1px solid #eee;
+        min-height: 34px;
+        cursor: default;
+        pointer-events: none;
     }
 
 /* =========================
@@ -657,3 +654,14 @@
 }
 
 
+@media (max-width: 576px) {
+    .slot {
+        min-width: 70px;
+        font-size: .75rem;
+    }
+
+    .time-col {
+        width: 86px;
+        font-size: .75rem;
+    }
+}

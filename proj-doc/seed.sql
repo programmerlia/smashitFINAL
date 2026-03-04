@@ -10,7 +10,7 @@ BEGIN TRY
        ========================================================= */
     DECLARE @SeedDates TABLE ([D] DATE PRIMARY KEY);
     INSERT INTO @SeedDates ([D])
-    VALUES ('2026-02-27'), ('2026-02-28'), ('2026-03-01'), ('2026-03-02');
+    VALUES ('2026-02-27'), ('2026-02-28'), ('2026-03-01'), ('2026-03-02'), ('2026-03-03'), ('2026-03-04'), ('2026-03-05'), ('2026-03-06'), ('2026-03-07'), ('2026-03-08'), ('2026-03-09'), ('2026-03-10');
 
     /* ========
     =================================================
@@ -174,62 +174,73 @@ BEGIN TRY
           -- ModeName now*/
 
 
+DECLARE @StartDate1 DATE = '2026-02-25';
+DECLARE @EndDate1   DATE = '2026-03-10';
 
--- Slot generator: 08:00 to 22:00, 30 mins
-DECLARE @Slots TABLE(StartTime TIME, EndTime TIME);
-DECLARE @t TIME = '08:00';
+DECLARE @SeedDates1 TABLE(D DATE);
+DECLARE @d DATE = @StartDate1;
+
+WHILE (@d <= @EndDate1)
+BEGIN
+    INSERT INTO @SeedDates1(D) VALUES (@d);
+    SET @d = DATEADD(DAY, 1, @d);
+END;
+
+/* ============================
+   SLOT GENERATOR: 08:00 to 22:00, 30 mins
+   ============================ */
+DECLARE @Slots TABLE(StartTime TIME(0), EndTime TIME(0));
+DECLARE @t TIME(0) = '08:00';
 
 WHILE (@t < '22:00')
 BEGIN
     INSERT INTO @Slots(StartTime, EndTime)
-    VALUES (@t, DATEADD(MINUTE, 30, @t));
+    VALUES (@t, CONVERT(TIME(0), DATEADD(MINUTE, 30, @t)));
 
-    SET @t = DATEADD(MINUTE, 30, @t);
+    SET @t = CONVERT(TIME(0), DATEADD(MINUTE, 30, @t));
 END;
 
--- Insert with variations
 INSERT INTO tblCourtAvailability (CourtID, [Date], StartTime, EndTime, ModeName, CreatedByStaffID)
 SELECT
     c.CourtID,
-    d.[D],
+    d.D,
     s.StartTime,
     s.EndTime,
-
-    /* ===========================
-       VARIATION RULES
-       =========================== */
     CASE
-        /* Court 2,3,6 = Queue always */
+     
         WHEN c.CourtNumber IN (2,3,6) THEN 'Queue'
 
-        /* Court 4: weekdays = PFA morning, weekends = Reservation whole day */
-        WHEN c.CourtNumber = 4 AND DATENAME(WEEKDAY, d.[D]) IN ('Saturday','Sunday') THEN 'Reservation'
+        WHEN c.CourtNumber = 4 AND DATENAME(WEEKDAY, d.D) IN ('Saturday','Sunday') THEN 'Reservation'
         WHEN c.CourtNumber = 4 AND s.StartTime < '12:00' THEN 'PlayForAll'
         WHEN c.CourtNumber = 4 THEN 'Reservation'
 
-        /* Court 1: weekday evenings queue, weekends reservation */
-        WHEN c.CourtNumber = 1 AND DATENAME(WEEKDAY, d.[D]) IN ('Saturday','Sunday') THEN 'Reservation'
+        WHEN c.CourtNumber = 1 AND DATENAME(WEEKDAY, d.D) IN ('Saturday','Sunday') THEN 'Reservation'
         WHEN c.CourtNumber = 1 AND s.StartTime >= '18:00' THEN 'Queue'
         WHEN c.CourtNumber = 1 THEN 'Reservation'
 
-        /* Court 5: some days close early */
-        WHEN c.CourtNumber = 5 AND d.[D] IN ('2026-02-28','2026-03-02') AND s.StartTime >= '20:00' THEN 'Closed'
+        WHEN c.CourtNumber = 5 AND d.D IN ('2026-02-28','2026-03-02') AND s.StartTime >= '20:00' THEN 'Closed'
         WHEN c.CourtNumber = 5 AND s.StartTime >= '21:30' THEN 'Closed'
-        WHEN c.CourtNumber = 5 THEN 'Reservation'
 
-        /* Default */
+        WHEN ABS(CHECKSUM(NEWID())) % 100 < 2 THEN 'Closed'
+
+        WHEN s.StartTime >= '17:00' AND s.StartTime < '21:00'
+             AND ABS(CHECKSUM(NEWID())) % 100 < 10 THEN 'Queue'
+
+        WHEN s.StartTime >= '08:00' AND s.StartTime < '12:00'
+             AND ABS(CHECKSUM(NEWID())) % 100 < 6 THEN 'PlayForAll'
+
         ELSE 'Reservation'
-    END,
+    END AS ModeName,
     @AdminStaffID
 FROM tblCourt c
-CROSS JOIN @SeedDates d
+CROSS JOIN @SeedDates1 d
 CROSS JOIN @Slots s
 WHERE c.IsActive = 1
   AND NOT EXISTS (
       SELECT 1
       FROM tblCourtAvailability a
       WHERE a.CourtID = c.CourtID
-        AND a.[Date] = d.[D]
+        AND a.[Date] = d.D
         AND a.StartTime = s.StartTime
         AND a.EndTime = s.EndTime
   );
