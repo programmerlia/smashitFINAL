@@ -355,7 +355,6 @@
                       <div style="font-weight:800;">
                         Reservation #<%# Eval("ReservationID") %>
                         • Court <%# Eval("CourtNumber") %>
-                        • <%# Eval("SportName") %>
                       </div>
 
                       <div class="muted">

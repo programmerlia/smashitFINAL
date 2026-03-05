@@ -1,13 +1,3 @@
-/* /css/reservation.css (FULL rewrite to match the new 3-step logic)
-   Step 1: pick date + time + court (timetable)
-   Step 2: rentals + cart
-   Step 3: player info + payment
-
-   Notes:
-   - Court cards styles removed (because court selection is now Step 1 timetable).
-   - Sport tint + sport-disabled + duration range highlight kept (used in timetable).
-*/
-
 :root {
     --brand: #1a187c;
     --accent: #FFC107;
@@ -16,6 +6,9 @@
     --bg-soft: #f8f9fa;
     --border: rgba(0,0,0,.08);
     --shadow: 0 10px 25px rgba(0,0,0,.06);
+    --shadow-2: 0 16px 40px rgba(0,0,0,.10);
+    --radius: 16px;
+    --radius-lg: 20px;
     --good-bg: rgba(25,135,84,.12);
     --good-fg: #0f5132;
     --info-bg: rgba(13,202,240,.16);
@@ -25,55 +18,49 @@
 }
 
 /* =========================
-   Layout shell
+   Reservation wrapper
    ========================= */
-
 .reservation-section {
-    max-width: 92vw;
-    padding: 18px;
+    width: 100%;
+    max-width: 1100px;
+    padding: clamp(14px, 2vw, 18px);
+    margin: 20px auto 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    align-content: center;
+    gap: 14px;
 }
 
-
-
+/* cards */
 .card {
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius);
     background: var(--bg);
+    box-shadow: var(--shadow);
 }
 
+/* step sections fill width */
 #dateSelectionSection,
 #rentalSelectionSection,
 #infoSection {
     width: 100%;
 }
 
-    #dateSelectionSection.d-flex,
-    #rentalSelectionSection.d-flex,
-    #infoSection.d-flex {
-        flex-wrap: wrap;
-        align-items: stretch;
-    }
-
-
 /* =========================
    Step indicator
    ========================= */
-
 .step-indicator {
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
 }
 
 .step-item {
     flex: 1;
     text-align: center;
     color: var(--muted);
+    min-width: 90px;
 }
 
     .step-item.active {
@@ -85,9 +72,8 @@
     height: 34px;
     border-radius: 999px;
     background: #e9ecef;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     margin: 0 auto;
     font-weight: 900;
     transition: background-color .2s ease, transform .2s ease;
@@ -96,22 +82,21 @@
 .step-item.active .step-circle {
     background: var(--brand);
     color: #fff;
-    transform: scale(1.04);
+    transform: scale(1.05);
 }
 
 .step-line {
     flex: 1;
     height: 3px;
-    border-radius: 99px;
+    border-radius: 999px;
     background: #e9ecef;
 }
 
 /* =========================
-   Calendar (asp:Calendar)
+   Calendar
    ========================= */
-
 .calendar-compact {
-    width:100%;
+    width: 100%;
     font-size: .85rem;
     border-collapse: collapse;
 }
@@ -136,58 +121,60 @@
 
     .calendar-compact a {
         display: block;
-        padding: .15rem 0;
-        border-radius: 8px;
+        padding: .18rem 0;
+        border-radius: 10px;
         text-decoration: none;
         color: #111;
+        transition: background .15s ease;
     }
 
         .calendar-compact a:hover {
-            background: rgba(52,152,219,.10);
+            background: rgba(26, 24, 124, .10);
         }
 
     .calendar-compact .SelectedDayStyle {
         background: var(--brand) !important;
         color: #fff !important;
-        border-radius: 8px;
+        border-radius: 10px;
     }
 
 /* legend */
-.legend {
-    gap: 10px;
+.legend .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-right: 6px;
+    vertical-align: middle;
 }
 
-    .legend .dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        margin-right: 6px;
-        vertical-align: middle;
-    }
+.legend .selected {
+    background: var(--brand);
+}
 
-    .legend .selected {
-        background: var(--brand);
-    }
+.legend .booked {
+    background: #f59f00;
+}
 
-    .legend .booked {
-        background: #f59f00;
-    }
-
-    .legend .unavailable {
-        background: #ced4da;
-    }
+.legend .unavailable {
+    background: #ced4da;
+}
 
 /* =========================
-   Timetable shell (scroll)
+   Timetable
    ========================= */
-
 .timetable-shell {
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: var(--radius);
     overflow: auto;
     max-height: 520px;
     background: #fff;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.02);
+}
+
+/* smooth scroll on mobile */
+.timetable-shell {
+    -webkit-overflow-scrolling: touch;
 }
 
 .timetable {
@@ -220,6 +207,7 @@
         box-shadow: 0 1px 0 rgba(0,0,0,.06);
     }
 
+/* sticky time column */
 .time-col {
     width: 110px;
     font-weight: 900;
@@ -238,16 +226,14 @@
     }
 
 /* =========================
-   Slot styling
+   Slot
    ========================= */
-
 .slot {
     min-width: 92px;
     min-height: 38px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
     font-weight: 900;
     letter-spacing: .2px;
     user-select: none;
@@ -275,21 +261,20 @@
         background: var(--bad-bg);
         color: var(--bad-fg);
         cursor: not-allowed;
-        opacity: .9;
+        opacity: .92;
     }
 
-    /* Selected start cell */
+    /* selection */
     .slot.selected {
         outline: 3px solid rgba(25,135,84,.85);
     }
 
-    /* Duration range (continuation) */
     .slot.selected-range {
         outline: 2px solid rgba(25,135,84,.70);
         opacity: .92;
     }
 
-    /* Sport filtering (JS adds these classes) */
+    /* sport filter */
     .slot.sport-disabled.reservable {
         pointer-events: none;
         cursor: not-allowed;
@@ -298,8 +283,6 @@
         background: rgba(0,0,0,.06) !important;
         color: #6c757d !important;
     }
-
-
 
     .slot.past {
         background: #fff !important;
@@ -312,7 +295,6 @@
 /* =========================
    Summary + totals
    ========================= */
-
 .summary-details p {
     margin-bottom: 8px;
     color: #666;
@@ -325,10 +307,11 @@
     margin-bottom: 4px;
 }
 
+/* make players input look premium */
 .player-input-wrapper {
     border: 1px solid rgba(0,0,0,.10);
-    border-radius: 10px;
-    padding: 8px 10px;
+    border-radius: 12px;
+    padding: 10px 12px;
     display: flex;
     align-items: center;
     color: var(--muted);
@@ -354,31 +337,44 @@
 /* =========================
    Buttons
    ========================= */
-
 .btn_proceed_details,
 #btn_proceed_details,
 #btn_proceed_rentals {
     background: var(--accent);
-    color: #fff;
+    color: #111; /* accent is bright, black text looks cleaner */
     border: none;
-    padding: 12px;
-    border-radius: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
     font-weight: 900;
     margin-top: 14px;
-    box-shadow: 0 10px 18px rgba(52,152,219,.18);
-    transition: transform .15s ease, filter .15s ease;
+    box-shadow: 0 10px 18px rgba(255,193,7,.25);
+    transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
 }
 
     .btn_proceed_details:hover,
     #btn_proceed_rentals:hover {
         filter: brightness(1.03);
         transform: translateY(-1px);
+        box-shadow: 0 16px 26px rgba(255,193,7,.30);
+    }
+
+/* primary “Book Reservation” button */
+.btn.btn-primary {
+    background: var(--brand) !important;
+    border-color: var(--brand) !important;
+    font-weight: 900;
+    border-radius: 14px;
+    box-shadow: 0 10px 18px rgba(26,24,124,.18);
+}
+
+    .btn.btn-primary:hover {
+        filter: brightness(1.03);
+        transform: translateY(-1px);
     }
 
 /* =========================
-   Form fields (Step 3)
+   Form fields
    ========================= */
-
 .form-floating-custom {
     position: relative;
     border-bottom: 1px solid rgba(0,0,0,.10);
@@ -405,9 +401,8 @@
 }
 
 /* =========================
-   Rentals + cart (Step 2)
+   Rentals + cart
    ========================= */
-
 #equipmentContainer {
     row-gap: 14px;
 }
@@ -426,8 +421,8 @@
 
     .rental-card:hover {
         transform: translateY(-4px);
-        border-color: rgba(52,152,219,.35);
-        box-shadow: 0 14px 34px rgba(0,0,0,.09);
+        border-color: rgba(26, 24, 124, .25);
+        box-shadow: var(--shadow-2);
     }
 
     .rental-card::before {
@@ -436,7 +431,7 @@
         inset: 0 0 auto 0;
         height: 5px;
         background: linear-gradient(90deg, var(--accent), var(--brand));
-        opacity: .85;
+        opacity: .9;
     }
 
 .rental-head {
@@ -476,8 +471,8 @@
     letter-spacing: .3px;
     padding: 6px 10px;
     border-radius: 999px;
-    background: #eaf3ff;
-    color: #0d6efd;
+    background: rgba(26,24,124,.10);
+    color: var(--brand);
 }
 
     .rental-badge.low {
@@ -532,7 +527,7 @@
     font-weight: 900;
     padding: 10px 12px;
     cursor: pointer;
-    box-shadow: 0 10px 18px rgba(26,163,74,.18);
+    box-shadow: 0 10px 18px rgba(26,24,124,.18);
     transition: transform .15s ease, filter .15s ease;
 }
 
@@ -585,7 +580,7 @@
 .cart-btn {
     width: 44px;
     height: 38px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid #9aa4af;
     background: #fff;
     font-weight: 900;
@@ -599,7 +594,7 @@
 .cart-x {
     width: 44px;
     height: 38px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid #ff2a2a;
     color: #ff2a2a;
     background: #fff;
@@ -612,9 +607,8 @@
     }
 
 /* =========================
-   Payment modal
+   Modal
    ========================= */
-
 .custom-modal {
     position: fixed;
     inset: 0;
@@ -625,22 +619,22 @@
 
 .custom-modal-content {
     max-width: 420px;
+    width: calc(100% - 28px);
     margin: 10vh auto;
     background: #fff;
-    border-radius: 14px;
+    border-radius: var(--radius);
     padding: 18px;
     box-shadow: 0 10px 30px rgba(0,0,0,.25);
 }
 
 /* =========================
-   Responsive
+   Responsive rules (important)
    ========================= */
 
+/* tablets */
 @media (max-width: 992px) {
     .reservation-section {
-        width: 100%;
-        max-width: 1200px;
-        margin: 0 auto;
+        max-width: 980px;
     }
 
     .total-price-display {
@@ -653,15 +647,74 @@
     }
 }
 
+/* phones */
+@media (max-width: 768px) {
+    .step-indicator {
+        gap: 6px;
+    }
 
+    .step-line {
+        display: none;
+    }
+    /* cleaner on mobile */
+    .step-item {
+        min-width: 0;
+    }
+
+    .reservation-section {
+        padding: 12px;
+    }
+}
+
+/* very small phones */
 @media (max-width: 576px) {
     .slot {
         min-width: 70px;
         font-size: .75rem;
+        border-radius: 10px;
     }
 
     .time-col {
         width: 86px;
         font-size: .75rem;
     }
+
+    .timetable th, .timetable td {
+        padding: 7px 8px;
+    }
+
+    .total-price-display .amount {
+        font-size: 1.55rem;
+    }
+
+    .qty-stepper {
+        grid-template-columns: 40px 40px 40px;
+    }
+
+        .qty-stepper button {
+            height: 38px;
+        }
+}
+
+
+
+/*payment modal*/
+/* Payment summary modal (matches your brand/accent) */
+.custom-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 99999;
+    display: none;
+    padding: 12px;
+}
+
+.custom-modal-content {
+    width: min(520px, 96vw);
+    margin: 8vh auto;
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    border: 1px solid rgba(0,0,0,.06);
 }

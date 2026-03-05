@@ -73,7 +73,7 @@ namespace Smash_IT.homepage
         {
             sport = (sport ?? "").Trim().ToLowerInvariant();
             if (sport == "badminton" || sport == "pickleball") return sport;
-            return "";
+            return ""; 
         }
 
         private string GetSelectedSport()
@@ -346,78 +346,111 @@ VALUES (@ReservationID, @ItemID, 0);", con, tx))
         // ==================== PAGE ====================
         protected void Page_Load(object sender, EventArgs e)
         {
+            EnsureUserSessionInfo();
             LoadCourtData();
 
             if (!IsPostBack)
             {
-                if (Request.QueryString["reset"] == "1")
-                {
-                    hfSelectedCourtID.Value = "";
-                    hfStartTime.Value = "";
-                    hfEndTime.Value = "";
-                    hfRentalCart.Value = "{}";
-
-                    lblSelectedSlot.Text = "No slot selected.";
-                    try { ddlSport.ClearSelection(); } catch { }
-                    if (ddlDuration != null && ddlDuration.Items.FindByValue("1") != null)
-                        ddlDuration.SelectedValue = "1";
-                }
-
-                if (Session["UserID"] != null)
-                {
-                    int userId = Convert.ToInt32(Session["UserID"]);
-
-                    using (SqlConnection con = new SqlConnection(CS))
-                    using (SqlCommand cmd = new SqlCommand(
-                        "SELECT Firstname, Lastname, Email, PhoneNumber FROM tblPlayerAccount WHERE UserID=@ID", con))
-                    {
-                        cmd.Parameters.AddWithValue("@ID", userId);
-                        con.Open();
-                        using (SqlDataReader dr = cmd.ExecuteReader())
-                        {
-                            if (dr.Read())
-                            {
-                                txtFirstname.Text = Convert.ToString(dr["Firstname"]);
-                                txtLastname.Text = Convert.ToString(dr["Lastname"]);
-                                txtEmail.Text = Convert.ToString(dr["Email"]);
-                                txtContact.Text = Convert.ToString(dr["PhoneNumber"]);
-                                Session["Firstname"] = txtFirstname.Text;
-                                Session["Lastname"] = txtLastname.Text;
-                                Session["Email"] = txtEmail.Text;
-                                Session["PhoneNumber"] = txtContact.Text;
-                            }
-                        }
-                    }
-                }
-
                 Calendar1.VisibleDate = DateTime.Today;
                 Calendar1.SelectedDate = DateTime.Today;
 
                 hfSelectedDate.Value = DateTime.Today.ToString("yyyy-MM-dd");
                 hfResDate.Value = hfSelectedDate.Value;
 
+                ClearSelectedSlot();
+
                 RenderTimeTable(DateTime.Today, GetSelectedSport());
+                UpdateUnavailableHours(DateTime.Today, GetSelectedSport());
+
+                UpdateSelectionStatusLabel(DateTime.Today);
             }
         }
 
+        private void UpdateSelectionStatusLabel(DateTime selectedDate)
+        {
+            string sport = GetSelectedSport();
+
+            if (string.IsNullOrEmpty(sport))
+            {
+                lblSelectedSlot.Text = "No sport selected.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(hfSelectedCourtID.Value) || string.IsNullOrEmpty(hfStartTime.Value))
+            {
+                lblSelectedSlot.Text = "No slot selected.";
+                return;
+            }
+
+            lblSelectedSlot.Text = "Slot selected.";
+        }
 
         protected void Calendar1_DayRender(object sender, DayRenderEventArgs e)
         {
-            if (e.Day.Date < DateTime.Today)
+            DateTime min = DateTime.Today;
+            DateTime max = DateTime.Today.AddDays(14);
+
+            if (e.Day.Date < min || e.Day.Date > max)
             {
                 e.Day.IsSelectable = false;
                 e.Cell.ForeColor = System.Drawing.Color.LightGray;
+                e.Cell.BackColor = System.Drawing.ColorTranslator.FromHtml("#f5f5f5");
+                e.Cell.ToolTip = "Reservations allowed only within 2 weeks.";
             }
         }
         protected void Calendar1_SelectionChanged(object sender, EventArgs e)
         {
             DateTime selectedDate = Calendar1.SelectedDate;
+
+            DateTime min = DateTime.Today;
+            DateTime max = DateTime.Today.AddDays(14);
+
+            if (selectedDate.Date < min || selectedDate.Date > max)
+            {
+                selectedDate = DateTime.Today;
+                Calendar1.SelectedDate = selectedDate;
+            }
+
             hfSelectedDate.Value = selectedDate.ToString("yyyy-MM-dd");
             hfResDate.Value = hfSelectedDate.Value;
 
-            RenderTimeTable(selectedDate, GetSelectedSport());
+            ClearSelectedSlot();
 
-            string sport = GetSelectedSport(); 
+            string sport = GetSelectedSport();
+            RenderTimeTable(selectedDate, sport);
+            UpdateUnavailableHours(selectedDate, sport);
+            UpdateSelectionStatusLabel(selectedDate);
+        }
+
+        protected void ddlSport_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            DateTime d;
+            if (!TryParseDateFlexible(hfSelectedDate.Value, out d))
+                d = Calendar1.SelectedDate == DateTime.MinValue ? DateTime.Today : Calendar1.SelectedDate;
+
+            hfSelectedDate.Value = d.ToString("yyyy-MM-dd");
+            hfResDate.Value = hfSelectedDate.Value;
+
+            ClearSelectedSlot();
+
+            string sport = GetSelectedSport();
+
+            LoadCourtData();
+            RenderTimeTable(d, sport);
+            UpdateUnavailableHours(d, sport);
+            UpdateSelectionStatusLabel(d);
+        }
+
+        private void UpdateUnavailableHours(DateTime selectedDate, string sport)
+        {
+            sport = NormalizeSport(sport);
+
+            if (string.IsNullOrEmpty(sport))
+            {
+                lblUnavailableHours.Text = "Select a sport to see unavailable hours.";
+                return;
+            }
+
             string query = @"
 DECLARE @d date = @ResDate;
 
@@ -425,14 +458,9 @@ DECLARE @d date = @ResDate;
     SELECT CourtID
     FROM tblCourt
     WHERE IsActive = 1
-  AND (
-        @Sport = '' 
-        OR SportName = @Sport
-        OR CourtNumber IN (5,6)
-      )
+      AND (SportName = @Sport OR CourtNumber IN (5,6))
 ),
 NonReservableSlots AS (
-    -- slots that are NOT Reservation mode
     SELECT a.StartTime, a.EndTime
     FROM tblCourtAvailability a
     JOIN Courts c ON c.CourtID = a.CourtID
@@ -440,7 +468,6 @@ NonReservableSlots AS (
       AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
 ),
 ReservedSlots AS (
-    -- slots blocked by APPROVED reservations
     SELECT a.StartTime, a.EndTime
     FROM tblCourtAvailability a
     JOIN Courts c ON c.CourtID = a.CourtID
@@ -451,7 +478,7 @@ ReservedSlots AS (
           FROM tblReservation r
           WHERE r.CourtID = a.CourtID
             AND r.ResDate = @d
-            AND r.ReservationStatusName IN  ('Approved', 'Pending')
+            AND r.ReservationStatusName IN ('Approved','Pending')
             AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
       )
 ),
@@ -487,22 +514,9 @@ ORDER BY StartTime;";
                     ? string.Join(", ", unavailable.ToArray())
                     : "All hours are available";
             }
-
         }
 
-        protected void ddlSport_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            DateTime d;
-            if (!TryParseDateFlexible(hfSelectedDate.Value, out d))
-            {
-                d = DateTime.Today;
-                hfSelectedDate.Value = d.ToString("yyyy-MM-dd");
-                hfResDate.Value = hfSelectedDate.Value;
-            }
 
-            LoadCourtData();
-            RenderTimeTable(d, GetSelectedSport());
-        }
 
         // ==================== COURT JSON LOADERS ====================
 
@@ -573,10 +587,19 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
             }
 
             DateTime resDate;
+           
+
             if (!TryParseDateFlexible((hfSelectedDate.Value ?? "").Trim(), out resDate))
             {
                 Response.StatusCode = 400;
                 Response.Write("Missing/invalid date.");
+                return;
+            }
+
+            if (resDate.Date < DateTime.Today || resDate.Date > DateTime.Today.AddDays(14))
+            {
+                Response.StatusCode = 400;
+                Response.Write("You can only reserve within 2 weeks from today.");
                 return;
             }
 
@@ -649,18 +672,18 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
                     {
 
                         using (SqlCommand cmdMode = new SqlCommand(@"
-IF EXISTS (
-    SELECT 1
-    FROM tblCourtAvailability a
-    WHERE a.CourtID = @CourtID
-      AND a.[Date]  = @ResDate
-      AND a.StartTime < @EndTime
-      AND a.EndTime   > @StartTime
-     AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
-)
-    SELECT 1;
-ELSE
-    SELECT 0;", con, tx))
+                        IF EXISTS (
+                            SELECT 1
+                            FROM tblCourtAvailability a
+                            WHERE a.CourtID = @CourtID
+                              AND a.[Date]  = @ResDate
+                              AND a.StartTime < @EndTime
+                              AND a.EndTime   > @StartTime
+                             AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
+                        )
+                            SELECT 1;
+                        ELSE
+                            SELECT 0;", con, tx))
                         {
                             cmdMode.Parameters.AddWithValue("@CourtID", courtId);
                             cmdMode.Parameters.AddWithValue("@ResDate", resDate.Date);
@@ -672,12 +695,12 @@ ELSE
                                 throw new Exception("That time is not reservable (Queue / PlayForAll / Closed).");
                         }
                         using (SqlCommand cmdOverlap = new SqlCommand(@"
-SELECT COUNT(*)
-FROM tblReservation
-WHERE CourtID=@CourtID
-  AND ResDate=@ResDate
-  AND ReservationStatusName IN ('Pending','Approved')
-  AND (@StartTime < EndTime AND @EndTime > StartTime);", con, tx))
+                        SELECT COUNT(*)
+                        FROM tblReservation
+                        WHERE CourtID=@CourtID
+                          AND ResDate=@ResDate
+                          AND ReservationStatusName IN ('Pending','Approved')
+                          AND (@StartTime < EndTime AND @EndTime > StartTime);", con, tx))
                         {
                             cmdOverlap.Parameters.AddWithValue("@CourtID", courtId);
                             cmdOverlap.Parameters.AddWithValue("@ResDate", resDate.Date);
@@ -693,11 +716,11 @@ WHERE CourtID=@CourtID
                         int requiredAmountStored = checked(courtFull + rentalsFull);
 
                         using (SqlCommand cmd = new SqlCommand(@"
-INSERT INTO tblReservation
-(UserID, CourtID, ResDate, StartTime, EndTime, ReservationStatusName, IsPaid, PaymentStatus, RequiredAmount)
-VALUES
-(@UserID, @CourtID, @ResDate, @StartTime, @EndTime, 'Pending', 0, 'Unpaid', @RequiredAmount);
-SELECT SCOPE_IDENTITY();", con, tx))
+                        INSERT INTO tblReservation
+                        (UserID, CourtID, ResDate, StartTime, EndTime, ReservationStatusName, IsPaid, PaymentStatus, RequiredAmount)
+                        VALUES
+                        (@UserID, @CourtID, @ResDate, @StartTime, @EndTime, 'Pending', 0, 'Unpaid', @RequiredAmount);
+                        SELECT SCOPE_IDENTITY();", con, tx))
                         {
                             cmd.Parameters.AddWithValue("@UserID", userId);
                             cmd.Parameters.AddWithValue("@CourtID", courtId);
@@ -922,10 +945,9 @@ WHERE ReservationID=@RID;", con, tx))
             }
         }
 
-        // ==================== TIMETABLE RENDER ====================
-        // Sport rule:
-        // - Sport is in tblCourt.SportName
-        // - If ddlSport selected, we restrict reservable slots to courts of that sport.
+        // ==================== TIMETABLE RENDER 
+
+
         private void RenderTimeTable(DateTime date, string sport)
         {
             DataTable dt = GetGridData(date, sport);
@@ -973,7 +995,6 @@ WHERE ReservationID=@RID;", con, tx))
                     }
 
 
-                    // If court doesn't exist for this sport filter, show disabled
                     if (courtId <= 0)
                     {
                         sb.Append("<td><div class='slot past'></div></td>");
@@ -1059,69 +1080,61 @@ WHERE ReservationID=@RID;", con, tx))
             phTimeTable.Controls.Add(new LiteralControl(sb.ToString()));
         }
 
-        // This now respects sport filter because dt is already filtered.
-        // If a court number is not present in dt (because different sport), returns -1.
         private int GetCourtIdByNumber(DataTable dt, int courtNumber)
         {
-            foreach (DataRow r in dt.Rows)
-            {
-                if (Convert.ToInt32(r["CourtNumber"]) == courtNumber)
-                    return Convert.ToInt32(r["CourtID"]);
-            }
-            return -1;
+            if (dt == null || dt.Rows.Count == 0) return 0;
+
+            DataRow[] rows = dt.Select("CourtNumber = " + courtNumber);
+            if (rows.Length == 0) return 0;
+
+            return Convert.ToInt32(rows[0]["CourtID"]);
         }
 
         private DataTable GetGridData(DateTime date, string sport)
         {
             sport = NormalizeSport(sport);
 
+            // ✅ if no sport selected, return empty = timetable shows disabled only
+            if (string.IsNullOrEmpty(sport))
+                return new DataTable();
+
             using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand())
             {
                 cmd.Connection = con;
-
                 cmd.CommandText = @"
-DECLARE @d date = @ResDate;
+                DECLARE @d date = @ResDate;
 
-SELECT
-    c.CourtID,
-    c.CourtNumber,
-    a.StartTime AS SlotStart,
+                SELECT
+                    c.CourtID,
+                    c.CourtNumber,
+                    a.StartTime AS SlotStart,
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM tblReservation r
+                        WHERE r.CourtID = c.CourtID
+                          AND r.ResDate = @d
+                          AND r.ReservationStatusName IN ('Approved','Pending')
+                          AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
+                    ) THEN 1 ELSE 0 END AS IsReservedBlocked,
 
-    CASE WHEN EXISTS (
-        SELECT 1
-        FROM tblReservation r
-        WHERE r.CourtID = c.CourtID
-          AND r.ResDate = @d
-          AND r.ReservationStatusName IN ('Approved', 'Pending')
-          AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
-    ) THEN 1 ELSE 0 END AS IsReservedBlocked,
-
-    CASE WHEN a.ModeName = 'Queue' THEN 1 ELSE 0 END AS IsQueueCourt,
-    CASE WHEN a.ModeName = 'Closed' THEN 1 ELSE 0 END AS IsClosed,
-    CASE WHEN a.ModeName = 'PlayForAll' THEN 1 ELSE 0 END AS IsPlayForAll,
-    CASE WHEN a.ModeName = 'Reservation' THEN 1 ELSE 0 END AS IsReservable
-
-FROM tblCourtAvailability a
-JOIN tblCourt c ON c.CourtID = a.CourtID
-WHERE a.[Date] = @d
-  AND c.IsActive = 1
-  AND c.CourtNumber BETWEEN 1 AND 6
-  AND (
-        @SportName = ''
-        OR c.SportName = @SportName
-        OR c.CourtNumber IN (5,6)
-      )
-ORDER BY c.CourtNumber, a.StartTime;";
+                    CASE WHEN a.ModeName = 'Queue' THEN 1 ELSE 0 END AS IsQueueCourt,
+                    CASE WHEN a.ModeName = 'Closed' THEN 1 ELSE 0 END AS IsClosed,
+                    CASE WHEN a.ModeName = 'PlayForAll' THEN 1 ELSE 0 END AS IsPlayForAll,
+                    CASE WHEN a.ModeName = 'Reservation' THEN 1 ELSE 0 END AS IsReservable
+                FROM tblCourtAvailability a
+                JOIN tblCourt c ON c.CourtID = a.CourtID
+                WHERE a.[Date] = @d
+                  AND c.IsActive = 1
+                  AND c.CourtNumber BETWEEN 1 AND 6
+                  AND (c.SportName = @SportName OR c.CourtNumber IN (5,6))
+                ORDER BY c.CourtNumber, a.StartTime;";
 
                 cmd.Parameters.AddWithValue("@ResDate", date.Date);
                 cmd.Parameters.AddWithValue("@SportName", sport);
 
                 DataTable dt = new DataTable();
-                using (SqlDataAdapter da = new SqlDataAdapter(cmd))
-                {
-                    da.Fill(dt);
-                }
+                new SqlDataAdapter(cmd).Fill(dt);
                 return dt;
             }
         }
@@ -1141,15 +1154,15 @@ ORDER BY c.CourtNumber, a.StartTime;";
             txtLastname.Text = "";
             txtEmail.Text = "";
             txtContact.Text = "";
-            lblSelectedSlot.Text = "No slot selected.";
 
-            hfSelectedCourtID.Value = "";
-            hfSelectedDate.Value = "";
-            hfCourtID.Value = "";
-            hfCourtNum.Value = "";
-            hfResDate.Value = "";
-            hfStartTime.Value = "";
-            hfEndTime.Value = "";
+            DateTime d = DateTime.Today;
+            Calendar1.VisibleDate = d;
+            Calendar1.SelectedDate = d;
+
+            hfSelectedDate.Value = d.ToString("yyyy-MM-dd");
+            hfResDate.Value = hfSelectedDate.Value;
+
+            ClearSelectedSlot();
 
             hfRentalCart.Value = "{}";
             hfRentalItems.Value = "";
@@ -1158,9 +1171,62 @@ ORDER BY c.CourtNumber, a.StartTime;";
             Session.Remove("ReservationDraft");
             Session.Remove("RentalCart");
 
-            phTimeTable.Controls.Clear();
+            string sport = GetSelectedSport(); 
+            RenderTimeTable(d, sport);
+            UpdateUnavailableHours(d, sport);
+            UpdateSelectionStatusLabel(d);
+
             reservationSection.Style["display"] = "none";
+
             updReservation.Update();
+        }
+
+
+        private void ClearSelectedSlot()
+        {
+            hfSelectedCourtID.Value = "";
+            hfCourtID.Value = "";
+            hfCourtNum.Value = "";
+            hfStartTime.Value = "";
+            hfEndTime.Value = "";
+
+            if (string.IsNullOrEmpty(GetSelectedSport()))
+                lblSelectedSlot.Text = "No sport selected.";
+            else
+                lblSelectedSlot.Text = "No slot selected.";
+        }
+
+
+        private void EnsureUserSessionInfo()
+        {
+            if (Session["UserID"] == null) return;
+
+            if (Session["Firstname"] != null && Session["Lastname"] != null &&
+                Session["Email"] != null && Session["PhoneNumber"] != null)
+                return;
+
+            int userId = Convert.ToInt32(Session["UserID"]);
+
+            using (SqlConnection con = new SqlConnection(CS))
+            using (SqlCommand cmd = new SqlCommand(@"
+        SELECT Firstname, Lastname, Email, PhoneNumber
+        FROM tblUser
+        WHERE UserID = @UserID;", con))
+            {
+                cmd.Parameters.AddWithValue("@UserID", userId);
+                con.Open();
+
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    if (dr.Read())
+                    {
+                        Session["Firstname"] = Convert.ToString(dr["Firstname"]);
+                        Session["Lastname"] = Convert.ToString(dr["Lastname"]);
+                        Session["Email"] = Convert.ToString(dr["Email"]);
+                        Session["PhoneNumber"] = Convert.ToString(dr["PhoneNumber"]);
+                    }
+                }
+            }
         }
     }
 }

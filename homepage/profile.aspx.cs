@@ -155,8 +155,7 @@ SELECT TOP 200
   ISNULL(r.RequestStatus,'') AS RequestStatus,
   ISNULL(r.IsPaid,0) AS IsPaid,
   ISNULL(r.PaymentStatus,'') AS PaymentStatus,
-  c.CourtNumber,
-  ISNULL(r.SportName, c.SportName) AS SportName
+  c.CourtNumber
 FROM tblReservation r
 JOIN tblCourt c ON c.CourtID = r.CourtID
 WHERE r.UserID = @ID
@@ -252,10 +251,10 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
 
         private string BuildTopReservationHtml(DataRow r)
         {
-            string resId = Convert.ToString(r["ReservationID"]);
-            string court = Convert.ToString(r["CourtNumber"]);
-            string sport = HttpUtility.HtmlEncode(Convert.ToString(r["SportName"]));
+            string resId = HttpUtility.HtmlEncode(Convert.ToString(r["ReservationID"]));
+            string court = HttpUtility.HtmlEncode(Convert.ToString(r["CourtNumber"]));
             string status = Convert.ToString(r["ReservationStatusName"]);
+            string statusEncoded = HttpUtility.HtmlEncode(status);
 
             DateTime resDate = Convert.ToDateTime(r["ResDate"]);
             TimeSpan start = (TimeSpan)r["StartTime"];
@@ -268,43 +267,35 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             if (diff.TotalSeconds <= 0)
                 emphasis = "Ongoing / Passed";
             else if (diff.TotalDays >= 1)
-                emphasis = ((int)Math.Floor(diff.TotalDays)).ToString() + " day(s) left";
+                emphasis = ((int)Math.Floor(diff.TotalDays)) + " day(s) left";
             else
-                emphasis = ((int)Math.Floor(diff.TotalHours)).ToString() + " hour(s) left";
+                emphasis = ((int)Math.Floor(diff.TotalHours)) + " hour(s) left";
 
             string badgeClass = StatusBadge(status);
 
-            string dateStr = resDate.ToString("yyyy-MM-dd");
-            string startStr = DateTime.Today.Add(start).ToString("hh:mm tt");
-            string endStr = DateTime.Today.Add(end).ToString("hh:mm tt");
+            string dateStr = HttpUtility.HtmlEncode(resDate.ToString("yyyy-MM-dd"));
+            string startStr = HttpUtility.HtmlEncode(DateTime.Today.Add(start).ToString("hh:mm tt"));
+            string endStr = HttpUtility.HtmlEncode(DateTime.Today.Add(end).ToString("hh:mm tt"));
+            string badgeClassEncoded = HttpUtility.HtmlEncode(badgeClass);
+            string emphasisEncoded = HttpUtility.HtmlEncode(emphasis);
 
-            return string.Format(
-                "<div class='res-item'>" +
-                "  <div class='res-top'>" +
-                "    <div>" +
-                "      <div style='font-weight:800;'>" +
-                "        Reservation #{0} • Court {1} • {2}" +
-                "      </div>" +
-                "      <div class='muted'>" +
-                "        {3} • {4} - {5}" +
-                "      </div>" +
-                "      <div class='mt-1'>" +
-                "        <span class='badge-status {6}'>{7}</span>" +
-                "        <span class='badge-status badge-approved ms-1' style='font-weight:800;'>{8}</span>" +
-                "      </div>" +
-                "    </div>" +
-                "  </div>" +
-                "</div>",
-                HttpUtility.HtmlEncode(resId),
-                HttpUtility.HtmlEncode(court),
-                sport,
-                HttpUtility.HtmlEncode(dateStr),
-                HttpUtility.HtmlEncode(startStr),
-                HttpUtility.HtmlEncode(endStr),
-                HttpUtility.HtmlEncode(badgeClass),
-                HttpUtility.HtmlEncode(status),
-                HttpUtility.HtmlEncode(emphasis)
-            );
+            return $@"
+<div class='res-item'>
+  <div class='res-top'>
+    <div>
+      <div style='font-weight:800;'>
+        Reservation #{resId} • Court {court} • {dateStr}
+      </div>
+      <div class='muted'>
+        {startStr} - {endStr}
+      </div>
+      <div class='mt-1'>
+        <span class='badge-status {badgeClassEncoded}'>{statusEncoded}</span>
+        <span class='badge-status badge-approved ms-1' style='font-weight:800;'>{emphasisEncoded}</span>
+      </div>
+    </div>
+  </div>
+</div>";
         }
         private string StatusBadge(string status)
         {
@@ -564,7 +555,7 @@ SET PhoneNumber=@P,
             using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(sql, con))
             {
-                cmd.Parameters.AddWithValue("@P", (object)phone ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@P", string.IsNullOrWhiteSpace(phone) ? (object)DBNull.Value : phone);
                 cmd.Parameters.AddWithValue("@U", username);
                 cmd.Parameters.AddWithValue("@ID", userId);
 
@@ -623,7 +614,6 @@ SELECT TOP 400
   res.StartTime AS ResStart,
   res.EndTime AS ResEnd,
   c.CourtNumber,
-  ISNULL(res.SportName, c.SportName) AS SportName,
 
   -- Rental info (if linked)
   rntl.RentalDate,
@@ -673,10 +663,9 @@ ORDER BY
                             string startStr = DateTime.Today.Add(st).ToString("hh:mm tt");
                             string endStr = DateTime.Today.Add(et).ToString("hh:mm tt");
 
-                            string sport = Convert.ToString(dr["SportName"] ?? "");
                             string court = dr["CourtNumber"] == DBNull.Value ? "" : ("Court " + Convert.ToInt32(dr["CourtNumber"]));
 
-                            line1 = $"Reservation #{reservationId.Value} • {court} • {sport}";
+                            line1 = $"Reservation #{reservationId.Value} • {court}";
                             line2 = $"{resDate:yyyy-MM-dd} • {startStr} - {endStr}";
                         }
                         // Else if it’s rental-linked
@@ -756,8 +745,7 @@ SELECT TOP 500
   res.ResDate,
   res.StartTime,
   res.EndTime,
-  c.CourtNumber,
-  ISNULL(res.SportName, c.SportName) AS SportName
+  c.CourtNumber
 
 FROM tblRental rntl
 JOIN tblEquipmentItem ei ON ei.ItemID = rntl.ItemID
@@ -795,10 +783,9 @@ ORDER BY rntl.RentalDate DESC, rntl.RentalID DESC;", con))
                             var et = (TimeSpan)dr["EndTime"];
                             string startStr = DateTime.Today.Add(st).ToString("hh:mm tt");
                             string endStr = DateTime.Today.Add(et).ToString("hh:mm tt");
-                            string sport = Convert.ToString(dr["SportName"] ?? "");
                             string court = dr["CourtNumber"] == DBNull.Value ? "" : ("Court " + Convert.ToInt32(dr["CourtNumber"]));
 
-                            reservationInfo = $"Reservation #{rid} • {court} • {sport} • {resDate:yyyy-MM-dd} • {startStr}-{endStr}";
+                            reservationInfo = $"Reservation #{rid} • {court} • {resDate:yyyy-MM-dd} • {startStr}-{endStr}";
                         }
 
                         list.Add(new RentalRowVM

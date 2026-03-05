@@ -3,23 +3,52 @@ using System.Configuration;
 using System.Data.SqlClient;
 using System.Net;
 using System.Net.Mail;
+using System.Web;
 using System.Web.UI;
 
 namespace Smash_IT.Controls
 {
     public partial class AuthModal : System.Web.UI.UserControl
     {
-        protected void Page_Load(object sender, EventArgs e)
+        private string CS => ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+
+        protected void Page_Load(object sender, EventArgs e) { }
+
+        // ✅ Helper: load user details into Session (used by login + signup)
+        private void SetUserSessionFromDb(int userId)
         {
+            using (SqlConnection con = new SqlConnection(CS))
+            {
+                con.Open();
+                using (SqlCommand cmd = new SqlCommand(@"
+SELECT UserID, Username, Firstname, Lastname, Email, PhoneNumber
+FROM tblPlayerAccount
+WHERE UserID = @UserID;", con))
+                {
+                    cmd.Parameters.AddWithValue("@UserID", userId);
 
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        if (!dr.Read()) return;
+
+                        Session["UserID"] = Convert.ToInt32(dr["UserID"]);
+                        Session["Username"] = Convert.ToString(dr["Username"]);
+
+                        // ✅ THESE are what your reservation.aspx reads
+                        Session["Firstname"] = Convert.ToString(dr["Firstname"]);
+                        Session["Lastname"] = Convert.ToString(dr["Lastname"]);
+                        Session["Email"] = Convert.ToString(dr["Email"]);
+                        Session["PhoneNumber"] = Convert.ToString(dr["PhoneNumber"]);
+                    }
+                }
+            }
         }
-
 
         // ================= LOGIN =================
         protected void btnLogin_Click(object sender, EventArgs e)
         {
-            string username = txtLoginUsername.Text.Trim();
-            string password = txtLoginPassword.Text.Trim();
+            string username = (txtLoginUsername.Text ?? "").Trim();
+            string password = (txtLoginPassword.Text ?? "").Trim();
 
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
@@ -29,55 +58,54 @@ namespace Smash_IT.Controls
 
             try
             {
-                using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+                int userId = 0;
+
+                using (SqlConnection con = new SqlConnection(CS))
                 {
                     con.Open();
-                    SqlCommand cmd = new SqlCommand(
-                        "SELECT UserID FROM tblPlayerAccount WHERE Username=@Username AND Password=@Password", con);
-                    cmd.Parameters.AddWithValue("@Username", username);
-                    cmd.Parameters.AddWithValue("@Password", password);
-
-                    object result = cmd.ExecuteScalar();
-
-                    if (result != null)
+                    using (SqlCommand cmd = new SqlCommand(@"
+SELECT UserID
+FROM tblPlayerAccount
+WHERE Username=@Username AND Password=@Password;", con))
                     {
-                        // Login successful
-                        Session["UserID"] = result;
-                        Session["Username"] = username;
+                        cmd.Parameters.AddWithValue("@Username", username);
+                        cmd.Parameters.AddWithValue("@Password", password);
 
+                        object result = cmd.ExecuteScalar();
+                        if (result == null)
+                        {
+                            lblLoginMsg.Text = "Invalid username or password.";
+                            txtLoginUsername.Text = "";
+                            txtLoginPassword.Text = "";
+                            return;
+                        }
 
-                        // Clear fields
-                        txtLoginUsername.Text = "";
-                        txtLoginPassword.Text = "";
-                        lblLoginMsg.Text = "";
-
-                        // Close modal first, then redirect
-                        // Close modal and redirect using ScriptManager
-                        ScriptManager.RegisterStartupScript(this, this.GetType(), "LoginSuccess", @"
-  var modal = document.getElementById('loginSignupModal');
-  var bsModal = bootstrap.Modal.getInstance(modal);
-  if (bsModal) bsModal.hide();
-
-  setTimeout(function () {
-    var returnUrl = sessionStorage.getItem('returnUrlAfterLogin');
-    if (returnUrl) {
-      sessionStorage.removeItem('returnUrlAfterLogin');
-      window.location.href = returnUrl;
-      return;
-    }
-    // fallback
-    window.location.reload();
-  }, 200);
-", true);
-                        return;
-                    }
-                    else
-                    {
-                        lblLoginMsg.Text = "Invalid username or password.";
-                        txtLoginUsername.Text = "";
-                        txtLoginPassword.Text = "";
+                        userId = Convert.ToInt32(result);
                     }
                 }
+
+                // ✅ sets UserID + Username + Firstname/Lastname/Email/PhoneNumber
+                SetUserSessionFromDb(userId);
+
+                txtLoginUsername.Text = "";
+                txtLoginPassword.Text = "";
+                lblLoginMsg.Text = "";
+
+                ScriptManager.RegisterStartupScript(this, this.GetType(), "LoginSuccess", @"
+var modal = document.getElementById('loginSignupModal');
+var bsModal = bootstrap.Modal.getInstance(modal);
+if (bsModal) bsModal.hide();
+
+setTimeout(function () {
+  var returnUrl = sessionStorage.getItem('returnUrlAfterLogin');
+  if (returnUrl) {
+    sessionStorage.removeItem('returnUrlAfterLogin');
+    window.location.href = returnUrl;
+    return;
+  }
+  window.location.reload();
+}, 200);
+", true);
             }
             catch (Exception ex)
             {
@@ -85,69 +113,49 @@ namespace Smash_IT.Controls
             }
         }
 
-
         // ================= SIGNUP - SEND OTP =================
         protected void btnSignup_Click(object sender, EventArgs e)
         {
-            // Get input values
-            string firstName = txtFirstname.Text.Trim();
-            string lastName = txtLastname.Text.Trim();
-            string email = txtEmail.Text.Trim();
-            string phone = txtPhone.Text.Trim();
-            string username = txtSignupUsername.Text.Trim();
-            string password = txtSignupPassword.Text.Trim();
+            string firstName = (txtFirstname.Text ?? "").Trim();
+            string lastName = (txtLastname.Text ?? "").Trim();
+            string email = (txtEmail.Text ?? "").Trim();
+            string phone = (txtPhone.Text ?? "").Trim();
+            string username = (txtSignupUsername.Text ?? "").Trim();
+            string password = (txtSignupPassword.Text ?? "").Trim();
 
-            // Validate fields
             if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName) ||
-       string.IsNullOrEmpty(email) || string.IsNullOrEmpty(phone) ||
-       string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+                string.IsNullOrEmpty(email) || string.IsNullOrEmpty(phone) ||
+                string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 lblSignupMsg.Text = "Please fill in all required fields.";
+                ShowSignupModal(step: 1, unlock3: false);
                 return;
             }
 
-            // Check if username or email already exists
             if (CheckUserExists(username, email))
             {
                 lblSignupMsg.Text = "Username or Email already exists.";
+                ShowSignupModal(step: 1, unlock3: false);
                 return;
             }
 
             try
             {
-                // Generate OTP
                 string otp = new Random().Next(100000, 999999).ToString();
-
-                // Store in session
                 Session["OTP"] = otp;
 
                 Session["SignupData"] = new
                 {
-                    firstName = firstName,
-                    lastName = lastName,
-                    email = email,
-                    phone = phone,
-                    username = username,
-                    password = password
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    username,
+                    password
                 };
 
-
-
-                // Send OTP email
                 SendOTPEmail(email, otp);
-
-                // Show Step 2 (Verify OTP) - Keep modal open AND switch to Signup tab
-                ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowOTPStep", @"
-  // ensure signup tab is active (keep your tab switching code if you want)
-
-  if (window.AuthSignup) {
-    window.AuthSignup.setStep(2);
-  }
-
-  var modalEl = document.getElementById('loginSignupModal');
-  var myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  myModal.show();
-", true);
+                ShowSignupModal(step: 2, unlock3: false);
             }
             catch (Exception ex)
             {
@@ -155,81 +163,56 @@ namespace Smash_IT.Controls
             }
         }
 
-        // Check if username or email already exists
         private bool CheckUserExists(string username, string email)
         {
-            using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection con = new SqlConnection(CS))
             {
                 con.Open();
-                SqlCommand cmd = new SqlCommand(
-                    "SELECT COUNT(*) FROM tblPlayerAccount WHERE Username = @Username OR Email = @Email", con);
-                cmd.Parameters.AddWithValue("@Username", username);
-                cmd.Parameters.AddWithValue("@Email", email);
-
-                int count = Convert.ToInt32(cmd.ExecuteScalar());
-                return count > 0;
+                using (SqlCommand cmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM tblPlayerAccount WHERE Username = @Username OR Email = @Email", con))
+                {
+                    cmd.Parameters.AddWithValue("@Username", username);
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                }
             }
         }
 
-
         // ================= VERIFY OTP =================
-
         protected void btnVerifyOTP_Click(object sender, EventArgs e)
         {
-            string enteredOTP = txtOTP.Text.Trim();
+            string enteredOTP = (txtOTP.Text ?? "").Trim();
 
             if (Session["OTP"] == null || enteredOTP != Session["OTP"].ToString())
             {
                 lblOTPMsg.Text = "Invalid OTP. Please try again.";
                 txtOTP.Text = "";
-
-                ScriptManager.RegisterStartupScript(this, this.GetType(), "KeepModalOpen", @"
-            var modalEl = document.getElementById('loginSignupModal');
-            var myModal = new bootstrap.Modal(modalEl);
-            myModal.show();
-        ", true);
-
+                ShowSignupModal(step: 2, unlock3: false);
                 return;
             }
 
-            // OTP OK -> mark verified, go to Step 3
             Session["OTPVerified"] = true;
             lblOTPMsg.Text = "";
-
-            ScriptManager.RegisterStartupScript(this, this.GetType(), "ShowTermsStep", @"
-  // ensure signup tab is active (keep your tab switching code if you want)
-
-  if (window.AuthSignup) {
-    window.AuthSignup.unlockStep3();
-    window.AuthSignup.setStep(3);
-  }
-
-  var modalEl = document.getElementById('loginSignupModal');
-  var myModal = bootstrap.Modal.getOrCreateInstance(modalEl);
-  myModal.show();
-", true);
+            ShowSignupModal(step: 3, unlock3: true);
         }
-
 
         protected void btnCreateAccount_Click(object sender, EventArgs e)
         {
-            // Must have OTP verified
             if (Session["OTPVerified"] == null || !(bool)Session["OTPVerified"])
             {
                 lblTermsMsg.Text = "Please verify your OTP first.";
                 return;
             }
 
-            // Must accept terms
             if (!chkTerms.Checked)
             {
                 lblTermsMsg.Text = "You must accept the Terms & Conditions.";
+                ShowSignupModal(step: 3, unlock3: true);
                 return;
             }
 
             try
             {
-                // Get signup data from session
                 dynamic data = Session["SignupData"];
                 if (data == null)
                 {
@@ -237,8 +220,8 @@ namespace Smash_IT.Controls
                     return;
                 }
 
-                string firstname = data.firstname;
-                string lastname = data.lastname;
+                string firstname = data.firstName;
+                string lastname = data.lastName;
                 string email = data.email;
                 string phone = data.phone;
                 string username = data.username;
@@ -246,42 +229,38 @@ namespace Smash_IT.Controls
 
                 int newUserId = InsertUser(firstname, lastname, email, phone, username, password);
 
-                if (newUserId > 0)
+                if (newUserId <= 0)
                 {
-                    Session["UserID"] = newUserId;
-                    Session["Username"] = username;
-
-                    // Clear sessions
-                    Session["OTP"] = null;
-                    Session["OTPVerified"] = null;
-                    Session["SignupData"] = null;
-
-                    // Clear fields
-                    ClearSignupFields();
-                    chkTerms.Checked = false;
-                    lblTermsMsg.Text = "";
-
-                    // Close modal and refresh/redirect
-                    ScriptManager.RegisterStartupScript(this, this.GetType(), "SignupSuccess", @"
-              var modal = document.getElementById('loginSignupModal');
-              var bsModal = bootstrap.Modal.getInstance(modal);
-              if (bsModal) bsModal.hide();
-
-              setTimeout(function () {
-                var returnUrl = sessionStorage.getItem('returnUrlAfterLogin');
-                if (returnUrl) {
-                  sessionStorage.removeItem('returnUrlAfterLogin');
-                  window.location.href = returnUrl;
-                  return;
-                }
-                window.location.reload();
-              }, 200);
-            ", true);
-
+                    lblTermsMsg.Text = "Error creating account. Please try again.";
                     return;
                 }
 
-                lblTermsMsg.Text = "Error creating account. Please try again.";
+                // ✅ set sessions for reservation autofill (either via DB helper or directly)
+                SetUserSessionFromDb(newUserId);
+
+                Session["OTP"] = null;
+                Session["OTPVerified"] = null;
+                Session["SignupData"] = null;
+
+                ClearSignupFields();
+                chkTerms.Checked = false;
+                lblTermsMsg.Text = "";
+
+                ScriptManager.RegisterStartupScript(this, this.GetType(), "SignupSuccess", @"
+var modal = document.getElementById('loginSignupModal');
+var bsModal = bootstrap.Modal.getInstance(modal);
+if (bsModal) bsModal.hide();
+
+setTimeout(function () {
+  var returnUrl = sessionStorage.getItem('returnUrlAfterLogin');
+  if (returnUrl) {
+    sessionStorage.removeItem('returnUrlAfterLogin');
+    window.location.href = returnUrl;
+    return;
+  }
+  window.location.reload();
+}, 200);
+", true);
             }
             catch (Exception ex)
             {
@@ -289,31 +268,29 @@ namespace Smash_IT.Controls
             }
         }
 
-        // Insert new user into database
         private int InsertUser(string firstname, string lastname, string email, string phone, string username, string password)
         {
-            using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString))
+            using (SqlConnection con = new SqlConnection(CS))
             {
                 con.Open();
-                SqlCommand cmd = new SqlCommand(@"
-                INSERT INTO tblPlayerAccount (Firstname, Lastname, Email, PhoneNumber, Username, Password, CreatedAt) 
-                VALUES (@firstname, @lastname, @Email, @Phone, @Username, @Password, @CreatedAt);
-                SELECT SCOPE_IDENTITY();", con);
+                using (SqlCommand cmd = new SqlCommand(@"
+INSERT INTO tblPlayerAccount (Firstname, Lastname, Email, PhoneNumber, Username, Password, CreatedAt) 
+VALUES (@firstname, @lastname, @Email, @Phone, @Username, @Password, @CreatedAt);
+SELECT SCOPE_IDENTITY();", con))
+                {
+                    cmd.Parameters.AddWithValue("@firstname", firstname);
+                    cmd.Parameters.AddWithValue("@lastname", lastname);
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.Parameters.AddWithValue("@Phone", phone);
+                    cmd.Parameters.AddWithValue("@Username", username);
+                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
 
-                cmd.Parameters.AddWithValue("@firstname", firstname);
-                cmd.Parameters.AddWithValue("@lastname", lastname);
-                cmd.Parameters.AddWithValue("@Email", email);
-                cmd.Parameters.AddWithValue("@Phone", phone);
-                cmd.Parameters.AddWithValue("@Username", username);
-                cmd.Parameters.AddWithValue("@Password", password);
-                cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
-
-                return Convert.ToInt32(cmd.ExecuteScalar());
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
             }
         }
 
-
-        // ================= SEND OTP EMAIL =================
         private void SendOTPEmail(string toEmail, string otp)
         {
             try
@@ -323,16 +300,15 @@ namespace Smash_IT.Controls
                 mail.From = new MailAddress("hannaliolayvar@gmail.com");
                 mail.Subject = "Smash-It: OTP Verification";
                 mail.Body = $@"
-                <html>
-                <body style='font-family: Arial, sans-serif;'>
-                    <h2>Welcome to Smash-It!</h2>
-                    <p>Your OTP for account verification is:</p>
-                    <h1 style='color: #1a187c;'>{otp}</h1>
-                    <p>Please enter this code to verify your account.</p>
-                    <p>If you did not request this, please ignore this email.</p>
-                </body>
-                </html>";
-
+<html>
+<body style='font-family: Arial, sans-serif;'>
+  <h2>Welcome to Smash-It!</h2>
+  <p>Your OTP for account verification is:</p>
+  <h1 style='color: #1a187c;'>{otp}</h1>
+  <p>Please enter this code to verify your account.</p>
+  <p>If you did not request this, please ignore this email.</p>
+</body>
+</html>";
                 mail.IsBodyHtml = true;
 
                 SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587);
@@ -342,13 +318,10 @@ namespace Smash_IT.Controls
             }
             catch (Exception ex)
             {
-                // Log error but don't stop the process
                 System.Diagnostics.Debug.WriteLine("Email Error: " + ex.Message);
             }
         }
 
-
-        // ================= HELPER METHODS =================
         private void ClearSignupFields()
         {
             txtFirstname.Text = "";
@@ -361,7 +334,32 @@ namespace Smash_IT.Controls
             lblSignupMsg.Text = "";
             lblOTPMsg.Text = "";
         }
+
+        private void ShowSignupModal(int step, bool unlock3)
+        {
+            hfSignupStep.Value = step.ToString();
+
+            string script = $@"
+(function(){{
+  var modalEl = document.getElementById('loginSignupModal');
+  if (modalEl) {{
+    var m = bootstrap.Modal.getOrCreateInstance(modalEl);
+    m.show();
+  }}
+
+  var signupTab = document.querySelector('a[href=""#signupTab""]');
+  if (signupTab) {{
+    var t = new bootstrap.Tab(signupTab);
+    t.show();
+  }}
+
+  if (window.AuthSignup) {{
+    {(unlock3 ? "AuthSignup.unlockStep3();" : "AuthSignup.lockStep3();")}
+    AuthSignup.setStep({step});
+  }}
+}})();";
+
+            ScriptManager.RegisterStartupScript(this, GetType(), "ShowSignupModal", script, true);
+        }
     }
-
-
 }

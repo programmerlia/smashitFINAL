@@ -1,4 +1,5 @@
-/* reservation.js (FULL) */
+/* reservation.js (REVAMPED + ALIGNED WITH YOUR C#) */
+
 
 const SafeStore = (() => {
     let mem = {};
@@ -28,153 +29,66 @@ const SafeStore = (() => {
     };
 })();
 
-
-// MUST be global so ASPX OnClientClick can call it
-window.resetReservationUI = function resetReservationUI() {
-    // clear saved flow/cart so it won’t auto-resume
-    try {
-        sessionStorage.removeItem("pendingBooking");
-        sessionStorage.removeItem("rentalCart");
-        sessionStorage.removeItem("isPaying");
-    } catch { }
-
-    // hide the reservation section
-    const section = document.getElementById("reservationSection");
-    if (section) section.style.display = "none";
-
-    // hide all steps
-    ["dateSelectionSection", "rentalSelectionSection", "infoSection"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = "none";
-    });
-
-    // reset step indicator
-    document.querySelectorAll(".step-item").forEach(x => x.classList.remove("active"));
-    const first = document.querySelector(".step-item");
-    if (first) first.classList.add("active");
-
-    // clear textboxes (use resConfig ids)
-    const ids = window.resConfig?.ids || {};
-    const clearById = (domId) => { const el = document.getElementById(domId); if (el) el.value = ""; };
-
-    if (ids.txtFirstname) clearById(ids.txtFirstname);
-    if (ids.txtLastname) clearById(ids.txtLastname);
-    if (ids.txtEmail) clearById(ids.txtEmail);
-    if (ids.txtContact) clearById(ids.txtContact);
-
-    // reset dropdowns
-    if (ids.ddlSport) {
-        const s = document.getElementById(ids.ddlSport);
-        if (s) s.value = "";
-    }
-    if (ids.ddlDuration) {
-        const d = document.getElementById(ids.ddlDuration);
-        if (d) d.value = "1";
-    }
-
-    // reset players
-    const np = document.getElementById("numPlayers");
-    if (np) np.value = "1";
-
-    // clear file upload (replace node)
-    const fu = document.querySelector('input[type="file"]');
-    if (fu && fu.parentNode) {
-        const clone = fu.cloneNode(true);
-        fu.parentNode.replaceChild(clone, fu);
-    }
-
-    // clear summaries
-    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    setText("courtSummaryCourt", "---");
-    setText("courtSummarySport", "---");
-    setText("courtSummaryTime", "---");
-    setText("courtSummaryDuration", "---");
-    setText("totalPrice", "₱ 0");
-    setText("rentalsTotal", "₱ 0");
-    setText("totalFinal", "₱ 0");
-    setText("summary-totalPrice", "");
-    setText("summary-totalPriceInfo", "");
-    setText("summaryCourt", "---");
-    setText("summarySport", "---");
-    setText("summaryTime", "---");
-    setText("summaryDuration", "---");
-    setText("summaryPlayers", "1");
-    setText("summaryFirstname", "------");
-    setText("summaryLastname", "------");
-    setText("summaryContact", "------");
-    setText("summaryEmail", "------");
-
-    const cartItems = document.getElementById("cartItems");
-    if (cartItems) cartItems.innerHTML = "";
-
-    // clear label
-    if (window.lblSelectedSlotClientID) {
-        const lbl = document.getElementById(window.lblSelectedSlotClientID);
-        if (lbl) lbl.innerText = "No slot selected.";
-    }
-
-    // clear hidden fields
-    const clearHF = (id) => { const el = document.getElementById(id); if (el) el.value = ""; };
-    clearHF("hfSelectedCourtID");
-    clearHF("hfSelectedDate");
-    if (window.hfCourtIDClientID) clearHF(window.hfCourtIDClientID);
-    if (window.hfResDateClientID) clearHF(window.hfResDateClientID);
-    if (window.hfStartTimeClientID) clearHF(window.hfStartTimeClientID);
-    if (window.hfEndTimeClientID) clearHF(window.hfEndTimeClientID);
-    clearHF("hfRentalCart");
-    clearHF("hfRentalItems");
-    clearHF("hfRentalStock");
-
-    // close modal
-    const modal = document.getElementById("paymentModal");
-    if (modal) modal.style.display = "none";
-
-    location.reload();
-};
-
-
 (function () {
     "use strict";
 
+    // ----------------- CONFIG -----------------
     const cfg = window.resConfig || {};
     const ids = cfg.ids || {};
     const urls = cfg.urls || {};
     const sessionUser = cfg.sessionUser || {};
     const isLoggedIn = !!cfg.isLoggedIn;
 
-    // --- DOM helpers ---
+    const KEY_BOOKING = "pendingBooking";
+    const KEY_CART = "rentalCart";
+
+    // ----------------- DOM HELPERS -----------------
     const $ = (id) => document.getElementById(id);
     const $id = (key) => document.getElementById(ids[key]);
 
-    // --- Hidden fields (server expects these exact ones) ---
+    // Find element by: staticId OR window clientId var OR provided clientId string
+    function byAnyId(staticId, clientIdOrWindowKey) {
+        if (staticId) {
+            const a = $(staticId);
+            if (a) return a;
+        }
+        if (clientIdOrWindowKey) {
+            const cid = (typeof clientIdOrWindowKey === "string" && clientIdOrWindowKey.indexOf("ClientID") >= 0)
+                ? window[clientIdOrWindowKey]
+                : clientIdOrWindowKey;
+
+            if (cid) {
+                const b = document.getElementById(cid);
+                if (b) return b;
+            }
+        }
+        return null;
+    }
+
     const HF = {
-        // from global script in aspx:
-        courtID: () => document.getElementById(window.hfCourtIDClientID),
-        resDate: () => document.getElementById(window.hfResDateClientID),
-        start: () => document.getElementById(window.hfStartTimeClientID),
-        end: () => document.getElementById(window.hfEndTimeClientID),
-        lblSlot: () => document.getElementById(window.lblSelectedSlotClientID),
+        // server-generated client IDs (you already have these globals)
+        courtID: () => byAnyId(null, "hfCourtIDClientID"),
+        resDate: () => byAnyId(null, "hfResDateClientID"),
+        start: () => byAnyId(null, "hfStartTimeClientID"),
+        end: () => byAnyId(null, "hfEndTimeClientID"),
+        lblSlot: () => byAnyId(null, "lblSelectedSlotClientID"),
 
-        // server-side static hidden fields:
-        selectedDate: () => $("hfSelectedDate"),
-        selectedCourtID: () => $("hfSelectedCourtID"),
+        // these might be static OR might be rendered as ClientID
+        selectedDate: () => byAnyId("hfSelectedDate", "hfSelectedDateClientID"),
+        selectedCourtID: () => byAnyId("hfSelectedCourtID", "hfSelectedCourtIDClientID"),
 
-        // rentals postback:
-        rentalCart: () => $("hfRentalCart")
+        rentalCart: () => byAnyId("hfRentalCart", "hfRentalCartClientID")
     };
 
-    // --- data loaded from hiddenfields JSON ---
+    // If you also have a hidden field for selected sport
+    const hfSelectedSport = () => byAnyId(null, "hfSelectedSportClientID");
+
+    // ----------------- STATE -----------------
     let courts = [];
     let queues = [];
     let lastEquipmentRows = [];
 
-    // --- storage keys ---
-    const KEY_BOOKING = "pendingBooking";  // step, date, courtId, start, end, sport, duration, players, info
-    const KEY_CART = "rentalCart";         // rental cart JSON
-
-    // =========================
-    // Time helpers
-    // =========================
+    // ----------------- TIME HELPERS -----------------
     function addMinutes(timeHHMM, minutesToAdd) {
         const [hh, mm] = (timeHHMM || "00:00").split(":").map(Number);
         const d = new Date();
@@ -195,15 +109,26 @@ window.resetReservationUI = function resetReservationUI() {
     }
 
     function getSelectedSport() {
-        return String($id("ddlSport")?.value || "").toLowerCase();
+        return String($id("ddlSport")?.value || "").trim().toLowerCase();
     }
 
-    // =========================
-    // Step UI
-    // =========================
+    // ----------------- SLOT LABEL (ALIGNED WITH C#) -----------------
+    function setSlotLabel() {
+        const lbl = HF.lblSlot();
+        if (!lbl) return;
+
+        const sport = getSelectedSport();
+        const sel = getSelection();
+
+        if (!sport) lbl.textContent = "No sport selected.";
+        else if (!sel.courtId || !sel.start) lbl.textContent = "No slot selected.";
+        // else leave whatever "Selected: ..." text is set by click handler
+    }
+
+    // ----------------- STEP UI -----------------
     function showStep(step) {
         const s1 = $("dateSelectionSection");
-        const s2 = $("rentalSelectionSection"); // IMPORTANT: your Step2 DIV must be this ID
+        const s2 = $("rentalSelectionSection");
         const s3 = $("infoSection");
 
         if (s1) s1.style.display = (step === 1 ? "flex" : "none");
@@ -219,7 +144,6 @@ window.resetReservationUI = function resetReservationUI() {
         const resSection = $("reservationSection");
         if (resSection) resSection.style.display = "flex";
 
-        // disable hero button for this session
         const btn = $id("btnReserveNow");
         if (btn) {
             btn.innerText = "Booking in progress...";
@@ -233,9 +157,15 @@ window.resetReservationUI = function resetReservationUI() {
     }
     window.showReservation = showReservation;
 
-    // =========================
-    // Selection model (single source of truth)
-    // =========================
+    function getCurrentStep() {
+        const s3 = $("infoSection");
+        const s2 = $("rentalSelectionSection");
+        if (s3 && s3.style.display !== "none") return 3;
+        if (s2 && s2.style.display !== "none") return 2;
+        return 1;
+    }
+
+    // ----------------- SELECTION (SINGLE SOURCE OF TRUTH) -----------------
     function getSelection() {
         return {
             sport: getSelectedSport(),
@@ -253,36 +183,34 @@ window.resetReservationUI = function resetReservationUI() {
     }
 
     function setSelection(sel) {
-        // date
         if (HF.selectedDate()) HF.selectedDate().value = sel.date || "";
         if (HF.resDate()) HF.resDate().value = sel.date || "";
 
-        // court
         if (HF.selectedCourtID()) HF.selectedCourtID().value = sel.courtId || "";
         if (HF.courtID()) HF.courtID().value = sel.courtId || "";
 
-        // start/end
         if (HF.start()) HF.start().value = sel.start || "";
         if (HF.end()) HF.end().value = sel.end || "";
 
-        // dropdowns
-        if ($id("ddlSport") && sel.sport) $id("ddlSport").value = sel.sport;
-        if ($id("ddlDuration") && sel.duration) $id("ddlDuration").value = sel.duration;
+        if ($id("ddlSport")) $id("ddlSport").value = sel.sport ?? $id("ddlSport").value;
+        if ($id("ddlDuration")) $id("ddlDuration").value = sel.duration ?? $id("ddlDuration").value;
 
-        // players
         if ($("numPlayers") && sel.players) $("numPlayers").value = sel.players;
 
-        // info inputs (don’t overwrite if user already typed)
+        // only fill if empty (keeps user input)
         if ($id("txtFirstname") && sel.firstname && !$id("txtFirstname").value) $id("txtFirstname").value = sel.firstname;
         if ($id("txtLastname") && sel.lastname && !$id("txtLastname").value) $id("txtLastname").value = sel.lastname;
         if ($id("txtEmail") && sel.email && !$id("txtEmail").value) $id("txtEmail").value = sel.email;
         if ($id("txtContact") && sel.contact && !$id("txtContact").value) $id("txtContact").value = sel.contact;
+
+        // keep hidden sport mirror if you use one
+        const hfS = hfSelectedSport();
+        if (hfS) hfS.value = getSelectedSport();
     }
 
     function saveState(step) {
         const sel = getSelection();
-        const data = { ...sel, step: String(step || "1") };
-        SafeStore.set(KEY_BOOKING, JSON.stringify(data));
+        SafeStore.set(KEY_BOOKING, JSON.stringify({ ...sel, step: String(step || "1") }));
     }
 
     function restoreState() {
@@ -297,42 +225,49 @@ window.resetReservationUI = function resetReservationUI() {
         }
     }
 
-    // =========================
-    // Timetable clicking (Step 1)
-    // =========================
+    // ----------------- TIMETABLE -----------------
     function clearSlotVisuals() {
         document.querySelectorAll(".slot.selected, .slot.selected-range")
             .forEach(x => x.classList.remove("selected", "selected-range"));
     }
 
+    function ensureTimeTableShell() {
+        // your click binding uses .timetable-shell. If missing, try to bind to .table-responsive as fallback.
+        return document.querySelector(".timetable-shell") || document.querySelector(".table-responsive") || null;
+    }
+
     function applySportFilterToTimeTable() {
         const selected = getSelectedSport();
 
-        document.querySelectorAll(".slot").forEach(el => {
+        document.querySelectorAll(".slot.sport-disabled")
+            .forEach(el => el.classList.remove("sport-disabled"));
+
+        if (!selected) {
+            document.querySelectorAll(".slot.reservable")
+                .forEach(el => el.classList.add("sport-disabled"));
+
+            const cur = getSelection();
+            if (cur.courtId || cur.start || cur.end) {
+                setSelection({ ...cur, courtId: "", start: "", end: "" });
+                clearSlotVisuals();
+                setSlotLabel();
+                syncSummaries();
+                saveState(1);
+            } else {
+                setSlotLabel();
+            }
+            return;
+        }
+
+        document.querySelectorAll(".slot.reservable").forEach(el => {
             const courtId = el.dataset.court;
             if (!courtId) return;
 
             const court = (courts || []).find(x => String(x.CourtID) === String(courtId));
             const sport = String(court?.SportName || "").toLowerCase();
 
-            if (!selected) return;
-
-            if (sport && sport !== selected && el.classList.contains("reservable")) {
-                el.classList.add("sport-disabled");
-            }
+            if (sport && sport !== selected) el.classList.add("sport-disabled");
         });
-
-        if (!selected) {
-            const cur = getSelection();
-            if (cur.courtId || cur.start || cur.end) {
-                setSelection({ ...cur, courtId: "", start: "", end: "" });
-                clearSlotVisuals();
-                if (HF.lblSlot()) HF.lblSlot().textContent = "No slot selected.";
-                syncSummaries();
-                saveState(1);
-            }
-            return;
-        }
 
         const cur = getSelection();
         if (cur.courtId) {
@@ -341,18 +276,19 @@ window.resetReservationUI = function resetReservationUI() {
             if (sport && sport !== selected) {
                 setSelection({ ...cur, courtId: "", start: "", end: "" });
                 clearSlotVisuals();
-                if (HF.lblSlot()) HF.lblSlot().textContent = "No slot selected.";
+                setSlotLabel();
                 syncSummaries();
                 saveState(1);
             }
         }
+
+        setSlotLabel();
     }
 
     function initTimeTableClicks() {
-        const shell = document.querySelector(".timetable-shell");
+        const shell = ensureTimeTableShell();
         if (!shell) return;
 
-        // prevent double-binding even after partial postback
         if (shell.dataset.bound === "1") return;
         shell.dataset.bound = "1";
 
@@ -369,7 +305,6 @@ window.resetReservationUI = function resetReservationUI() {
 
             if (!date || !start || !courtId) return;
 
-            // validate continuous range for duration (30-min slots)
             const slotsNeeded = Math.max(1, durH * 2);
             const rangeEls = [];
 
@@ -390,17 +325,14 @@ window.resetReservationUI = function resetReservationUI() {
             clearSlotVisuals();
             rangeEls.forEach((cell, idx) => cell.classList.add(idx === 0 ? "selected" : "selected-range"));
 
-            // store into hidden fields (server + client use these)
             const sel = getSelection();
             setSelection({ ...sel, date, courtId, start, end });
 
-            if (HF.lblSlot()) {
-                HF.lblSlot().textContent = `Selected: ${date} | Court ${courtNum} | ${start} - ${end} (${durH}h)`;
-            }
+            const lbl = HF.lblSlot();
+            if (lbl) lbl.textContent = `Selected: ${date} | Court ${courtNum} | ${start} - ${end} (${durH}h)`;
 
-            // update everything dependent
             syncSummaries();
-            loadAndRenderEquipment(); // rentals availability depends on date/start/duration
+            loadAndRenderEquipment();
             saveState(1);
         });
     }
@@ -409,7 +341,6 @@ window.resetReservationUI = function resetReservationUI() {
         const cur = getSelection();
         if (!cur.courtId || !cur.date || !cur.start) return;
 
-        // apply selected+range visuals based on duration
         const durH = getDurationHours();
         const slotsNeeded = Math.max(1, durH * 2);
 
@@ -423,9 +354,7 @@ window.resetReservationUI = function resetReservationUI() {
         }
     }
 
-    // =========================
-    // Rentals (Step 2)
-    // =========================
+    // ----------------- RENTALS -----------------
     function getRentalCart() {
         try { return JSON.parse(SafeStore.get(KEY_CART) || "{}"); }
         catch { return {}; }
@@ -470,7 +399,7 @@ window.resetReservationUI = function resetReservationUI() {
             };
         });
 
-        // clamp cart
+        // clamp cart to available stock
         let changed = false;
         Object.keys(cart).forEach(k => {
             const avail = stockMap[k]?.avail ?? 0;
@@ -515,7 +444,6 @@ window.resetReservationUI = function resetReservationUI() {
         syncSummaries();
     }
 
-    // inline handlers
     window.cartInc = (key) => {
         const c = getRentalCart();
         c[key] = (c[key] || 0) + 1;
@@ -632,7 +560,6 @@ window.resetReservationUI = function resetReservationUI() {
         const start = sel.start;
         const dur = getDurationHours();
 
-        // If user hasn’t selected slot yet, show “select slot first”
         if (!date || !start) {
             const div = $("equipmentContainer");
             if (div) div.innerHTML = `<div class="text-muted small">Select a time slot first to load rental availability.</div>`;
@@ -644,9 +571,7 @@ window.resetReservationUI = function resetReservationUI() {
     }
     window.loadAndRenderEquipment = loadAndRenderEquipment;
 
-    // =========================
-    // Totals + summaries (ALWAYS keep in sync)
-    // =========================
+    // ----------------- TOTALS + SUMMARIES -----------------
     function getCourtTotal() {
         const dur = getDurationHours();
         const pricePerHour = 330;
@@ -661,7 +586,6 @@ window.resetReservationUI = function resetReservationUI() {
     function syncSummaries() {
         const sel = getSelection();
 
-        // compute court display
         const court = (courts || []).find(c => String(c.CourtID) === String(sel.courtId));
         const courtNum = court ? court.CourtNumber : "---";
         const sport = court ? court.SportName : (sel.sport ? sel.sport : "---");
@@ -672,22 +596,18 @@ window.resetReservationUI = function resetReservationUI() {
 
         const durTxt = `${getDurationHours()} Hour${getDurationHours() > 1 ? "s" : ""}`;
 
-        // Step2 summary (courtSummary*)
         if ($("courtSummaryCourt")) $("courtSummaryCourt").innerText = sel.courtId ? `Court ${courtNum}` : "---";
-        if ($("courtSummarySport")) $("courtSummarySport").innerText = sel.courtId ? sport : "---";
+        if ($("courtSummarySport")) $("courtSummarySport").innerText = sel.courtId ? sport : (sel.sport ? sel.sport : "---");
         if ($("courtSummaryTime")) $("courtSummaryTime").innerText = sel.start ? timeRange : "---";
         if ($("courtSummaryDuration")) $("courtSummaryDuration").innerText = durTxt;
 
-        // Step3 summary (summary*)
         if ($("summaryCourt")) $("summaryCourt").innerText = sel.courtId ? `Court ${courtNum}` : "---";
-        if ($("summarySport")) $("summarySport").innerText = sel.courtId ? sport : "---";
+        if ($("summarySport")) $("summarySport").innerText = sel.courtId ? sport : (sel.sport ? sel.sport : "---");
         if ($("summaryTime")) $("summaryTime").innerText = sel.start ? timeRange : "---";
         if ($("summaryDuration")) $("summaryDuration").innerText = durTxt;
 
-        // players
         if ($("summaryPlayers")) $("summaryPlayers").innerText = sel.players || "1";
 
-        // totals
         const courtTotal = getCourtTotal();
         const rentalsTotal = getRentalsTotalFromUI();
         const grand = courtTotal + rentalsTotal;
@@ -695,20 +615,20 @@ window.resetReservationUI = function resetReservationUI() {
         if ($("totalPrice")) $("totalPrice").innerText = "₱ " + courtTotal.toFixed(2);
         if ($("totalFinal")) $("totalFinal").innerText = "₱ " + grand.toFixed(2);
         if ($("summary-totalPrice")) $("summary-totalPrice").innerText = "₱ " + grand.toFixed(2);
-     
-        // user summary text (Step3)
+
         if ($("summaryFirstname")) $("summaryFirstname").innerText = $id("txtFirstname")?.value || "------";
         if ($("summaryLastname")) $("summaryLastname").innerText = $id("txtLastname")?.value || "------";
         if ($("summaryEmail")) $("summaryEmail").innerText = $id("txtEmail")?.value || "------";
         if ($("summaryContact")) $("summaryContact").innerText = $id("txtContact")?.value || "------";
         if ($("summary-totalPriceInfo")) $("summary-totalPriceInfo").innerText = "₱ " + grand.toFixed(2);
-        // keep hidden rentalCart up to date for postback
+
         if (HF.rentalCart()) HF.rentalCart().value = SafeStore.get(KEY_CART) || "{}";
+
+        // keep label consistent whenever summaries update
+        setSlotLabel();
     }
 
-    // =========================
-    // Navigation (single back to rentals)
-    // =========================
+    // ----------------- NAVIGATION -----------------
     function ensureSlotSelectedOrAlert() {
         const sel = getSelection();
         if (!sel.date || !sel.courtId || !sel.start || !sel.end) {
@@ -735,6 +655,32 @@ window.resetReservationUI = function resetReservationUI() {
         $("reservationSection")?.scrollIntoView({ behavior: "smooth" });
     }
     window.goBackToDate = goBackToDate;
+
+    // ----------------- PLAYER INFO -----------------
+    function fillUserInfoIfEmpty() {
+        const fn = $id("txtFirstname");
+        const ln = $id("txtLastname");
+        const e = $id("txtEmail");
+        const p = $id("txtContact");
+
+        if (fn && !fn.value) fn.value = sessionUser.firstname || "";
+        if (ln && !ln.value) ln.value = sessionUser.lastname || "";
+        if (e && !e.value) e.value = sessionUser.email || "";
+        if (p && !p.value) p.value = sessionUser.phone || "";
+    }
+
+    function bindInfoInputsOnce() {
+        const inputs = [$id("txtLastname"), $id("txtFirstname"), $id("txtEmail"), $id("txtContact")];
+        inputs.forEach(i => {
+            if (!i) return;
+            if (i.dataset.bound === "1") return;
+            i.dataset.bound = "1";
+            i.addEventListener("input", () => {
+                syncSummaries();
+                saveState(3);
+            });
+        });
+    }
 
     function goToInfoSection() {
         if (!ensureSlotSelectedOrAlert()) return false;
@@ -764,37 +710,7 @@ window.resetReservationUI = function resetReservationUI() {
     }
     window.goBackToRentals = goBackToRentals;
 
-    // =========================
-    // Player info auto-fill + live binding
-    // =========================
-    function fillUserInfoIfEmpty() {
-        const fn = $id("txtFirstname");
-        const ln = $id("txtLastname");
-        const e = $id("txtEmail");
-        const p = $id("txtContact");
-
-        if (fn && !fn.value) fn.value = sessionUser.firstname || "";
-        if (ln && !ln.value) ln.value = sessionUser.lastname || "";
-        if (e && !e.value) e.value = sessionUser.email || "";
-        if (p && !p.value) p.value = sessionUser.phone || "";
-    }
-
-    function bindInfoInputsOnce() {
-        const inputs = [$id("txtLastname"), $id("txtFirstname"), $id("txtEmail"), $id("txtContact")];
-        inputs.forEach(i => {
-            if (!i) return;
-            if (i.dataset.bound === "1") return;
-            i.dataset.bound = "1";
-            i.addEventListener("input", () => {
-                syncSummaries();
-                saveState(3);
-            });
-        });
-    }
-
-    // =========================
-    // Payment modal (includes rentals list)
-    // =========================
+    // ----------------- PAYMENT MODAL -----------------
     function renderPaymentRentals() {
         const listEl = $("pmRentals");
         const totalEl = $("pmRentalsTotal");
@@ -845,7 +761,6 @@ window.resetReservationUI = function resetReservationUI() {
         if (!modal) return;
 
         syncSummaries();
-
         const sel = getSelection();
 
         if ($("pmCourt")) $("pmCourt").innerText = $("summaryCourt")?.innerText || "---";
@@ -877,7 +792,6 @@ window.resetReservationUI = function resetReservationUI() {
 
         saveState(3);
         SafeStore.set("isPaying", "1");
-
         window.closePaymentModal();
 
         __doPostBack(window.resConfig.ids.btnSubmitReservationUnique, "");
@@ -898,11 +812,10 @@ window.resetReservationUI = function resetReservationUI() {
         return false;
     };
 
-    // =========================
-    // UpdatePanel hook (ASP.NET partial postbacks)
-    // =========================
+    // ----------------- UPDATEPANEL REBIND -----------------
     function wireUpdatePanelHookOnce() {
         if (!(window.Sys && Sys.WebForms && Sys.WebForms.PageRequestManager)) return;
+
         const prm = Sys.WebForms.PageRequestManager.getInstance();
         if (prm._reservationHooked) return;
         prm._reservationHooked = true;
@@ -917,11 +830,10 @@ window.resetReservationUI = function resetReservationUI() {
                 showStep(3);
             }
 
-            const shell = document.querySelector(".timetable-shell");
+            const shell = ensureTimeTableShell();
             if (shell) shell.dataset.bound = "0";
 
             bindControlsOnce();
-
             initTimeTableClicks();
             applySportFilterToTimeTable();
             reselectSlotFromHidden();
@@ -931,9 +843,7 @@ window.resetReservationUI = function resetReservationUI() {
         });
     }
 
-    // =========================
-    // Bind dropdowns + players
-    // =========================
+    // ----------------- BIND CONTROLS -----------------
     function bindControlsOnce() {
         const sport = $id("ddlSport");
         if (sport && sport.dataset.bound !== "1") {
@@ -942,10 +852,13 @@ window.resetReservationUI = function resetReservationUI() {
                 const cur = getSelection();
                 setSelection({ ...cur, courtId: "", start: "", end: "" });
                 clearSlotVisuals();
-                if (HF.lblSlot()) HF.lblSlot().textContent = "No slot selected.";
+                setSlotLabel();
                 saveState(1);
 
                 const tgt = ids.ddlSportUnique;
+                const hfS = hfSelectedSport();
+                if (hfS) hfS.value = getSelectedSport();
+
                 if (typeof __doPostBack === "function" && tgt) {
                     __doPostBack(tgt, "");
                     return;
@@ -955,15 +868,11 @@ window.resetReservationUI = function resetReservationUI() {
                 syncSummaries();
             });
         }
-        const hfSport = document.getElementById(window.hfSelectedSportClientID);
-        if (hfSport) hfSport.value = getSelectedSport(); // "badminton"/"pickleball"/""
-
 
         const dur = $id("ddlDuration");
         if (dur && dur.dataset.bound !== "1") {
             dur.dataset.bound = "1";
             dur.addEventListener("change", () => {
-                // duration affects end time and range validity
                 const sel = getSelection();
                 if (sel.start) {
                     const end = addMinutes(sel.start, getDurationHours() * 60);
@@ -986,18 +895,7 @@ window.resetReservationUI = function resetReservationUI() {
         }
     }
 
-    // ✅ FIXED: don’t compare to "flex" (your showStep uses "block")
-    function getCurrentStep() {
-        const s3 = $("infoSection");
-        const s2 = $("rentalSelectionSection");
-        if (s3 && s3.style.display !== "none") return 3;
-        if (s2 && s2.style.display !== "none") return 2;
-        return 1;
-    }
-
-    // =========================
-    // Resume flow
-    // =========================
+    // ----------------- RESUME / INITIAL -----------------
     function resumeToSavedStep() {
         const data = restoreState();
         if (!data) return;
@@ -1005,7 +903,6 @@ window.resetReservationUI = function resetReservationUI() {
         showReservation();
 
         const step = parseInt(data.step || "1", 10) || 1;
-
         showStep(step);
 
         applySportFilterToTimeTable();
@@ -1024,7 +921,7 @@ window.resetReservationUI = function resetReservationUI() {
         setSelection({ ...cur, courtId: "", start: "", end: "" });
 
         clearSlotVisuals();
-        if (HF.lblSlot()) HF.lblSlot().textContent = "No slot selected.";
+        setSlotLabel();
 
         const div = $("equipmentContainer");
         if (div) div.innerHTML = `<div class="text-muted small">Select a time slot first to load rental availability.</div>`;
@@ -1034,12 +931,83 @@ window.resetReservationUI = function resetReservationUI() {
         saveState(1);
     }
 
+    // ----------------- PUBLIC RESET (IMPROVED) -----------------
+    window.resetReservationUI = function resetReservationUI() {
+        try {
+            sessionStorage.removeItem(KEY_BOOKING);
+            sessionStorage.removeItem(KEY_CART);
+            sessionStorage.removeItem("isPaying");
+        } catch { }
 
+        const section = $("reservationSection");
+        if (section) section.style.display = "none";
 
-    // =========================
-    // Init
-    // =========================
+        ["dateSelectionSection", "rentalSelectionSection", "infoSection"].forEach(id => {
+            const el = $(id);
+            if (el) el.style.display = "none";
+        });
+
+        document.querySelectorAll(".step-item").forEach(x => x.classList.remove("active"));
+        document.querySelector(".step-item")?.classList.add("active");
+
+        const clearById = (domId) => { const el = document.getElementById(domId); if (el) el.value = ""; };
+
+        if (ids.txtFirstname) clearById(ids.txtFirstname);
+        if (ids.txtLastname) clearById(ids.txtLastname);
+        if (ids.txtEmail) clearById(ids.txtEmail);
+        if (ids.txtContact) clearById(ids.txtContact);
+
+        if (ids.ddlSport) document.getElementById(ids.ddlSport) && (document.getElementById(ids.ddlSport).value = "");
+        if (ids.ddlDuration) document.getElementById(ids.ddlDuration) && (document.getElementById(ids.ddlDuration).value = "1");
+        const np = $("numPlayers");
+        if (np) np.value = "1";
+
+        const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+        setText("courtSummaryCourt", "---");
+        setText("courtSummarySport", "---");
+        setText("courtSummaryTime", "---");
+        setText("courtSummaryDuration", "---");
+        setText("totalPrice", "₱ 0");
+        setText("rentalsTotal", "₱ 0");
+        setText("totalFinal", "₱ 0");
+        setText("summary-totalPrice", "");
+        setText("summary-totalPriceInfo", "");
+        setText("summaryCourt", "---");
+        setText("summarySport", "---");
+        setText("summaryTime", "---");
+        setText("summaryDuration", "---");
+        setText("summaryPlayers", "1");
+        setText("summaryFirstname", "------");
+        setText("summaryLastname", "------");
+        setText("summaryContact", "------");
+        setText("summaryEmail", "------");
+
+        const cartItems = $("cartItems");
+        if (cartItems) cartItems.innerHTML = "";
+
+        // clear hidden fields safely
+        const clearEl = (el) => { if (el) el.value = ""; };
+        clearEl(HF.selectedCourtID());
+        clearEl(HF.selectedDate());
+        clearEl(HF.courtID());
+        clearEl(HF.resDate());
+        clearEl(HF.start());
+        clearEl(HF.end());
+        clearEl(HF.rentalCart());
+        const hfS = hfSelectedSport();
+        clearEl(hfS);
+
+        // close modal
+        const modal = $("paymentModal");
+        if (modal) modal.style.display = "none";
+
+        location.reload();
+    };
+
+    // ----------------- INIT -----------------
     function initOnce() {
+
+
         if (window.__reservationInitDone) return;
         window.__reservationInitDone = true;
 
@@ -1048,17 +1016,20 @@ window.resetReservationUI = function resetReservationUI() {
 
         wireUpdatePanelHookOnce();
         bindControlsOnce();
+
+        if (isLoggedIn) {
+            fillUserInfoIfEmpty();
+            syncSummaries();
+        }
         initTimeTableClicks();
 
-        const hfSportInit = document.getElementById(window.hfSelectedSportClientID);
-        if (hfSportInit) hfSportInit.value = getSelectedSport();
-
         if (HF.rentalCart()) HF.rentalCart().value = SafeStore.get(KEY_CART) || "{}";
+        const hfS = hfSelectedSport();
+        if (hfS) hfS.value = getSelectedSport();
 
         const raw = SafeStore.get(KEY_BOOKING);
-        if (raw) {
-            resumeToSavedStep();
-        } else {
+        if (raw) resumeToSavedStep();
+        else {
             resetInitialNoPreselect();
             applySportFilterToTimeTable();
         }
@@ -1067,19 +1038,13 @@ window.resetReservationUI = function resetReservationUI() {
     }
 
     function safeInit() {
-        try { initOnce(); } catch (e) { console.error("Reservation init failed:", e); }
+        try { initOnce(); }
+        catch (e) { console.error("Reservation init failed:", e); }
     }
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", safeInit);
-    } else {
-        safeInit();
-    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", safeInit);
+    else safeInit();
 
-    if (window.Sys && Sys.Application) {
-        Sys.Application.add_load(safeInit);
-    }
+    if (window.Sys && Sys.Application) Sys.Application.add_load(safeInit);
 
 })();
-
-

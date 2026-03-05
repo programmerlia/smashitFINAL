@@ -13,11 +13,20 @@ using System.Web.Script.Serialization;
 
 namespace Smash_IT
 {
+    // PayMongo Webhook Handler (revamped)
+    // Goals:
+    // - Safe parsing (won't crash on missing keys)
+    // - Correctly find event type + checkout session id across common payload shapes
+    // - Idempotent: never double-insert payments
+    // - Computes rentals total even if tblRental.UnitPrice is NOT filled (joins to model default price)
+    // - Updates tblReservation + tblRental consistently
     public class PaymongoWebhook : IHttpHandler
     {
         public void ProcessRequest(HttpContext context)
         {
-            if (context.Request.HttpMethod != "POST")
+            context.Response.ContentType = "text/plain";
+
+            if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.StatusCode = 405;
                 context.Response.Write("Method Not Allowed");
@@ -28,11 +37,12 @@ namespace Smash_IT
             using (var reader = new StreamReader(context.Request.InputStream))
                 raw = reader.ReadToEnd();
 
-            // (Optional) debug dump
-            try { File.WriteAllText(context.Server.MapPath("~/App_Data/paymongo_webhook_last.json"), raw); } catch { }
+            // Optional debug dump (safe)
+            TryDump(context, "~/App_Data/paymongo_webhook_last.json", raw);
 
-            string sigHeader = context.Request.Headers["Paymongo-Signature"] ?? "";
+            // Signature verification (optional if secret exists)
             string whSecret = ConfigurationManager.AppSettings["PaymongoWebhookSecret"];
+            string sigHeader = context.Request.Headers["Paymongo-Signature"] ?? "";
 
             if (!string.IsNullOrWhiteSpace(whSecret))
             {
@@ -44,8 +54,19 @@ namespace Smash_IT
                 }
             }
 
-            var js = new JavaScriptSerializer();
-            var evt = js.DeserializeObject(raw) as Dictionary<string, object>;
+            // Parse JSON
+            Dictionary<string, object> evt;
+            try
+            {
+                evt = new JavaScriptSerializer().DeserializeObject(raw) as Dictionary<string, object>;
+            }
+            catch
+            {
+                context.Response.StatusCode = 400;
+                context.Response.Write("Invalid JSON");
+                return;
+            }
+
             if (evt == null)
             {
                 context.Response.StatusCode = 400;
@@ -53,12 +74,13 @@ namespace Smash_IT
                 return;
             }
 
-            var data = evt.ContainsKey("data") ? evt["data"] as Dictionary<string, object> : null;
-            var attributes = (data != null && data.ContainsKey("attributes")) ? data["attributes"] as Dictionary<string, object> : null;
-
-            string eventType = (attributes != null && attributes.ContainsKey("type") && attributes["type"] != null)
-                ? attributes["type"].ToString()
-                : null;
+            // Extract event type in a tolerant way (PayMongo payloads can vary)
+            // Try: data.attributes.type (your original)
+            // Also try: data.type / type
+            string eventType =
+                AsString(DeepGet(evt, "data", "attributes", "type")) ??
+                AsString(DeepGet(evt, "data", "type")) ??
+                AsString(DeepGet(evt, "type"));
 
             if (string.IsNullOrWhiteSpace(eventType))
             {
@@ -67,21 +89,37 @@ namespace Smash_IT
                 return;
             }
 
-            if (eventType == "checkout_session.payment.paid")
+            // We only care about paid checkout session
+            if (string.Equals(eventType, "checkout_session.payment.paid", StringComparison.OrdinalIgnoreCase))
             {
-                string checkoutSessionId = null;
-
-                // PayMongo: data.attributes.data.id
-                var innerData = (attributes != null && attributes.ContainsKey("data"))
-                    ? attributes["data"] as Dictionary<string, object>
-                    : null;
-
-                if (innerData != null && innerData.ContainsKey("id") && innerData["id"] != null)
-                    checkoutSessionId = innerData["id"].ToString();
+                // Extract checkout session id
+                // Common patterns:
+                // - data.attributes.data.id   (what you used)
+                // - data.attributes.data.attributes.checkout_session_id (rare)
+                // - data.attributes.data.attributes.id (rare)
+                // - data.attributes.data.attributes.checkout_session (rare)
+                string checkoutSessionId =
+                    AsString(DeepGet(evt, "data", "attributes", "data", "id")) ??
+                    AsString(DeepGet(evt, "data", "attributes", "data", "attributes", "checkout_session_id")) ??
+                    AsString(DeepGet(evt, "data", "attributes", "data", "attributes", "id"));
 
                 if (!string.IsNullOrWhiteSpace(checkoutSessionId))
                 {
-                    ApplyPaidCheckoutSession(checkoutSessionId);
+                    try
+                    {
+                        ApplyPaidCheckoutSession(checkoutSessionId);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log server-side errors; respond 200 if you want PayMongo NOT to retry,
+                        // or respond 500 if you DO want retries. Usually: return 200 only when success.
+                        TryDump(context, "~/App_Data/paymongo_webhook_error.txt",
+                            DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "\n" + ex.ToString());
+
+                        context.Response.StatusCode = 500;
+                        context.Response.Write("error");
+                        return;
+                    }
                 }
             }
 
@@ -91,6 +129,9 @@ namespace Smash_IT
 
         public bool IsReusable { get { return false; } }
 
+        // =========================
+        // Core business logic
+        // =========================
         private static void ApplyPaidCheckoutSession(string checkoutSessionId)
         {
             string cs = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
@@ -100,150 +141,193 @@ namespace Smash_IT
                 con.Open();
                 using (var tx = con.BeginTransaction(IsolationLevel.ReadCommitted))
                 {
-                    try
-                    {
-                        // 1) Lock + get reservation
-                        int reservationId = 0;
-                        int requiredAmount = 0;
-                        string paymentStatus = null;
+                    // 1) Lock + get reservation by checkout session id
+                    int reservationId = 0;
+                    int userId = 0;
+                    int requiredAmount = 0;
+                    string paymentStatus = "";
 
-                        using (var cmd = new SqlCommand(@"
-SELECT TOP 1 ReservationID, RequiredAmount, ISNULL(PaymentStatus,'') AS PaymentStatus
+                    using (var cmd = new SqlCommand(@"
+SELECT TOP 1
+    ReservationID,
+    UserID,
+    RequiredAmount,
+    ISNULL(PaymentStatus,'') AS PaymentStatus
 FROM tblReservation WITH (UPDLOCK, HOLDLOCK)
 WHERE PaymongoCheckoutSessionID = @CSID;", con, tx))
-                        {
-                            cmd.Parameters.AddWithValue("@CSID", checkoutSessionId);
-
-                            using (var dr = cmd.ExecuteReader())
-                            {
-                                if (dr.Read())
-                                {
-                                    reservationId = Convert.ToInt32(dr["ReservationID"]);
-                                    requiredAmount = Convert.ToInt32(dr["RequiredAmount"]);
-                                    paymentStatus = dr["PaymentStatus"].ToString();
-                                }
-                            }
-                        }
-
-                        if (reservationId <= 0)
-                        {
-                            tx.Commit();
-                            return; // no matching reservation
-                        }
-
-                        // 2) Idempotency guard
-                        // If already marked halfpaid/paid, skip
-                        if (string.Equals(paymentStatus, "HalfPaid", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(paymentStatus, "Paid", StringComparison.OrdinalIgnoreCase))
-                        {
-                            tx.Commit();
-                            return;
-                        }
-
-                        // Also guard against duplicate payment inserts (webhook retries)
-                        int existingPayments = 0;
-                        using (var cmd = new SqlCommand(@"
-SELECT COUNT(*)
-FROM tblPayment
-WHERE ReservationID = @RID
-  AND PaymentTypeName IN ('Rental','Reservation');", con, tx))
-                        {
-                            cmd.Parameters.AddWithValue("@RID", reservationId);
-                            existingPayments = Convert.ToInt32(cmd.ExecuteScalar());
-                        }
-
-                        if (existingPayments >= 2)
-                        {
-                            // Payments already inserted; just ensure statuses are consistent
-                            using (var cmd = new SqlCommand(@"
-UPDATE tblReservation
-SET IsPaid = 1, PaymentStatus = 'HalfPaid'
-WHERE ReservationID = @RID;", con, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@RID", reservationId);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            using (var cmd = new SqlCommand(@"
-UPDATE tblRental
-SET IsPaid = 1
-WHERE ReservationID = @RID;", con, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@RID", reservationId);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            tx.Commit();
-                            return;
-                        }
-
-                        // 3) Compute rentals total centavos from tblRental.UnitPrice
-                        // UnitPrice is DECIMAL(10,2) pesos; Amount in tblPayment is INT (centavos)
-                        int rentalsTotal = 0;
-                        using (var cmd = new SqlCommand(@"
-SELECT ISNULL(SUM(CAST(ROUND(UnitPrice * 100.0, 0) AS INT)), 0)
-FROM tblRental
-WHERE ReservationID = @RID;", con, tx))
-                        {
-                            cmd.Parameters.AddWithValue("@RID", reservationId);
-                            rentalsTotal = Convert.ToInt32(cmd.ExecuteScalar());
-                        }
-
-                        // 4) Compute court full and deposit from RequiredAmount rule:
-                        // RequiredAmount = courtFull + rentalsFull
-                        int courtFull = requiredAmount - rentalsTotal;
-                        if (courtFull < 0) courtFull = 0; // safety
-
-                        int courtDeposit = courtFull / 2; // 50%
-                        // If you want rounding up for odd centavos:
-                        // int courtDeposit = (courtFull + 1) / 2;
-
-                        // 5) Insert TWO payment rows (Rental + Reservation deposit)
-                        using (var cmd = new SqlCommand(@"
-INSERT INTO tblPayment (PaymentTypeName, ReservationID, PaymentDate, Amount)
-VALUES ('Rental', @RID, CAST(GETDATE() AS date), @AmtRental);
-
-INSERT INTO tblPayment (PaymentTypeName, ReservationID, PaymentDate, Amount)
-VALUES ('Reservation', @RID, CAST(GETDATE() AS date), @AmtDeposit);", con, tx))
-                        {
-                            cmd.Parameters.AddWithValue("@RID", reservationId);
-                            cmd.Parameters.AddWithValue("@AmtRental", rentalsTotal);
-                            cmd.Parameters.AddWithValue("@AmtDeposit", courtDeposit);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        // 6) Mark rentals paid
-                        using (var cmd = new SqlCommand(@"
-UPDATE tblRental
-SET IsPaid = 1
-WHERE ReservationID = @RID;", con, tx))
-                        {
-                            cmd.Parameters.AddWithValue("@RID", reservationId);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        // 7) Mark reservation as HalfPaid (deposit paid)
-                        using (var cmd = new SqlCommand(@"
-UPDATE tblReservation
-SET IsPaid = 1,
-    PaymentStatus = 'HalfPaid'
-WHERE ReservationID = @RID;", con, tx))
-                        {
-                            cmd.Parameters.AddWithValue("@RID", reservationId);
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        tx.Commit();
-                    }
-                    catch
                     {
-                        try { tx.Rollback(); } catch { }
-                        throw;
+                        cmd.Parameters.AddWithValue("@CSID", checkoutSessionId);
+
+                        using (var dr = cmd.ExecuteReader())
+                        {
+                            if (dr.Read())
+                            {
+                                reservationId = ToInt(dr["ReservationID"]);
+                                userId = ToInt(dr["UserID"]);
+                                requiredAmount = ToInt(dr["RequiredAmount"]);
+                                paymentStatus = Convert.ToString(dr["PaymentStatus"] ?? "");
+                            }
+                        }
                     }
+
+                    // No match => ok (idempotent)
+                    if (reservationId <= 0)
+                    {
+                        tx.Commit();
+                        return;
+                    }
+
+                    // 2) If already paid/halfpaid => idempotent exit
+                    if (paymentStatus.Equals("HalfPaid", StringComparison.OrdinalIgnoreCase) ||
+                        paymentStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        tx.Commit();
+                        return;
+                    }
+
+                    // 3) Strong idempotency: check if payment rows already exist per type
+                    bool hasRentalPay = ExistsPayment(con, tx, reservationId, "Rental");
+                    bool hasResPay = ExistsPayment(con, tx, reservationId, "Reservation");
+
+                    // If both exist, just ensure status flags are correct
+                    if (hasRentalPay && hasResPay)
+                    {
+                        MarkReservationHalfPaid(con, tx, reservationId);
+                        MarkRentalsPaid(con, tx, reservationId);
+                        tx.Commit();
+                        return;
+                    }
+
+                    // 4) Compute rentals total centavos robustly
+                    // If tblRental.UnitPrice exists and is filled: use it
+                    // Else fall back to DefaultRentalPrice from model via item->model join.
+                    int rentalsTotalCentavos = ComputeRentalsTotalCentavos(con, tx, reservationId);
+
+                    // RequiredAmount = courtFull + rentalsFull
+                    int courtFullCentavos = requiredAmount - rentalsTotalCentavos;
+                    if (courtFullCentavos < 0) courtFullCentavos = 0;
+
+                    int courtDepositCentavos = courtFullCentavos / 2; // 50% deposit
+
+                    // 5) Insert missing payments only (no duplicates)
+                    if (!hasRentalPay)
+                        InsertPayment(con, tx, "Rental", userId, reservationId, rentalsTotalCentavos);
+
+                    if (!hasResPay)
+                        InsertPayment(con, tx, "Reservation", userId, reservationId, courtDepositCentavos);
+
+                    // 6) Mark paid flags
+                    MarkRentalsPaid(con, tx, reservationId);
+                    MarkReservationHalfPaid(con, tx, reservationId);
+
+                    tx.Commit();
                 }
             }
         }
 
+        // =========================
+        // DB helpers
+        // =========================
+        private static bool ExistsPayment(SqlConnection con, SqlTransaction tx, int reservationId, string paymentType)
+        {
+            using (var cmd = new SqlCommand(@"
+SELECT COUNT(*)
+FROM tblPayment WITH (READCOMMITTEDLOCK)
+WHERE ReservationID = @RID
+  AND PaymentTypeName = @Type;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@RID", reservationId);
+                cmd.Parameters.AddWithValue("@Type", paymentType);
+                return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+            }
+        }
+
+        private static void InsertPayment(SqlConnection con, SqlTransaction tx, string type, int userId, int reservationId, int amountCentavos)
+        {
+            // If amount is 0, you can either skip or still record. Here: skip 0 rental payment.
+            if (amountCentavos <= 0 && type.Equals("Rental", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            using (var cmd = new SqlCommand(@"
+INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
+VALUES (@Type, @UserID, @RID, CAST(GETDATE() AS date), @Amt);", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@Type", type);
+                cmd.Parameters.AddWithValue("@UserID", userId);
+                cmd.Parameters.AddWithValue("@RID", reservationId);
+                cmd.Parameters.AddWithValue("@Amt", amountCentavos);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private static void MarkRentalsPaid(SqlConnection con, SqlTransaction tx, int reservationId)
+        {
+            using (var cmd = new SqlCommand(@"
+UPDATE tblRental
+SET IsPaid = 1
+WHERE ReservationID = @RID;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@RID", reservationId);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private static void MarkReservationHalfPaid(SqlConnection con, SqlTransaction tx, int reservationId)
+        {
+            using (var cmd = new SqlCommand(@"
+UPDATE tblReservation
+SET IsPaid = 1,
+    PaymentStatus = 'HalfPaid'
+WHERE ReservationID = @RID;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@RID", reservationId);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private static int ComputeRentalsTotalCentavos(SqlConnection con, SqlTransaction tx, int reservationId)
+        {
+            // First try: tblRental.UnitPrice if it exists and has values
+            // NOTE: If UnitPrice column doesn't exist, this will throw.
+            // If you're not sure, you can remove this block and rely on join-based computation.
+            try
+            {
+                using (var cmd = new SqlCommand(@"
+SELECT ISNULL(SUM(CAST(ROUND(ISNULL(UnitPrice,0) * 100.0, 0) AS INT)), 0)
+FROM tblRental
+WHERE ReservationID = @RID;", con, tx))
+                {
+                    cmd.Parameters.AddWithValue("@RID", reservationId);
+                    int viaUnitPrice = Convert.ToInt32(cmd.ExecuteScalar());
+
+                    // If it's non-zero, trust it. If 0, we still attempt join fallback (maybe no rentals).
+                    if (viaUnitPrice > 0)
+                        return viaUnitPrice;
+                }
+            }
+            catch
+            {
+                // ignore and fall back
+            }
+
+            // Fallback: sum DefaultRentalPrice from model per rental item
+            // Assumes:
+            // tblRental.ItemID -> tblEquipmentItem.ItemID -> tblEquipmentModel.ModelID -> DefaultRentalPrice
+            using (var cmd2 = new SqlCommand(@"
+SELECT ISNULL(SUM(CAST(ROUND(ISNULL(m.DefaultRentalPrice,0) * 100.0, 0) AS INT)), 0)
+FROM tblRental r
+JOIN tblEquipmentItem ei ON ei.ItemID = r.ItemID
+JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
+WHERE r.ReservationID = @RID;", con, tx))
+            {
+                cmd2.Parameters.AddWithValue("@RID", reservationId);
+                return Convert.ToInt32(cmd2.ExecuteScalar());
+            }
+        }
+
+        // =========================
+        // Signature verification (your original logic kept)
+        // =========================
         private static bool IsValidSignature(string header, string secret, string rawBody)
         {
             if (string.IsNullOrWhiteSpace(header) || string.IsNullOrWhiteSpace(secret))
@@ -277,6 +361,46 @@ WHERE ReservationID = @RID;", con, tx))
                 bool liveMatch = !string.IsNullOrEmpty(li) && computed == li;
                 return testMatch || liveMatch;
             }
+        }
+
+        // =========================
+        // Small utility helpers
+        // =========================
+        private static object DeepGet(Dictionary<string, object> root, params string[] path)
+        {
+            object cur = root;
+            for (int i = 0; i < path.Length; i++)
+            {
+                var dict = cur as Dictionary<string, object>;
+                if (dict == null) return null;
+
+                object next;
+                if (!dict.TryGetValue(path[i], out next)) return null;
+                cur = next;
+            }
+            return cur;
+        }
+
+        private static string AsString(object o)
+        {
+            return (o == null) ? null : Convert.ToString(o);
+        }
+
+        private static int ToInt(object o)
+        {
+            if (o == null || o == DBNull.Value) return 0;
+            int x;
+            if (int.TryParse(o.ToString(), out x)) return x;
+            try { return Convert.ToInt32(o); } catch { return 0; }
+        }
+
+        private static void TryDump(HttpContext ctx, string relativePath, string content)
+        {
+            try
+            {
+                File.WriteAllText(ctx.Server.MapPath(relativePath), content ?? "");
+            }
+            catch { }
         }
     }
 }

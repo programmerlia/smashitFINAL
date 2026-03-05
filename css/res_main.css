@@ -1,4 +1,3 @@
-
 :root {
     --brand: #1a187c;
     --accent: #FFC107;
@@ -7,6 +6,9 @@
     --bg-soft: #f8f9fa;
     --border: rgba(0,0,0,.08);
     --shadow: 0 10px 25px rgba(0,0,0,.06);
+    --shadow-2: 0 16px 40px rgba(0,0,0,.10);
+    --radius: 16px;
+    --radius-lg: 20px;
     --good-bg: rgba(25,135,84,.12);
     --good-fg: #0f5132;
     --info-bg: rgba(13,202,240,.16);
@@ -15,60 +17,106 @@
     --bad-fg: #842029;
 }
 
+/* ========= Base ========= */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    font-family: Poppins, sans-serif;
+    background: #f9fbfd;
+    color: #222;
+    overflow-x: hidden;
+}
 
 .main-flex {
     display: flex;
     flex-direction: column;
-    align-content: center;
     align-items: center;
     justify-content: flex-start;
-    flex-wrap: nowrap;
-
-}
-/* ============ GLOBAL ============ */
-body {
-    font-family: Poppins, sans-serif;
-    background: #f9fbfd;
-    color: #333;
+    width: 100%;
 }
 
+/* keep container safe for small screens */
 .container {
     max-width: 1100px;
+    width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
 }
 
-/* ============ HERO ============ */
+/* ========= HERO ========= */
 .hero-section {
     position: relative;
-    background: url('https://wallpapers.com/images/hd/badminton-background-bsegeod1vvch9z1i.jpg') center / cover no-repeat;
+    width: 100%;
+    min-height: clamp(280px, 42vh, 420px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: #fff;
+    background: url('https://wallpapers.com/images/hd/badminton-background-bsegeod1vvch9z1i.jpg') center/cover no-repeat;
+    overflow: hidden;
 }
+
+    /* add overlay to match login theme and improve readability */
+    .hero-section::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient( 110deg, rgba(26, 24, 124, .82), rgba(26, 24, 124, .58) 55%, rgba(0,0,0,.25) );
+    }
+
 .hero-content {
-    max-width: min(620px, 92vw);
+    position: relative;
+    width: 100%;
+    max-width: min(720px, 92vw);
+    padding: clamp(18px, 4vw, 40px);
 }
 
 .hero-section h1 {
-    font-size: 3.4rem;
-    font-weight: 700;
-    line-height: 1.1;
+    font-size: clamp(2.0rem, 5vw, 3.4rem);
+    font-weight: 800;
+    line-height: 1.05;
+    margin-bottom: 10px;
+    letter-spacing: .4px;
 }
 
 .hero-subtext {
-    font-size: 1.15rem;
+    font-size: clamp(0.98rem, 2.2vw, 1.15rem);
     opacity: .95;
+    margin-bottom: 18px;
+    max-width: 52ch;
 }
 
+/* CTA matches your theme */
 .btn-reserve-hero {
     background: #fff;
     color: var(--brand);
-    border: none;
+    border: 0;
     padding: 14px 38px;
-    border-radius: 50px;
-    font-weight: 600;
+    border-radius: 999px;
+    font-weight: 800;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
 }
 
-/* ============ SECTIONS ============ */
+    .btn-reserve-hero:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.02);
+        box-shadow: var(--shadow-2);
+    }
+
+    .btn-reserve-hero:active {
+        transform: translateY(0px);
+    }
+
+/* ========= Sections ========= */
 .section-padding {
-    padding: 70px 0;
+    padding: clamp(44px, 6vw, 70px) 0;
 }
 
     .section-padding p {
@@ -76,63 +124,69 @@ body {
     }
 
 .section-header h3 {
-    font-weight: 600;
+    font-weight: 800;
     letter-spacing: 1px;
-    font-size: 1.9rem;
+    font-size: clamp(1.45rem, 3vw, 1.9rem);
+    color: #111;
 }
 
 .section-header p {
-    font-weight: 400; /* captions NOT bold */
-    color: #6c757d;
+    font-weight: 400;
+    color: var(--muted);
     font-size: 1rem;
 }
 
-/* ============ ABOUT ============ */
+/* ========= About ========= */
 .about-img {
     width: 100%;
-    height: 420px;
+    height: clamp(240px, 40vw, 420px);
     object-fit: cover;
-    border-radius: 15px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,.25);
 }
 
-/* ============ WHY CHOOSE ============ */
+/* ========= Why choose ========= */
 .image-box {
-    height: 220px;
+    height: clamp(140px, 22vw, 220px);
     background: #e3f2fd;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 15px;
-    font-weight: 500;
+    border-radius: var(--radius);
+    font-weight: 700;
+    color: #1d3557;
+    box-shadow: var(--shadow);
 }
 
 .feature-box {
     background: #f1f3f5;
-    padding: 25px;
-    border-radius: 15px;
+    padding: 22px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
 }
 
-/* ============ COURT ============ */
+/* ========= Court layout ========= */
 .court-layout-img {
     width: 100%;
     border: 1px solid #eee;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
 }
 
-/* ============ RESPONSIVE ============ */
-@media (max-width:768px) {
+/* ========= Responsive tuning ========= */
+@media (max-width: 768px) {
     .hero-section {
         text-align: center;
     }
 
-    .hero-content {
-        margin: auto;
+    .hero-subtext {
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .section-header {
         text-align: center;
-    }
-
-    .reservation-section {
-        max-width: 90vw;
     }
 }

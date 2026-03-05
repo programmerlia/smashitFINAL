@@ -178,7 +178,6 @@
 
     <!-- Global scripts -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src='<%= ResolveUrl("~/js/script.js") %>'></script>
     <script src='<%= ResolveUrl("~/js/dotindicator.js") %>'></script>
     <script src='<%= ResolveUrl("~/js/dotindicator_Promo.js") %>'></script>
 
