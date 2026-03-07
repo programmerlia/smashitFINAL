@@ -181,10 +181,8 @@
                             </div>
                         </div>
                     </div>
-                    <!--Buttons for payments and REntals-->
-                    <div style="display: flex;
-    justify-content: space-evenly;
-    margin: 10px 10px 10px;">
+                    <!--Buttons for payments and Rentals and Consumable-->
+                 <div style="display: flex; justify-content: space-evenly; margin: 10px 10px 10px; gap:8px; flex-wrap:wrap;">
   <button type="button" class="btn btn-outline-success btn-outline-soft"
           data-bs-toggle="modal" data-bs-target="#paymentsModal">
     Payments
@@ -193,6 +191,11 @@
   <button type="button" class="btn btn-outline-success btn-outline-soft"
           data-bs-toggle="modal" data-bs-target="#rentalsModal">
     Rentals
+  </button>
+
+  <button type="button" class="btn btn-outline-success btn-outline-soft"
+          data-bs-toggle="modal" data-bs-target="#consumablesModal">
+    Consumables
   </button>
 </div>
                 </div>
@@ -619,39 +622,39 @@
           <div class="muted">No payments yet.</div>
         </asp:Panel>
 
-      <asp:Repeater ID="rptPayments" runat="server">
-  <HeaderTemplate>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Type</th>
-            <th>Details</th>
-            <th class="text-end">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-  </HeaderTemplate>
+        <asp:Repeater ID="rptPayments" runat="server">
+          <HeaderTemplate>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Details</th>
+                    <th class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+          </HeaderTemplate>
 
-  <ItemTemplate>
-    <tr>
-      <td><%# Eval("PaymentDate") == null ? "—" : ((DateTime)Eval("PaymentDate")).ToString("yyyy-MM-dd") %></td>
-      <td style="font-weight:800;"><%# Eval("PaymentTypeName") %></td>
-      <td class="muted">
-        <div style="font-weight:700; color:#333;"><%# Eval("DetailsLine1") %></div>
-        <div class="small muted"><%# Eval("DetailsLine2") %></div>
-      </td>
-      <td class="text-end" style="font-weight:900;">₱ <%# Eval("AmountPhp","{0:N2}") %></td>
-    </tr>
-  </ItemTemplate>
+          <ItemTemplate>
+            <tr>
+              <td><%# Eval("PaymentDate") == null ? "—" : ((DateTime)Eval("PaymentDate")).ToString("yyyy-MM-dd") %></td>
+              <td style="font-weight:800;"><%# Eval("PaymentTypeName") %></td>
+              <td class="muted">
+                <div style="font-weight:700; color:#333;"><%# Eval("DetailsLine1") %></div>
+                <div class="small muted"><%# Eval("DetailsLine2") %></div>
+              </td>
+              <td class="text-end" style="font-weight:900;">₱ <%# Eval("AmountPhp","{0:N2}") %></td>
+            </tr>
+          </ItemTemplate>
 
-  <FooterTemplate>
-        </tbody>
-      </table>
-    </div>
-  </FooterTemplate>
-</asp:Repeater>
+          <FooterTemplate>
+                </tbody>
+              </table>
+            </div>
+          </FooterTemplate>
+        </asp:Repeater>
       </div>
 
       <div class="modal-footer">
@@ -710,6 +713,62 @@
     </div>
   </div>
 </div>
+
+
+<!--MODAL FOR CONSUMABLES-->
+<div class="modal fade" id="consumablesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-weight:800;">My Consumables</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <asp:Panel ID="pnlConsumablesEmpty" runat="server" Visible="false">
+          <div class="muted">No consumable purchases yet.</div>
+        </asp:Panel>
+
+        <asp:Repeater ID="rptConsumables" runat="server">
+          <ItemTemplate>
+            <div class="res-item mb-3">
+              <div style="font-weight:900;">
+                Purchase #<%# Eval("ConsumableID") %> • <%# Eval("ItemName") %>
+              </div>
+
+              <div class="muted small">
+                <%# Eval("ReservationInfo") %>
+              </div>
+
+              <div class="mt-2 d-flex justify-content-between flex-wrap">
+                <div class="muted small">
+                  Purchased: <b><%# Eval("PurchaseDate","{0:yyyy-MM-dd HH:mm}") %></b><br />
+                  Quantity: <b><%# Eval("Quantity") %></b>
+                </div>
+
+                <div class="text-end">
+                  <div class="muted small">Unit Price</div>
+                  <div style="font-weight:900;">₱ <%# Eval("UnitPrice","{0:N2}") %></div>
+                  <div class="muted small">Total: <b>₱ <%# Eval("TotalPrice","{0:N2}") %></b></div>
+                  <div class="muted small">Paid: <b><%# Eval("IsPaidDisplay") %></b></div>
+                </div>
+              </div>
+            </div>
+          </ItemTemplate>
+        </asp:Repeater>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-outline-soft" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 </asp:Content>
 
 

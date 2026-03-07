@@ -31,6 +31,7 @@
     gap: 14px;
 }
 
+
 /* cards */
 .card {
     border: 1px solid var(--border);
@@ -91,7 +92,126 @@
     border-radius: 999px;
     background: #e9ecef;
 }
+/* =========================
+   SPORT MODAL
+   ========================= */
+#sportPickerModal.custom-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(0, 0, 0, 0.45);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
 
+.sport-picker-modal {
+    width: 100%;
+    max-width: 800px;
+    background: #fff;
+    border-radius: 24px;
+    padding: 28px 24px 22px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.sport-picker-title {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: #4b4b4b;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.sport-picker-subtitle {
+    font-size: 1.05rem;
+    color: #6f6f6f;
+    text-align: center;
+    max-width: 520px;
+    margin: 0 auto 24px;
+    line-height: 1.5;
+}
+
+.sport-card-btn {
+    width: 100%;
+    min-height: fit-content;
+    border: 1px solid #d9d9d9;
+    border-radius: 22px;
+    background: #fff;
+    padding: 22px 10px;
+    transition: all .2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    gap: 14px;
+}
+
+    .sport-card-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(0,0,0,.08);
+        border-color: #1a187c;
+    }
+
+.sport-card-visual {
+    width: 100%;
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2px;
+}
+
+    .sport-card-visual img {
+        max-width: 120px;
+        max-height: 90px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+    }
+
+.sport-card-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #1a187c;
+    line-height: 1.1;
+    margin: 0;
+}
+
+.sport-card-desc {
+    font-size: 0.98rem;
+    line-height: 1.45;
+    color: #666;
+    max-width: 190px;
+    min-width:170px;
+    margin: 0 auto;
+}
+
+.sport-modal-close-wrap {
+    text-align: center;
+    margin-top: 22px;
+}
+
+.sport-modal-close-btn {
+    min-width: 130px;
+    border: none;
+    background: #f3f3f3;
+    color: #111;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 12px 24px;
+}
+
+    .sport-modal-close-btn:hover {
+        background: #e9e9e9;
+    }
+
+#selectedSportBadge {
+    text-transform: capitalize;
+}
 /* =========================
    Calendar
    ========================= */
@@ -209,7 +329,7 @@
 
 /* sticky time column */
 .time-col {
-    width: 110px;
+    width: 100px;
     font-weight: 900;
     background: #fff;
     position: sticky;
@@ -229,12 +349,12 @@
    Slot
    ========================= */
 .slot {
-    min-width: 92px;
+    min-width: 80px;
     min-height: 38px;
     border-radius: 12px;
     display: grid;
     place-items: center;
-    font-weight: 900;
+    font-weight: 600;
     letter-spacing: .2px;
     user-select: none;
     transition: transform .12s ease, filter .12s ease, outline-color .12s ease;
@@ -486,20 +606,24 @@
     }
 
 .qty-stepper {
-    display: grid;
-    grid-template-columns: 44px 44px 44px;
-    border: 1px solid rgba(0,0,0,.12);
-    border-radius: 12px;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 120px;
+    width: 120px;
+    overflow: visible;
+    border: 1px solid #ddd;
+    border-radius: 14px;
     background: #fff;
 }
 
     .qty-stepper button {
-        border: 0;
-        background: #fff;
-        font-weight: 900;
-        font-size: 12px;
-        height: 40px;
+        width: 40px;
+        height: 50px;
+        border: none;
+        background: transparent;
+        font-size: 24px;
+        font-weight: 700;
         cursor: pointer;
     }
 
@@ -508,10 +632,10 @@
         }
 
     .qty-stepper .qty-val {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 900;
+        width: 40px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 24px;
         color: #111;
         border-left: 1px solid rgba(0,0,0,.12);
         border-right: 1px solid rgba(0,0,0,.12);
@@ -669,14 +793,14 @@
 /* very small phones */
 @media (max-width: 576px) {
     .slot {
-        min-width: 70px;
-        font-size: .75rem;
+        min-width: 60px;
+        font-size: .60rem;
         border-radius: 10px;
     }
 
     .time-col {
         width: 86px;
-        font-size: .75rem;
+        font-size: .60rem;
     }
 
     .timetable th, .timetable td {

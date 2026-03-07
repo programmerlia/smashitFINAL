@@ -4,13 +4,14 @@
     Inherits="Smash_IT.homepage.reservation" %>
 
 <%@ Import Namespace="System.Web" %>
+
 <asp:Content ID="ContentHead" ContentPlaceHolderID="head" runat="server">
     <link rel="stylesheet" href='<%= ResolveUrl("~/css/res_main.css") %>' />
     <link rel="stylesheet" href='<%= ResolveUrl("~/css/res_active.css") %>' />
-    <%@ Import Namespace="System.Web" %>
-    <script>
-        window.resConfig = {
-            ids: {
+
+        <script>
+            window.resConfig = {
+                ids: {
                 btnReserveNow: "<%= btnReserveNow.ClientID %>",
             ddlSport: "<%= ddlSport.ClientID %>",
             ddlDuration: "<%= ddlDuration.ClientID %>",
@@ -21,39 +22,41 @@
             btnSubmitReservationUnique: "<%= btnSubmitReservation.UniqueID %>",
             ddlSportUnique: "<%= ddlSport.UniqueID %>"
         },
-        urls: {
-            equipmentAvailability: "<%= ResolveUrl("~/homepage/reservation.aspx/GetEquipmentAvailability") %>"
+           urls: {
+               equipmentAvailability: "<%= ResolveUrl("~/homepage/reservation.aspx/GetEquipmentAvailability") %>"
         },
         isLoggedIn: <%= (Session["UserID"] != null).ToString().ToLower() %>,
         sessionUser: {
             firstname: "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["Firstname"] ?? "")) %>",
-        lastname:  "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["Lastname"] ?? "")) %>",
-        email:     "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["Email"] ?? "")) %>",
-        phone:     "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["PhoneNumber"] ?? "")) %>"
-            },
-            pricing: {
-                courtPricePerHourPhp: 330.00,
-                courtDepositRate: 0.50
-            }
-        };
+            lastname: "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["Lastname"] ?? "")) %>",
+            email: "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["Email"] ?? "")) %>",
+            phone: "<%= HttpUtility.JavaScriptStringEncode(Convert.ToString(Session["PhoneNumber"] ?? "")) %>"
+        },
+        pricing: {
+            courtPricePerHourPhp: 330.00,
+            courtDepositRate: 0.50
+        }
+    };
 
-        window.hfCourtIDClientID = "<%= hfCourtID.ClientID %>";
-        window.hfCourtNumClientID = "<%= hfCourtNum.ClientID %>";
-        window.hfResDateClientID = "<%= hfResDate.ClientID %>";
-        window.hfStartTimeClientID = "<%= hfStartTime.ClientID %>";
-        window.hfEndTimeClientID = "<%= hfEndTime.ClientID %>";
-        window.lblSelectedSlotClientID = "<%= lblSelectedSlot.ClientID %>";
-        window.hfSelectedSportClientID = "hfSelectedSport";
+    window.hfCourtIDClientID = "<%= hfCourtID.ClientID %>";
+    window.hfCourtNumClientID = "<%= hfCourtNum.ClientID %>";
+    window.hfResDateClientID = "<%= hfResDate.ClientID %>";
+    window.hfStartTimeClientID = "<%= hfStartTime.ClientID %>";
+    window.hfEndTimeClientID = "<%= hfEndTime.ClientID %>";
+    window.lblSelectedSlotClientID = "<%= lblSelectedSlot.ClientID %>";
+           window.hfSelectedSportClientID = "hfSelectedSport";
 
-        window.formatPhp = function (amount) {
-            try {
-                return "₱ " + Number(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            } catch (e) {
-                return "₱ " + (amount || 0);
-            }
-        };
+           window.formatPhp = function (amount) {
+        try {
+            return "₱ " + Number(amount || 0).toLocaleString("en-PH", {
+               minimumFractionDigits: 2,
+           maximumFractionDigits: 2
+            });
+        } catch (e) {
+            return "₱ " + (amount || 0);
+        }
+    };
     </script>
-
     <script src='<%= ResolveUrl("~/js/reservation.js") %>'></script>
 </asp:Content>
 
@@ -62,8 +65,7 @@
     <!-- HERO -->
     <div class="hero-section">
         <div class="container hero-content">
-            <h1>BOOK YOUR<br />
-                COURT NOW</h1>
+            <h1>BOOK YOUR<br />COURT NOW</h1>
             <p class="hero-subtext">Experience the best indoor courts in town. Badminton &amp; Pickleball available.</p>
 
             <asp:Button ID="btnReserveNow" runat="server"
@@ -72,24 +74,24 @@
                 UseSubmitBehavior="false"
                 CausesValidation="false"
                 OnClientClick="
-          if (window.showReservation) { 
-            showReservation(); 
-          } else { 
-            alert('showReservation is NOT defined. reservation.js is not loaded or has an error.');
-          }
-          return false;" />
+                    if (window.showReservation) {
+                        showReservation();
+                    } else {
+                        alert('showReservation is NOT defined. reservation.js is not loaded or has an error.');
+                    }
+                    return false;" />
         </div>
     </div>
 
-    <!-- Hidden JSON (UpdatePanel refreshes these) -->
+    <!-- Hidden JSON -->
     <asp:HiddenField ID="hfCourts" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfQueues" runat="server" ClientIDMode="Static" />
 
-    <!-- Selection hidden fields (server reads these) -->
+    <!-- Selection hidden fields -->
     <asp:HiddenField ID="hfSelectedCourtID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfSelectedDate" runat="server" ClientIDMode="Static" />
 
-    <!-- keep these STATIC because JS reads/writes them -->
+    <!-- Static hidden fields used by JS -->
     <asp:HiddenField ID="hfCourtID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfCourtNum" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfStartTime" runat="server" ClientIDMode="Static" />
@@ -97,20 +99,22 @@
     <asp:HiddenField ID="hfResDate" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfSelectedSport" runat="server" ClientIDMode="Static" />
 
-    <!-- rentals -->
+    <!-- Rental hidden fields -->
     <asp:HiddenField ID="hfRentalCart" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfRentalItems" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hfRentalStock" runat="server" ClientIDMode="Static" />
 
-    <div style="display: flex; align-items: flex-start; justify-content: center;">
+    <!-- Consumable hidden field -->
+    <asp:HiddenField ID="hfConsumableCart" runat="server" ClientIDMode="Static" />
+
+    <div style="display:flex; align-items:flex-start; justify-content:center;">
         <div id="reservationSection"
             runat="server"
             clientidmode="Static"
             class="reservation-section"
-            style="display: none;">
+            style="display:none;">
 
-            <div class="container" style="display: block">
-                <!-- Step indicator -->
+            <div class="container" style="display:block;">
                 <div class="step-indicator d-flex justify-content-between align-items-center mb-4">
                     <div class="step-item active text-center flex-fill">
                         <div class="step-circle">1</div>
@@ -119,7 +123,7 @@
                     <div class="step-line flex-fill"></div>
                     <div class="step-item text-center flex-fill">
                         <div class="step-circle">2</div>
-                        <span class="step-label">Rentals</span>
+                        <span class="step-label">Items</span>
                     </div>
                     <div class="step-line flex-fill"></div>
                     <div class="step-item text-center flex-fill">
@@ -139,11 +143,11 @@
                 </div>
             </div>
 
-            <!-- ===================== STEP 1 ===================== -->
+            <!-- STEP 1 -->
             <div class="block">
                 <div id="dateSelectionSection"
                     class="p-4"
-                    style="display: none; flex-direction: column; width: 100%; align-items: center; justify-content: center;">
+                    style="display:none; flex-direction:column; width:100%; align-items:center; justify-content:center;">
 
                     <asp:UpdatePanel ID="updReservation"
                         runat="server"
@@ -152,7 +156,7 @@
                         <ContentTemplate>
 
                             <div class="row g-3">
-                                <!-- LEFT: Calendar -->
+                                <!-- LEFT -->
                                 <div class="col-12 col-lg-4">
                                     <div class="card shadow-sm p-3">
                                         <h5 class="fw-bold mb-2">📅 Choose Date</h5>
@@ -173,19 +177,20 @@
 
                                         <div class="mt-3 p-2 bg-light rounded">
                                             <div class="fw-bold small mb-1">⚠️ Unavailable:</div>
-                                            <asp:Label ID="lblUnavailableHours" runat="server" CssClass="text-danger small">Loading...</asp:Label>
+                                            <asp:Label ID="lblUnavailableHours" runat="server" CssClass="text-danger small">
+                                                Select a date and sport to see unavailable hours.
+                                            </asp:Label>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- RIGHT: Timetable + controls -->
+                                <!-- RIGHT -->
                                 <div class="col-12 col-lg-8">
                                     <div class="card shadow-sm p-3">
                                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                            <h5 class="fw-bold mb-0">⏱️ Pick a Time Slot</h5>
 
                                             <div class="d-flex gap-2 flex-wrap">
-                                                <div style="min-width: 160px;">
+                                                <div style="min-width:160px;">
                                                     <label class="form-label fw-bold small mb-1">Duration</label>
                                                     <asp:DropDownList ID="ddlDuration" runat="server" CssClass="form-select form-select-sm">
                                                         <asp:ListItem Text="1 Hour" Value="1" />
@@ -195,19 +200,30 @@
                                                     </asp:DropDownList>
                                                 </div>
 
-                                                <div style="min-width: 160px;">
-                                                    <label class="form-label fw-bold small mb-1">Sport</label>
+                                  <div style="min-width:220px;">
+    <label class="form-label fw-bold small mb-1">Sport</label>
 
-                                                    <asp:DropDownList ID="ddlSport" runat="server"
-                                                        AutoPostBack="true"
-                                                        OnSelectedIndexChanged="ddlSport_SelectedIndexChanged"
-                                                        ClientIDMode="Static"
-                                                        CssClass="form-select form-select-sm">
-                                                        <asp:ListItem Text="" Value="" />
-                                                        <asp:ListItem Text="Badminton" Value="badminton" />
-                                                        <asp:ListItem Text="Pickleball" Value="pickleball" />
-                                                    </asp:DropDownList>
-                                                </div>
+    <div class="d-flex align-items-center gap-2">
+        <span id="selectedSportBadge" class="badge bg-primary" style="padding:.55rem .8rem; font-size:.9rem;">
+            No sport selected
+        </span>
+
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="openSportPickerModal()">
+            Change
+        </button>
+    </div>
+
+    <asp:DropDownList ID="ddlSport" runat="server"
+        AutoPostBack="true"
+        OnSelectedIndexChanged="ddlSport_SelectedIndexChanged"
+        ClientIDMode="Static"
+        CssClass="form-select form-select-sm"
+        Style="display:none;">
+        <asp:ListItem Text="" Value="" />
+        <asp:ListItem Text="Badminton" Value="badminton" />
+        <asp:ListItem Text="Pickleball" Value="pickleball" />
+    </asp:DropDownList>
+</div>
                                             </div>
                                         </div>
 
@@ -217,7 +233,7 @@
                                             <asp:Label ID="lblSelectedSlot" runat="server"
                                                 ClientIDMode="Static"
                                                 CssClass="fw-bold text-primary"
-                                                Text="No slot selected."></asp:Label>
+                                                Text="No date and sport selected."></asp:Label>
                                         </div>
 
                                         <div class="timetable-shell">
@@ -226,15 +242,15 @@
 
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
                                             <small class="text-muted">
-                                                <span class="badge" style="background-color: #DEE9FB; color: #0B61DD;">Reservable</span>
-                                                <span class="badge" style="background-color: #D8F6FD; color: #055160;">Queue</span>
-                                                <span class="badge" style="background-color: #F8E2E5; color: #90363E;">Blocked</span>
+                                                <span class="badge" style="background-color:#DEE9FB; color:#0B61DD;">Reservable</span>
+                                                <span class="badge" style="background-color:#D8F6FD; color:#055160;">Queue</span>
+                                                <span class="badge" style="background-color:#F8E2E5; color:#90363E;">Blocked</span>
                                             </small>
 
                                             <asp:Button ID="btn_proceed_rentals"
                                                 runat="server"
                                                 CssClass="btn btn_proceed_details btn-sm"
-                                                Text="Proceed to Rentals →"
+                                                Text="Proceed to Items →"
                                                 OnClientClick="goToRentals(); return false;" />
                                         </div>
                                     </div>
@@ -250,17 +266,20 @@
                     </asp:UpdatePanel>
                 </div>
 
-                <!-- ===================== STEP 2: RENTALS ===================== -->
-                <div style="display: block;">
-                    <div id="rentalSelectionSection" class="row g-4" style="display: none;">
+                <!-- STEP 2 -->
+                <div style="display:block;">
+                    <div id="rentalSelectionSection" class="row g-4" style="display:none;">
                         <div class="row">
                             <div class="col-lg-8">
                                 <h4 class="fw-bold mb-3">Rental Items</h4>
-                                <div id="equipmentContainer" class="row g-3"></div>
+                                <div id="rentalContainer" class="row g-3 mb-4"></div>
+
+                                <h4 class="fw-bold mb-3">Sale Items</h4>
+                                <div id="consumableContainer" class="row g-3"></div>
                             </div>
 
                             <div class="col-lg-4">
-                                <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 15px;">
+                                <div class="card border-0 shadow-sm p-4 h-100" style="border-radius:15px;">
                                     <h5 class="fw-bold mb-4">Reservation Summary</h5>
                                     <hr class="text-muted" />
 
@@ -275,7 +294,6 @@
                                             <input type="number" id="numPlayers" class="form-control" min="1" max="10" value="1" />
                                         </div>
 
-                                        <!-- Court Full Total (100%) -->
                                         <div class="p-3">
                                             <div class="d-flex justify-content-between">
                                                 <span class="fw-bold">Court Total (100%)</span>
@@ -283,12 +301,10 @@
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <div id="cartItems" class="small p-3"></div>
-                                        </div>
+                                        <div id="cartItems" class="small p-3"></div>
+                                        <div id="consumableItems" class="small p-3"></div>
                                     </div>
 
-                                    <!-- Rentals Full Total (100%) -->
                                     <div class="p-3">
                                         <div class="d-flex justify-content-between">
                                             <span class="fw-bold">Rentals Total (100%)</span>
@@ -296,24 +312,31 @@
                                         </div>
                                     </div>
 
-                                    <!-- Required Amount stored (Court 100% + Rentals 100%) -->
-                                    <div style="display: none;">
+                                    <div class="p-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="fw-bold">Consumables Total (100%)</span>
+                                            <span id="consumablesTotal" class="fw-bold">₱ 0</span>
+                                        </div>
+                                    </div>
+
+                                    <div style="display:none;">
                                         <span id="requiredAmountStored" class="fw-bold">₱ 0</span>
                                     </div>
 
-                                    <!-- Pay Now (Rentals 100% + Court 50%) -->
                                     <div class="total-price-display mb-3">
                                         <div class="label">Pay Now (PayMongo):</div>
                                         <div id="summary-totalPrice" class="amount">₱ 0</div>
                                         <div class="small text-muted mt-1">
-                                            You pay rentals (100%) + court deposit (50%) once via PayMongo.
+                                            You pay rentals (100%) + sale items (100%) + court deposit (50%) once via PayMongo.
                                         </div>
                                     </div>
 
                                     <div class="d-flex gap-2 mt-3">
                                         <button type="button" class="btn btn-outline-secondary flex-fill" onclick="goBackToDate()">Back</button>
-                                        <asp:Button ID="btn_proceed_details" runat="server" CssClass="btn btn_proceed_details flex-fill"
-                                            Text="Proceed to Details →" OnClientClick="goToInfoSection(); return false;" />
+                                        <asp:Button ID="btn_proceed_details" runat="server"
+                                            CssClass="btn btn_proceed_details flex-fill"
+                                            Text="Proceed to Details →"
+                                            OnClientClick="goToInfoSection(); return false;" />
                                     </div>
                                 </div>
                             </div>
@@ -321,14 +344,14 @@
                     </div>
                 </div>
 
-                <!-- ===================== STEP 3: INFO/PAYMENT ===================== -->
-                <div style="display: block">
-                    <div id="infoSection" class="row g-5" style="display: none;">
+                <!-- STEP 3 -->
+                <div style="display:block;">
+                    <div id="infoSection" class="row g-5" style="display:none;">
                         <div class="row">
                             <div class="col-lg-8">
                                 <h4 class="fw-bold mb-4">Player Information</h4>
 
-                                <div class="card border-0 shadow-sm p-4 mb-5" style="border-radius: 15px;">
+                                <div class="card border-0 shadow-sm p-4 mb-5" style="border-radius:15px;">
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="form-floating-custom">
@@ -362,8 +385,9 @@
 
                                 <div class="d-flex justify-content-between align-items-end">
                                     <div>
-                                        <h5 class="fw-bold mb-3">Payment Method
-                      <small class="fw-normal text-success" style="font-size: 0.7rem; cursor: pointer;">click here for payment details</small>
+                                        <h5 class="fw-bold mb-3">
+                                            Payment Method
+                                            <small class="fw-normal text-success" style="font-size:0.7rem; cursor:pointer;">click here for payment details</small>
                                         </h5>
 
                                         <div class="payment-methods">
@@ -377,14 +401,14 @@
                                     </div>
                                 </div>
 
-                                <div class="mt-3 small text-muted" style="display: none;">
+                                <div class="mt-3 small text-muted" style="display:none;">
                                     Required Amount stored in reservation (Court 100% + Rentals 100%):
-                  <b><span id="summary-requiredAmountStored">₱ 0</span></b>
+                                    <b><span id="summary-requiredAmountStored">₱ 0</span></b>
                                 </div>
                             </div>
 
                             <div class="col-lg-4">
-                                <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 15px;">
+                                <div class="card border-0 shadow-sm p-4 h-100" style="border-radius:15px;">
                                     <h5 class="fw-bold mb-4">Reservation Summary</h5>
 
                                     <div class="mb-4">
@@ -414,8 +438,8 @@
                                     </div>
                                 </div>
 
-                                <!-- Hidden server-side submit for PayMongo -->
-                                <asp:Button ID="btnSubmitReservation" runat="server" Style="display: none;"
+                                <asp:Button ID="btnSubmitReservation" runat="server"
+                                    Style="display:none;"
                                     UseSubmitBehavior="false"
                                     OnClick="btnSubmitReservation_Click" />
                             </div>
@@ -428,9 +452,8 @@
         </div>
         <!-- /reservationSection -->
     </div>
-    <!-- /center wrapper -->
 
-    <!-- ============ ABOUT (3/4 IMAGE + 1/4 TEXT) ============ -->
+    <!-- ABOUT -->
     <div class="container section-padding">
         <div class="row align-items-center g-5 text-center text-md-start">
             <div class="col-md-9">
@@ -450,14 +473,14 @@
         </div>
     </div>
 
-    <!-- ============ WHY CHOOSE (IMAGES + GRAY TEXT BOX ONLY) ============ -->
+    <!-- WHY CHOOSE -->
     <div class="container section-padding">
         <div class="section-header text-center mb-5">
             <h3>WHY CHOOSE SMASH IT?</h3>
             <p>Premium indoor courts designed for comfort and performance.</p>
         </div>
 
-        <div class="row g-4 align-items-center text-center text-md-start" style="display: flex; justify-content: center; align-content: center;">
+        <div class="row g-4 align-items-center text-center text-md-start" style="display:flex; justify-content:center; align-content:center;">
             <div class="col-md-6">
                 <div class="row g-3">
                     <div class="col-6">
@@ -483,7 +506,7 @@
         </div>
     </div>
 
-    <!-- ============ COURT LAYOUT ============ -->
+    <!-- COURT LAYOUT -->
     <div class="container section-padding text-center">
         <div class="section-header mb-4">
             <h3>COURT LAYOUT &amp; FACILITIES</h3>
@@ -493,55 +516,100 @@
         <img src='<%= ResolveUrl("~/images/Court.png") %>' class="court-layout-img" />
     </div>
 
-    <!-- PAYMENT MODAL (your tabs area kept as-is) -->
-<div id="paymentModal" class="custom-modal" style="display:none;">
-  <div class="custom-modal-content">
-    <div class="d-flex justify-content-between align-items-start gap-2">
-      <div>
-        <div class="fw-bold" style="font-size:1.05rem;">Confirm Payment</div>
-        <div class="text-muted small">Review your booking before paying.</div>
-      </div>
-      <button type="button" class="btn btn-sm btn-light" onclick="closePaymentModal()">✕</button>
-    </div>
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="custom-modal" style="display:none;">
+        <div class="custom-modal-content">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                    <div class="fw-bold" style="font-size:1.05rem;">Confirm Payment</div>
+                    <div class="text-muted small">Review your booking before paying.</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-light" onclick="closePaymentModal()">✕</button>
+            </div>
 
-    <hr class="my-3" />
+            <hr class="my-3" />
 
-    <div class="small" style="line-height:1.6;">
-      <div class="d-flex justify-content-between"><span class="text-muted">Court</span><span id="pmCourt" class="fw-bold">---</span></div>
-      <div class="d-flex justify-content-between"><span class="text-muted">Sport</span><span id="pmSport" class="fw-bold">---</span></div>
-      <div class="d-flex justify-content-between"><span class="text-muted">Date</span><span id="pmDate" class="fw-bold">---</span></div>
-      <div class="d-flex justify-content-between"><span class="text-muted">Time</span><span id="pmTime" class="fw-bold">---</span></div>
-      <div class="d-flex justify-content-between"><span class="text-muted">Duration</span><span id="pmDuration" class="fw-bold">---</span></div>
-      <div class="d-flex justify-content-between"><span class="text-muted">Players</span><span id="pmPlayers" class="fw-bold">---</span></div>
-    </div>
+            <div class="small" style="line-height:1.6;">
+                <div class="d-flex justify-content-between"><span class="text-muted">Court</span><span id="pmCourt" class="fw-bold">---</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Sport</span><span id="pmSport" class="fw-bold">---</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Date</span><span id="pmDate" class="fw-bold">---</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Time</span><span id="pmTime" class="fw-bold">---</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Duration</span><span id="pmDuration" class="fw-bold">---</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Players</span><span id="pmPlayers" class="fw-bold">---</span></div>
+            </div>
 
-    <hr class="my-3" />
+            <hr class="my-3" />
 
-    <div class="fw-bold mb-2" style="font-size:.95rem;">Rentals</div>
-    <div id="pmRentals" class="small text-muted" style="max-height:160px; overflow:auto;">
-      No rental items yet.
-    </div>
-    <div class="d-flex justify-content-between small mt-2">
-      <span class="text-muted">Rentals Total</span>
-      <span id="pmRentalsTotal" class="fw-bold">₱ 0.00</span>
-    </div>
+            <div class="fw-bold mb-2" style="font-size:.95rem;">Rentals</div>
+            <div id="pmRentals" class="small text-muted" style="max-height:160px; overflow:auto;">
+                No rental items yet.
+            </div>
+            <div class="d-flex justify-content-between small mt-2">
+                <span class="text-muted">Rentals Total</span>
+                <span id="pmRentalsTotal" class="fw-bold">₱ 0.00</span>
+            </div>
 
-    <hr class="my-3" />
+            <hr class="my-3" />
 
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <div class="text-muted small">Pay Now (PayMongo)</div>
-        <div id="pmTotal" class="fw-bold" style="font-size:1.4rem;">₱ 0.00</div>
-        <div class="text-muted small" style="max-width:320px;">
-          You pay rentals (100%) + court deposit (50%) now.
+            <div class="fw-bold mb-2" style="font-size:.95rem;">Sale Items</div>
+            <div id="pmConsumables" class="small text-muted" style="max-height:160px; overflow:auto;">
+                No sale items bought.
+            </div>
+            <div class="d-flex justify-content-between small mt-2">
+                <span class="text-muted">Consumables Total</span>
+                <span id="pmConsumablesTotal" class="fw-bold">₱ 0.00</span>
+            </div>
+
+            <hr class="my-3" />
+
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-muted small">Pay Now (PayMongo)</div>
+                    <div id="pmTotal" class="fw-bold" style="font-size:1.4rem;">₱ 0.00</div>
+                    <div class="text-muted small" style="max-width:320px;">
+                        You pay rentals (100%) + sale items (100%) + court deposit (50%) now.
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-outline-secondary flex-fill" onclick="closePaymentModal()">Cancel</button>
+                <button type="button" class="btn btn_proceed_details flex-fill" onclick="confirmAndPay()">Pay Now</button>
+            </div>
         </div>
-      </div>
     </div>
+        <!-- SPORT PICKER MODAL -->
+    <!-- SPORT PICKER MODAL -->
+<div id="sportPickerModal" class="custom-modal" style="display:none;">
+    <div class="custom-modal-content sport-picker-modal">
+        <div class="sport-picker-title">Select Sport</div>
+        <div class="sport-picker-subtitle">
+            Choose sport that you want to play here in SMASH-IT!
+        </div>
 
-    <div class="d-flex gap-2 mt-3">
-      <button type="button" class="btn btn-outline-secondary flex-fill" onclick="closePaymentModal()">Cancel</button>
-      <button type="button" class="btn btn_proceed_details flex-fill" onclick="confirmAndPay()">Pay Now</button>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <button type="button" class="sport-card-btn" onclick="selectSportAndStart('badminton')">
+                    <div class="sport-card-visual">
+                        <img src='<%= ResolveUrl("~/images/badmintonvector.png") %>' alt="Badminton" />
+                    </div>
+                    <div class="sport-card-desc">Indoor court booking for badminton</div>
+                </button>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <button type="button" class="sport-card-btn" onclick="selectSportAndStart('pickleball')">
+                    <div class="sport-card-visual">
+                        <img src='<%= ResolveUrl("~/images/pickleballvector.png") %>' alt="Pickleball" />
+                    </div>
+                    <div class="sport-card-desc">Indoor court booking for pickleball</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="sport-modal-close-wrap">
+            <button type="button" class="sport-modal-close-btn" onclick="closeSportPickerModal()">Close</button>
+        </div>
     </div>
-  </div>
 </div>
 </asp:Content>
