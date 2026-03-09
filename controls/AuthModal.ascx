@@ -92,7 +92,7 @@
     width: 100%;
     margin-top: 10px;
     padding: 10px 12px;
-    background-color: #0078d4;
+    background-color: rgb(0, 0, 88);
     color: #fff;
     border: none;
     border-radius: 6px;

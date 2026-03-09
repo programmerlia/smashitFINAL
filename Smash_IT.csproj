@@ -84,6 +84,7 @@
     <Content Include="css\SlidingHome.css" />
     <Content Include="homepage\reservation_archive.aspx" />
     <Content Include="images\P.png" />
+    <Content Include="PreparingPayment.aspx" />
     <Content Include="proj-doc\seed.sql" />
     <Content Include="ReservationSuccess.aspx" />
     <Content Include="homepage\profile.aspx" />
@@ -174,6 +175,13 @@
     </Compile>
     <Compile Include="controls\AuthModal.ascx.designer.cs">
       <DependentUpon>AuthModal.ascx</DependentUpon>
+    </Compile>
+    <Compile Include="PreparingPayment.aspx.cs">
+      <DependentUpon>PreparingPayment.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PreparingPayment.aspx.designer.cs">
+      <DependentUpon>PreparingPayment.aspx</DependentUpon>
     </Compile>
     <Compile Include="ReservationSuccess.aspx.cs">
       <DependentUpon>ReservationSuccess.aspx</DependentUpon>

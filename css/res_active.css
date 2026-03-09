@@ -211,6 +211,7 @@
 
 #selectedSportBadge {
     text-transform: capitalize;
+    background-color: rgb(0, 0, 88);
 }
 /* =========================
    Calendar
@@ -459,35 +460,56 @@
    ========================= */
 .btn_proceed_details,
 #btn_proceed_details,
-#btn_proceed_rentals {
+#btn_proceed_rentals,
+.btn_proceed_rentals {
     background: var(--accent);
     color: #111; /* accent is bright, black text looks cleaner */
     border: none;
-    padding: 12px 14px;
-    border-radius: 14px;
+    height:100%; 
+    margin-top:0px;
+    border-radius: 5px;
     font-weight: 900;
-    margin-top: 14px;
-    box-shadow: 0 10px 18px rgba(255,193,7,.25);
-    transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
 }
 
     .btn_proceed_details:hover,
     #btn_proceed_rentals:hover {
         filter: brightness(1.03);
         transform: translateY(-1px);
-        box-shadow: 0 16px 26px rgba(255,193,7,.30);
-    }
+     }
 
 /* primary “Book Reservation” button */
 .btn.btn-primary {
     background: var(--brand) !important;
     border-color: var(--brand) !important;
     font-weight: 900;
-    border-radius: 14px;
-    box-shadow: 0 10px 18px rgba(26,24,124,.18);
+    border-radius: 5px;
+width: 100%;
+    height: 44px;
 }
 
     .btn.btn-primary:hover {
+        filter: brightness(1.03);
+        transform: translateY(-1px);
+    }
+
+
+/* primary “Book Reservation” button */
+.btn.btn-outline-secondary {
+    background: #fff;
+    color: #6c757d;
+    border-color: #6c757d;
+    height: 44px;
+    font-weight: 900;
+    border-radius: 5px;
+    width: 100%;
+    height: 44px;
+}
+
+    .btn.btn-outline-secondary:hover {
+        background: #6c757d;
+        border-color: #6c757d;
+        color: #fff;
         filter: brightness(1.03);
         transform: translateY(-1px);
     }

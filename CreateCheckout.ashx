@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Data;
 using System.Data.SqlClient;
-using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -21,16 +19,13 @@ namespace Smash_IT
             context.Response.ContentType = "text/html";
 
             int reservationId;
+            if (!int.TryParse((context.Request["reservationId"] ?? "").Trim(), out reservationId))
+            {
+                context.Response.StatusCode = 400;
+                context.Response.Write("Invalid reservationId.");
+                return;
+            }
 
-if (!int.TryParse((context.Request["reservationId"] ?? "").Trim(), out reservationId))
-{
-    context.Response.StatusCode = 400;
-    context.Response.Write("Invalid reservationId.");
-    return;
-}
-          
-
-            // Build proper base URL (supports reverse proxies)
             string scheme = context.Request.Headers["X-Forwarded-Proto"];
             if (string.IsNullOrEmpty(scheme)) scheme = context.Request.Url.Scheme;
 
@@ -39,48 +34,39 @@ if (!int.TryParse((context.Request["reservationId"] ?? "").Trim(), out reservati
 
             string baseUrl = scheme + "://" + host;
 
-            // ✅ Your real pages here
             string successUrl = baseUrl + "/ReservationSuccess.aspx?resId=" + reservationId;
-            string cancelUrl  = baseUrl + "/homepage/reservation.aspx?cancel=1&resId=" + reservationId;
+            string cancelUrl = baseUrl + "/homepage/reservation.aspx?cancel=1&resId=" + reservationId;
 
             try
             {
-                // Load totals from DB and compute payNow amount safely
                 var calc = LoadAmountsForReservation(reservationId);
-
-                // payNow = rentalsFull + courtDeposit
                 int payNow = checked(calc.RentalsTotalCentavos + calc.CourtDepositCentavos);
-
                 string description = "Reservation #" + reservationId;
 
                 var pm = CreatePaymongoCheckout(payNow, description, successUrl, cancelUrl, reservationId, calc);
-
-                // Save checkout session id
                 SaveCheckoutSessionId(reservationId, pm.CheckoutSessionId);
 
-                // Redirect user
-                context.Response.Redirect(pm.CheckoutUrl, endResponse: true);
+                context.Response.Redirect(pm.CheckoutUrl, true);
             }
             catch (WebException wex)
-{
-    string errBody = "";
-
-    HttpWebResponse errResp = wex.Response as HttpWebResponse;
-    if (errResp != null)
-    {
-        Stream respStream = errResp.GetResponseStream();
-        if (respStream != null)
-        {
-            using (StreamReader reader = new StreamReader(respStream))
             {
-                errBody = reader.ReadToEnd();
-            }
-        }
-    }
+                string errBody = "";
+                HttpWebResponse errResp = wex.Response as HttpWebResponse;
+                if (errResp != null)
+                {
+                    Stream respStream = errResp.GetResponseStream();
+                    if (respStream != null)
+                    {
+                        using (StreamReader reader = new StreamReader(respStream))
+                        {
+                            errBody = reader.ReadToEnd();
+                        }
+                    }
+                }
 
-    context.Response.StatusCode = 500;
-    context.Response.Write("PayMongo error: <pre>" + HttpUtility.HtmlEncode(errBody) + "</pre>");
-}
+                context.Response.StatusCode = 500;
+                context.Response.Write("PayMongo error: <pre>" + HttpUtility.HtmlEncode(errBody) + "</pre>");
+            }
             catch (Exception ex)
             {
                 context.Response.StatusCode = 500;
@@ -92,10 +78,10 @@ if (!int.TryParse((context.Request["reservationId"] ?? "").Trim(), out reservati
 
         private sealed class ReservationAmounts
         {
-            public int RequiredAmountCentavos { get; set; }   // courtFull + rentalsFull
-            public int RentalsTotalCentavos { get; set; }     // 100% rentals
-            public int CourtFullCentavos { get; set; }        // 100% court
-            public int CourtDepositCentavos { get; set; }     // 50% court
+            public int RequiredAmountCentavos { get; set; }
+            public int RentalsTotalCentavos { get; set; }
+            public int CourtFullCentavos { get; set; }
+            public int CourtDepositCentavos { get; set; }
         }
 
         private static ReservationAmounts LoadAmountsForReservation(int reservationId)
@@ -118,7 +104,6 @@ WHERE ReservationID = @RID;", con))
                 requiredAmount = Convert.ToInt32(v);
             }
 
-            // rentals total from tblRental.UnitPrice
             int rentalsTotal = 0;
             using (var con = new SqlConnection(cs))
             using (var cmd = new SqlCommand(@"
@@ -134,9 +119,7 @@ WHERE ReservationID = @RID;", con))
             int courtFull = requiredAmount - rentalsTotal;
             if (courtFull < 0) courtFull = 0;
 
-            // deposit 50%
             int courtDeposit = courtFull / 2;
-            // if you want rounding up: (courtFull + 1) / 2
 
             return new ReservationAmounts
             {
@@ -174,10 +157,7 @@ WHERE ReservationID = @RID;", con))
                         cancel_url = cancelUrl,
                         success_url = successUrl,
                         description = description,
-
-                        // Hide line items UI if you want
                         show_line_items = false,
-
                         line_items = new object[]
                         {
                             new {
@@ -188,10 +168,7 @@ WHERE ReservationID = @RID;", con))
                                 quantity = 1
                             }
                         },
-
                         payment_method_types = new string[] { "gcash" },
-
-                        // ✅ Helpful for webhook debugging (doesn't replace DB lookup)
                         metadata = new {
                             reservation_id = reservationId.ToString(),
                             required_amount = calc.RequiredAmountCentavos.ToString(),
