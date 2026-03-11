@@ -14,6 +14,10 @@ namespace Smash_IT
         protected void Page_Load(object sender, EventArgs e)
         {
             string token = (Request.QueryString["token"] ?? "").Trim();
+            Response.Write("token=" + Server.HtmlEncode(token) + "<br/>");
+            Response.Write("session draft exists=" + (Session["PendingReservationDraft"] != null ? "YES" : "NO") + "<br/>");
+            Response.Write("session checkout exists=" + (!string.IsNullOrWhiteSpace(Convert.ToString(Session["PendingReservationCheckoutSessionID"] ?? "")) ? "YES" : "NO") + "<br/>");
+            Response.Write("cookie exists=" + (Request.Cookies["PendingReservationBackup"] != null ? "YES" : "NO") + "<br/>");
             if (string.IsNullOrWhiteSpace(token))
             {
                 Response.Redirect("~/homepage/reservation.aspx", false);
@@ -30,11 +34,22 @@ namespace Smash_IT
             var draft = GetPendingDraftFromSession(Session, token);
             if (draft == null)
             {
+                draft = GetPendingDraftFromCookie(Request, token);
+            }
+            Response.Write("draft found=" + (draft != null ? "YES" : "NO") + "<br/>");
+            if (draft == null)
+            {
                 Response.Write("Payment draft not found or expired.");
                 return;
             }
 
             string checkoutSessionId = Convert.ToString(Session["PendingReservationCheckoutSessionID"] ?? "");
+            if (string.IsNullOrWhiteSpace(checkoutSessionId))
+            {
+                checkoutSessionId = GetPendingCheckoutSessionIdFromCookie(Request);
+            }
+            Response.Write("checkoutSessionId found=" + (!string.IsNullOrWhiteSpace(checkoutSessionId) ? "YES" : "NO") + "<br/>");
+
             if (string.IsNullOrWhiteSpace(checkoutSessionId))
             {
                 Response.Write("Missing checkout session.");
@@ -50,18 +65,21 @@ namespace Smash_IT
                 }
 
                 int reservationId = FinalizeReservationAfterSuccessfulPayment(draft, checkoutSessionId);
-
                 Session["FinalizedReservationToken"] = token;
                 Session["FinalizedReservationID"] = reservationId;
 
                 Session.Remove("PendingReservationDraft");
                 Session.Remove("PendingReservationCheckoutSessionID");
+                Session.Remove("PendingReservationCheckoutURL");
+                Session.Remove("PendingReservationToken");
+
+                ClearPendingReservationBackupCookie();
 
                 ViewState["ReservationID"] = reservationId;
             }
             catch (Exception ex)
             {
-                Response.Write("Unable to finalize reservation: " + Server.HtmlEncode(ex.Message));
+                Response.Write("Unable to finalize reservation:<br/><pre>" + Server.HtmlEncode(ex.ToString()) + "</pre>");
             }
         }
 
@@ -81,17 +99,35 @@ namespace Smash_IT
                 string body = reader.ReadToEnd();
                 Dictionary<string, object> parsed =
                     (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(body);
-                Dictionary<string, object> data =
-                    (Dictionary<string, object>)parsed["data"];
-                Dictionary<string, object> attrs =
-                    (Dictionary<string, object>)data["attributes"];
 
-                string paymentStatus = Convert.ToString(attrs["payment_status"] ?? "");
-                string status = Convert.ToString(attrs["status"] ?? "");
+                Dictionary<string, object> data = null;
+                if (parsed.ContainsKey("data"))
+                    data = parsed["data"] as Dictionary<string, object>;
+
+                if (data == null)
+                    throw new Exception("PayMongo response missing data.");
+
+                Dictionary<string, object> attrs = null;
+                if (data.ContainsKey("attributes"))
+                    attrs = data["attributes"] as Dictionary<string, object>;
+
+                if (attrs == null)
+                    throw new Exception("PayMongo response missing attributes.");
+
+                string paymentStatus = attrs.ContainsKey("payment_status")
+                    ? Convert.ToString(attrs["payment_status"] ?? "")
+                    : "";
+
+                string status = attrs.ContainsKey("status")
+                    ? Convert.ToString(attrs["status"] ?? "")
+                    : "";
 
                 return paymentStatus.Equals("paid", StringComparison.OrdinalIgnoreCase)
-                    || status.Equals("paid", StringComparison.OrdinalIgnoreCase);
+                    || status.Equals("paid", StringComparison.OrdinalIgnoreCase)
+                    || status.Equals("active", StringComparison.OrdinalIgnoreCase);
             }
         }
     }
 }
+
+

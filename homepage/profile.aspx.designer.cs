@@ -141,6 +141,42 @@ namespace Smash_IT.homepage
         protected global::System.Web.UI.WebControls.Label lblHoursPlayed;
 
         /// <summary>
+        /// lblTotalRentals control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblTotalRentals;
+
+        /// <summary>
+        /// lblTotalConsumables control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblTotalConsumables;
+
+        /// <summary>
+        /// lblSpentThisWeek control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblSpentThisWeek;
+
+        /// <summary>
+        /// lblSpentThisMonth control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblSpentThisMonth;
+
+        /// <summary>
         /// btnLogout control.
         /// </summary>
         /// <remarks>

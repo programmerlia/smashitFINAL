@@ -437,6 +437,15 @@ const SafeStore = (() => {
             clearSlotVisuals();
             rangeEls.forEach((cell, idx) => cell.classList.add(idx === 0 ? "selected" : "selected-range"));
 
+            if (HF.selectedDate()) HF.selectedDate().value = date;
+            if (HF.resDate()) HF.resDate().value = date;
+
+            if (HF.selectedCourtID()) HF.selectedCourtID().value = courtId;
+            if (HF.courtID()) HF.courtID().value = courtId;
+
+            if (HF.start()) HF.start().value = start;
+            if (HF.end()) HF.end().value = end;
+
             setSelection({ ...getSelection(), date, courtId, start, end });
 
             const lbl = HF.lblSlot();
@@ -843,6 +852,16 @@ const SafeStore = (() => {
 
     function goToRentals() {
         if (!ensureSlotSelectedOrAlert()) return;
+
+        const sel = getSelection();
+
+        if (HF.selectedDate()) HF.selectedDate().value = sel.date || "";
+        if (HF.resDate()) HF.resDate().value = sel.date || "";
+        if (HF.selectedCourtID()) HF.selectedCourtID().value = sel.courtId || "";
+        if (HF.courtID()) HF.courtID().value = sel.courtId || "";
+        if (HF.start()) HF.start().value = sel.start || "";
+        if (HF.end()) HF.end().value = sel.end || "";
+
         showStep(2);
         loadAndRenderEquipment();
         syncSummaries();

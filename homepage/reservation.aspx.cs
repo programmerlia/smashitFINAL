@@ -9,6 +9,7 @@ using System.Web;
 using System.Web.Script.Serialization;
 using System.Web.Script.Services;
 using System.Web.Services;
+using System.Web.Security;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Web.SessionState;
@@ -149,6 +150,120 @@ namespace Smash_IT.homepage
             public decimal RequiredAmountStoredPesos { get; set; }
         }
 
+
+        private const string PendingReservationCookieName = "PendingReservationBackup";
+
+        private static string ProtectString(string plain)
+        {
+            if (string.IsNullOrEmpty(plain)) return "";
+            byte[] bytes = Encoding.UTF8.GetBytes(plain);
+            byte[] protectedBytes = MachineKey.Protect(bytes, "PendingReservationBackup");
+            return Convert.ToBase64String(protectedBytes);
+        }
+
+        private static string UnprotectString(string protectedBase64)
+        {
+            if (string.IsNullOrWhiteSpace(protectedBase64)) return "";
+
+            try
+            {
+                byte[] protectedBytes = Convert.FromBase64String(protectedBase64);
+                byte[] bytes = MachineKey.Unprotect(protectedBytes, "PendingReservationBackup");
+                if (bytes == null || bytes.Length == 0) return "";
+                return Encoding.UTF8.GetString(bytes);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private void SavePendingReservationBackupCookie(PendingReservationDraft draft, string checkoutSessionId)
+        {
+            var payload = new Dictionary<string, object>
+    {
+        { "Draft", draft },
+        { "CheckoutSessionId", checkoutSessionId ?? "" }
+    };
+
+            string json = new JavaScriptSerializer().Serialize(payload);
+            string protectedValue = ProtectString(json);
+
+            HttpCookie cookie = new HttpCookie(PendingReservationCookieName, protectedValue);
+            cookie.HttpOnly = true;
+            cookie.Secure = false;
+            cookie.Path = "/";
+            cookie.Expires = DateTime.Now.AddHours(2);
+
+            Response.Cookies.Set(cookie);
+        }
+
+        public static PendingReservationDraft GetPendingDraftFromCookie(HttpRequest request, string token)
+        {
+            if (request == null) return null;
+
+            HttpCookie cookie = request.Cookies[PendingReservationCookieName];
+            if (cookie == null || string.IsNullOrWhiteSpace(cookie.Value)) return null;
+
+            string json = UnprotectString(cookie.Value);
+            if (string.IsNullOrWhiteSpace(json)) return null;
+
+            try
+            {
+                var payload = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
+                if (payload == null || !payload.ContainsKey("Draft")) return null;
+
+                string payloadJson = new JavaScriptSerializer().Serialize(payload["Draft"]);
+                PendingReservationDraft draft =
+                    new JavaScriptSerializer().Deserialize<PendingReservationDraft>(payloadJson);
+
+                if (draft == null) return null;
+                if (!string.Equals(draft.DraftToken ?? "", token ?? "", StringComparison.Ordinal))
+                    return null;
+
+                return draft;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static string GetPendingCheckoutSessionIdFromCookie(HttpRequest request)
+        {
+            if (request == null) return "";
+
+            HttpCookie cookie = request.Cookies[PendingReservationCookieName];
+            if (cookie == null || string.IsNullOrWhiteSpace(cookie.Value)) return "";
+
+            string json = UnprotectString(cookie.Value);
+            if (string.IsNullOrWhiteSpace(json)) return "";
+
+            try
+            {
+                var payload2 = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
+                if (payload2 == null || !payload2.ContainsKey("CheckoutSessionId")) return "";
+
+                return Convert.ToString(payload2["CheckoutSessionId"] ?? "");
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        protected void ClearPendingReservationBackupCookie()
+        {
+            HttpCookie cookie = new HttpCookie(PendingReservationCookieName, "");
+            cookie.HttpOnly = true;
+            cookie.Secure = false;
+            cookie.Path = "/";
+            cookie.Expires = DateTime.Now.AddDays(-1);
+
+            Response.Cookies.Set(cookie);
+        }
+
+
         public static PendingReservationDraft GetPendingDraftFromSession(HttpSessionState session, string token)
         {
             if (session == null) return null;
@@ -226,12 +341,19 @@ SELECT
         ELSE m.DefaultSellPrice
     END AS UnitPrice,
     CASE
-        WHEN m.ItemCategory = 'Rental' THEN SUM(CASE WHEN ar.ItemID IS NULL THEN 1 ELSE 0 END)
+        WHEN m.ItemCategory = 'Rental' THEN
+            SUM(CASE
+                    WHEN ei.ItemID IS NOT NULL AND r.ItemID IS NULL THEN 1
+                    ELSE 0
+                END)
         ELSE ISNULL(m.ConsumableQty, 0)
     END AS AvailableQty
 FROM tblEquipmentModel m
-LEFT JOIN tblEquipmentItem ei ON ei.ModelID = m.ModelID
-LEFT JOIN tblRental ar ON ar.ItemID = ei.ItemID AND ar.ReturnedAt IS NULL
+LEFT JOIN tblEquipmentItem ei
+    ON ei.ModelID = m.ModelID
+LEFT JOIN tblRental r
+    ON r.ItemID = ei.ItemID
+   AND r.ReturnedAt IS NULL
 GROUP BY
     m.ItemCategory,
     m.EquipmentType,
@@ -239,7 +361,10 @@ GROUP BY
     m.DefaultRentalPrice,
     m.DefaultSellPrice,
     m.ConsumableQty
-ORDER BY m.ItemCategory, m.EquipmentType, ISNULL(m.EquipmentSpec,'');";
+ORDER BY
+    m.ItemCategory,
+    m.EquipmentType,
+    ISNULL(m.EquipmentSpec,'');";
 
                 using (SqlConnection con = new SqlConnection(cs))
                 using (SqlCommand cmd = new SqlCommand(sql, con))
@@ -265,17 +390,7 @@ ORDER BY m.ItemCategory, m.EquipmentType, ISNULL(m.EquipmentSpec,'');";
             }
 
             TimeSpan end = s.Add(TimeSpan.FromHours(durationHours <= 0 ? 1 : durationHours));
-
             sql = @"
-;WITH BusyItems AS (
-    SELECT rntl.ItemID
-    FROM tblRental rntl
-    JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
-    WHERE rntl.ReturnedAt IS NULL
-      AND res.ResDate = @ResDate
-      AND res.ReservationStatusName NOT IN ('Cancelled','Completed')
-      AND (@StartTime < res.EndTime AND @EndTime > res.StartTime)
-)
 SELECT
     m.ItemCategory,
     m.EquipmentType,
@@ -285,12 +400,19 @@ SELECT
         ELSE m.DefaultSellPrice
     END AS UnitPrice,
     CASE
-        WHEN m.ItemCategory = 'Rental' THEN SUM(CASE WHEN b.ItemID IS NULL THEN 1 ELSE 0 END)
+        WHEN m.ItemCategory = 'Rental' THEN
+            SUM(CASE
+                    WHEN ei.ItemID IS NOT NULL AND r.ItemID IS NULL THEN 1
+                    ELSE 0
+                END)
         ELSE ISNULL(m.ConsumableQty, 0)
     END AS AvailableQty
 FROM tblEquipmentModel m
-LEFT JOIN tblEquipmentItem ei ON ei.ModelID = m.ModelID
-LEFT JOIN BusyItems b ON b.ItemID = ei.ItemID
+LEFT JOIN tblEquipmentItem ei
+    ON ei.ModelID = m.ModelID
+LEFT JOIN tblRental r
+    ON r.ItemID = ei.ItemID
+   AND r.ReturnedAt IS NULL
 GROUP BY
     m.ItemCategory,
     m.EquipmentType,
@@ -298,15 +420,14 @@ GROUP BY
     m.DefaultRentalPrice,
     m.DefaultSellPrice,
     m.ConsumableQty
-ORDER BY m.ItemCategory, m.EquipmentType, ISNULL(m.EquipmentSpec,'');";
+ORDER BY
+    m.ItemCategory,
+    m.EquipmentType,
+    ISNULL(m.EquipmentSpec,'');";
 
             using (SqlConnection con = new SqlConnection(cs))
             using (SqlCommand cmd = new SqlCommand(sql, con))
             {
-                cmd.Parameters.AddWithValue("@ResDate", d.Date);
-                cmd.Parameters.AddWithValue("@StartTime", s);
-                cmd.Parameters.AddWithValue("@EndTime", end);
-
                 con.Open();
                 using (SqlDataReader dr = cmd.ExecuteReader())
                 {
@@ -486,27 +607,21 @@ WHERE ItemCategory = 'Consumable'
                 List<int> picked = new List<int>();
 
                 using (SqlCommand cmdPick = new SqlCommand(@"
-;WITH BusyItems AS (
-    SELECT rntl.ItemID
-    FROM tblRental rntl
-    JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
-    WHERE rntl.ReturnedAt IS NULL
-      AND res.ResDate = @ResDate
-      AND res.ReservationStatusName NOT IN ('Cancelled','Completed')
-      AND (@StartTime < res.EndTime AND @EndTime > res.StartTime)
-)
 SELECT TOP (@Qty) ei.ItemID
 FROM tblEquipmentItem ei WITH (UPDLOCK, HOLDLOCK)
 JOIN tblEquipmentModel m ON m.ModelID = ei.ModelID
 WHERE m.ItemCategory = 'Rental'
   AND m.EquipmentType = @Type
   AND ISNULL(m.EquipmentSpec,'') = @Spec
-  AND ei.ItemID NOT IN (SELECT ItemID FROM BusyItems)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM tblRental rntl
+      WHERE rntl.ItemID = ei.ItemID
+        AND rntl.ReturnedAt IS NULL
+  )
 ORDER BY ei.ItemID;", con, tx))
                 {
-                    cmdPick.Parameters.AddWithValue("@ResDate", resDate.Date);
-                    cmdPick.Parameters.AddWithValue("@StartTime", start);
-                    cmdPick.Parameters.AddWithValue("@EndTime", end);
+      
                     cmdPick.Parameters.AddWithValue("@Type", line.EquipmentType);
                     cmdPick.Parameters.AddWithValue("@Spec", line.EquipmentSpec ?? "");
                     cmdPick.Parameters.AddWithValue("@Qty", line.Quantity);
@@ -942,6 +1057,8 @@ WHERE CourtID = @CourtID
             Session["PendingReservationCheckoutSessionID"] = null;
             Session["PendingReservationCheckoutURL"] = null;
             Session["PendingReservationToken"] = draftToken;
+
+            SavePendingReservationBackupCookie(draft, null);
 
             string url = ResolveUrl("~/PreparingPayment.aspx?token=" + draftToken);
             Response.Redirect(url, false);

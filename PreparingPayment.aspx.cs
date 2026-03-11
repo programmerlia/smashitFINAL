@@ -4,6 +4,7 @@ using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Web;
 using System.Web.Script.Serialization;
 
 namespace Smash_IT
@@ -21,6 +22,11 @@ namespace Smash_IT
             }
 
             var draft = Smash_IT.homepage.reservation.GetPendingDraftFromSession(Session, token);
+            if (draft == null)
+            {
+                draft = Smash_IT.homepage.reservation.GetPendingDraftFromCookie(Request, token);
+            }
+
             if (draft == null)
             {
                 Response.Redirect("~/homepage/reservation.aspx", false);
@@ -143,6 +149,23 @@ namespace Smash_IT
                 Session["PendingReservationCheckoutSessionID"] = checkoutSessionId ?? "";
                 Session["PendingReservationCheckoutURL"] = checkoutUrl ?? "";
 
+                var backupPayload = new Dictionary<string, object>
+{
+    { "Draft", draft },
+    { "CheckoutSessionId", checkoutSessionId ?? "" }
+};
+
+                string backupJson = new JavaScriptSerializer().Serialize(backupPayload);
+                byte[] backupBytes = Encoding.UTF8.GetBytes(backupJson);
+                byte[] protectedBackupBytes = System.Web.Security.MachineKey.Protect(backupBytes, "PendingReservationBackup");
+                string protectedBackupValue = Convert.ToBase64String(protectedBackupBytes);
+
+                HttpCookie backupCookie = new HttpCookie("PendingReservationBackup", protectedBackupValue);
+                backupCookie.HttpOnly = true;
+                backupCookie.Secure = false;
+                backupCookie.Path = "/";
+                backupCookie.Expires = DateTime.Now.AddHours(2);
+                Response.Cookies.Set(backupCookie);
                 if (string.IsNullOrWhiteSpace(checkoutUrl))
                     throw new Exception("PayMongo checkout_url was empty.");
 

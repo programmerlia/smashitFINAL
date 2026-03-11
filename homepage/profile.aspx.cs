@@ -49,6 +49,14 @@ namespace Smash_IT.homepage
             }
         }
 
+
+
+        // ------------------- BUNCH OF HELPER ------------
+        private sealed class PaymentGroupVM
+        {
+            public string GroupTitle { get; set; }
+            public List<PaymentRowVM> Items { get; set; }
+        }
         // -------------------- PROFILE --------------------
         private void LoadProfile(int userId)
         {
@@ -112,12 +120,44 @@ WHERE UserID = @ID;", con))
         {
             using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(@"
+DECLARE @Today DATE = CAST(GETDATE() AS DATE);
+DECLARE @WeekStart DATE = DATEADD(DAY, 1 - DATEPART(WEEKDAY, @Today), @Today);
+DECLARE @MonthStart DATE = DATEFROMPARTS(YEAR(@Today), MONTH(@Today), 1);
+
 SELECT
-  (SELECT COUNT(*) FROM tblReservation WHERE UserID=@ID) AS TotalBookings,
-  (SELECT COUNT(*) FROM tblReservation WHERE UserID=@ID AND ReservationStatusName='Pending') AS PendingCount,
-  (SELECT ISNULL(SUM(DATEDIFF(MINUTE, StartTime, EndTime)),0)
-   FROM tblReservation
-   WHERE UserID=@ID AND ReservationStatusName IN ('Approved','Completed')) AS MinutesPlayed;", con))
+    (SELECT COUNT(*)
+     FROM tblReservation
+     WHERE UserID = @ID) AS TotalBookings,
+
+    (SELECT COUNT(*)
+     FROM tblReservation
+     WHERE UserID = @ID
+       AND ReservationStatusName = 'Pending') AS PendingCount,
+
+    (SELECT ISNULL(SUM(DATEDIFF(MINUTE, StartTime, EndTime)), 0)
+     FROM tblReservation
+     WHERE UserID = @ID
+       AND ReservationStatusName IN ('Approved','Completed')) AS MinutesPlayed,
+
+    (SELECT COUNT(*)
+     FROM tblRental
+     WHERE UserID = @ID) AS TotalRentals,
+
+    (SELECT ISNULL(SUM(Quantity), 0)
+     FROM tblConsumable
+     WHERE UserID = @ID) AS TotalConsumables,
+
+    (SELECT ISNULL(SUM(CAST(Amount AS DECIMAL(10,2))), 0)
+     FROM tblPayment
+     WHERE UserID = @ID
+       AND PaymentDate >= @WeekStart
+       AND PaymentDate < DATEADD(DAY, 7, @WeekStart)) AS SpentThisWeek,
+
+    (SELECT ISNULL(SUM(CAST(Amount AS DECIMAL(10,2))), 0)
+     FROM tblPayment
+     WHERE UserID = @ID
+       AND PaymentDate >= @MonthStart
+       AND PaymentDate < DATEADD(MONTH, 1, @MonthStart)) AS SpentThisMonth;", con))
             {
                 cmd.Parameters.AddWithValue("@ID", userId);
                 con.Open();
@@ -126,20 +166,32 @@ SELECT
                 {
                     if (!dr.Read()) return;
 
-                    int total = Convert.ToInt32(dr["TotalBookings"]);
-                    int pending = Convert.ToInt32(dr["PendingCount"]);
-                    int minutes = Convert.ToInt32(dr["MinutesPlayed"]);
+                    int totalBookings = Convert.ToInt32(dr["TotalBookings"]);
+                    int pendingCount = Convert.ToInt32(dr["PendingCount"]);
+                    int minutesPlayed = Convert.ToInt32(dr["MinutesPlayed"]);
+                    int totalRentals = Convert.ToInt32(dr["TotalRentals"]);
+                    int totalConsumables = Convert.ToInt32(dr["TotalConsumables"]);
 
-                    lblTotalBookings.Text = total.ToString();
-                    lblPendingCount.Text = pending.ToString();
+                    decimal spentThisWeek = Convert.ToDecimal(dr["SpentThisWeek"]);
+                    decimal spentThisMonth = Convert.ToDecimal(dr["SpentThisMonth"]);
 
-                    double hours = minutes / 60.0;
+                    lblTotalBookings.Text = totalBookings.ToString();
+                    lblPendingCount.Text = pendingCount.ToString();
+
+                    double hours = minutesPlayed / 60.0;
                     lblHoursPlayed.Text = hours.ToString("0.#", CultureInfo.InvariantCulture);
+
+                    lblTotalRentals.Text = totalRentals.ToString();
+                    lblTotalConsumables.Text = totalConsumables.ToString();
+
+                    lblSpentThisWeek.Text = "₱ " + spentThisWeek.ToString("N2");
+                    lblSpentThisMonth.Text = "₱ " + spentThisMonth.ToString("N2");
                 }
             }
         }
 
-        // -------------------- RESERVATIONS: SINGLE SOURCE OF TRUTH --------------------
+        // -------------------- RESERVATIONS-------------------
+
         private DataTable GetReservationsForUser(int userId)
         {
             DataTable dt = new DataTable();
@@ -147,45 +199,91 @@ SELECT
             using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(@"
 SELECT TOP 200
-  r.ReservationID,
-  r.ResDate,
-  r.StartTime,
-  r.EndTime,
-  r.SportName,
-  r.ReservationStatusName,
-  ISNULL(r.RequestStatus,'') AS RequestStatus,
-  ISNULL(r.IsPaid,0) AS IsPaid,
-  ISNULL(r.PaymentStatus,'') AS PaymentStatus,
-  c.CourtNumber
+    r.ReservationID,
+    r.ResDate,
+    r.StartTime,
+    r.EndTime,
+    r.SportName,
+    r.ReservationStatusName,
+    ISNULL(r.RequestStatus,'') AS RequestStatus,
+    ISNULL(r.IsPaid,0) AS IsPaid,
+    ISNULL(r.PaymentStatus,'') AS PaymentStatus,
+    ISNULL(r.RequiredAmount,0) AS RequiredAmount,
+    ISNULL(pay.TotalPaid,0) AS TotalPaid,
+    c.CourtNumber,
+
+    ISNULL(rt.RentalCount,0) AS RentalCount,
+    ISNULL(rt.RentalAmount,0) AS RentalAmount,
+
+    ISNULL(cs.ConsumableQty,0) AS ConsumableQty,
+    ISNULL(cs.ConsumableAmount,0) AS ConsumableAmount
+
 FROM tblReservation r
 JOIN tblCourt c ON c.CourtID = r.CourtID
+
+LEFT JOIN (
+    SELECT ReservationID, SUM(CAST(ISNULL(Amount,0) AS DECIMAL(10,2))) AS TotalPaid
+    FROM tblPayment
+    WHERE ReservationID IS NOT NULL
+    GROUP BY ReservationID
+) pay ON pay.ReservationID = r.ReservationID
+
+LEFT JOIN (
+    SELECT ReservationID,
+           COUNT(*) AS RentalCount,
+           SUM(CAST(ISNULL(UnitPrice,0) AS DECIMAL(10,2))) AS RentalAmount
+    FROM tblRental
+    WHERE ReservationID IS NOT NULL
+    GROUP BY ReservationID
+) rt ON rt.ReservationID = r.ReservationID
+
+LEFT JOIN (
+    SELECT ReservationID,
+           SUM(ISNULL(Quantity,0)) AS ConsumableQty,
+           SUM(CAST(ISNULL(Quantity,0) * ISNULL(UnitPrice,0) AS DECIMAL(10,2))) AS ConsumableAmount
+    FROM tblConsumable
+    WHERE ReservationID IS NOT NULL
+    GROUP BY ReservationID
+) cs ON cs.ReservationID = r.ReservationID
+
 WHERE r.UserID = @ID
 ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             {
                 cmd.Parameters.AddWithValue("@ID", userId);
                 con.Open();
+
                 using (SqlDataAdapter da = new SqlDataAdapter(cmd))
                     da.Fill(dt);
             }
 
             return dt;
         }
-        
 
         private void AddComputedColumns(DataTable dt)
         {
             if (!dt.Columns.Contains("StartStr")) dt.Columns.Add("StartStr", typeof(string));
             if (!dt.Columns.Contains("EndStr")) dt.Columns.Add("EndStr", typeof(string));
+            if (!dt.Columns.Contains("FriendlyDate")) dt.Columns.Add("FriendlyDate", typeof(string));
+            if (!dt.Columns.Contains("TimeRangeDisplay")) dt.Columns.Add("TimeRangeDisplay", typeof(string));
             if (!dt.Columns.Contains("StatusBadgeClass")) dt.Columns.Add("StatusBadgeClass", typeof(string));
             if (!dt.Columns.Contains("PaymentStatusDisplay")) dt.Columns.Add("PaymentStatusDisplay", typeof(string));
+            if (!dt.Columns.Contains("PaymentBalanceDisplay")) dt.Columns.Add("PaymentBalanceDisplay", typeof(string));
+            if (!dt.Columns.Contains("PaidAmountDisplay")) dt.Columns.Add("PaidAmountDisplay", typeof(string));
+            if (!dt.Columns.Contains("ExtrasDisplay")) dt.Columns.Add("ExtrasDisplay", typeof(string));
 
             foreach (DataRow row in dt.Rows)
             {
                 TimeSpan st = (TimeSpan)row["StartTime"];
                 TimeSpan et = (TimeSpan)row["EndTime"];
+                DateTime resDate = Convert.ToDateTime(row["ResDate"]);
 
-                row["StartStr"] = DateTime.Today.Add(st).ToString("hh:mm tt");
-                row["EndStr"] = DateTime.Today.Add(et).ToString("hh:mm tt");
+                string startStr = DateTime.Today.Add(st).ToString("hh:mm tt");
+                string endStr = DateTime.Today.Add(et).ToString("hh:mm tt");
+
+                row["StartStr"] = startStr;
+                row["EndStr"] = endStr;
+                row["FriendlyDate"] = resDate.ToString("dddd, MMM d, yyyy");
+                row["TimeRangeDisplay"] = startStr + " - " + endStr;
 
                 string status = Convert.ToString(row["ReservationStatusName"] ?? "");
                 row["StatusBadgeClass"] = StatusBadge(status);
@@ -193,13 +291,42 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
                 bool isPaid = row["IsPaid"] != DBNull.Value && Convert.ToBoolean(row["IsPaid"]);
                 string pay = Convert.ToString(row["PaymentStatus"] ?? "");
 
+                decimal requiredAmount = row["RequiredAmount"] == DBNull.Value ? 0m : Convert.ToDecimal(row["RequiredAmount"]);
+                decimal totalPaid = row["TotalPaid"] == DBNull.Value ? 0m : Convert.ToDecimal(row["TotalPaid"]);
+                decimal remaining = requiredAmount - totalPaid;
+                if (remaining < 0m) remaining = 0m;
+
                 row["PaymentStatusDisplay"] =
-                    (isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase))
+                    (isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase) || remaining <= 0m)
                     ? "Paid"
                     : (string.IsNullOrWhiteSpace(pay) ? "Unpaid" : pay);
+
+                row["PaidAmountDisplay"] = "₱ " + totalPaid.ToString("N2");
+
+                row["PaymentBalanceDisplay"] =
+                    remaining > 0m
+                    ? "Remaining: ₱ " + remaining.ToString("N2") + " upon check-in"
+                    : "Fully settled";
+
+                int rentalCount = row["RentalCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["RentalCount"]);
+                decimal rentalAmount = row["RentalAmount"] == DBNull.Value ? 0m : Convert.ToDecimal(row["RentalAmount"]);
+
+                int consumableQty = row["ConsumableQty"] == DBNull.Value ? 0 : Convert.ToInt32(row["ConsumableQty"]);
+                decimal consumableAmount = row["ConsumableAmount"] == DBNull.Value ? 0m : Convert.ToDecimal(row["ConsumableAmount"]);
+
+                List<string> extras = new List<string>();
+
+                if (rentalCount > 0)
+                    extras.Add("Rentals: " + rentalCount + " item(s) • ₱ " + rentalAmount.ToString("N2"));
+
+                if (consumableQty > 0)
+                    extras.Add("Consumables: " + consumableQty + " item(s) • ₱ " + consumableAmount.ToString("N2"));
+
+                row["ExtrasDisplay"] = extras.Count > 0
+                    ? string.Join("<br/>", extras)
+                    : "No rentals or consumables added.";
             }
         }
-
         // -------------------- TOP 1 ON PROFILE (APPROVED UPCOMING FIRST) --------------------
         private void BindTopReservation(DataTable dt)
         {
@@ -213,7 +340,6 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
 
             DateTime now = DateTime.Now;
 
-            // ✅ Most upcoming APPROVED
             DataRow top = dt.AsEnumerable()
                 .Where(r => string.Equals(r.Field<string>("ReservationStatusName"), "Approved", StringComparison.OrdinalIgnoreCase))
                 .Select(r => new
@@ -226,7 +352,6 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
                 .Select(x => x.Row)
                 .FirstOrDefault();
 
-            // fallback: most upcoming PENDING (if no approved upcoming)
             if (top == null)
             {
                 top = dt.AsEnumerable()
@@ -253,15 +378,20 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
 
         private string BuildTopReservationHtml(DataRow r)
         {
-            string resId = HttpUtility.HtmlEncode(Convert.ToString(r["ReservationID"]));
-            string court = HttpUtility.HtmlEncode(Convert.ToString(r["CourtNumber"]));
+            string court = HttpUtility.HtmlEncode("Court " + Convert.ToString(r["CourtNumber"]));
+            string sport = HttpUtility.HtmlEncode(Convert.ToString(r["SportName"]));
             string status = Convert.ToString(r["ReservationStatusName"]);
             string statusEncoded = HttpUtility.HtmlEncode(status);
+            string badgeClass = HttpUtility.HtmlEncode(StatusBadge(status));
+
+            string friendlyDate = HttpUtility.HtmlEncode(Convert.ToString(r["FriendlyDate"]));
+            string timeRange = HttpUtility.HtmlEncode(Convert.ToString(r["TimeRangeDisplay"]));
+            string paidAmount = HttpUtility.HtmlEncode(Convert.ToString(r["PaidAmountDisplay"]));
+            string balance = HttpUtility.HtmlEncode(Convert.ToString(r["PaymentBalanceDisplay"]));
+            string extras = Convert.ToString(r["ExtrasDisplay"] ?? "");
 
             DateTime resDate = Convert.ToDateTime(r["ResDate"]);
             TimeSpan start = (TimeSpan)r["StartTime"];
-            TimeSpan end = (TimeSpan)r["EndTime"];
-
             DateTime startDT = resDate.Date.Add(start);
             TimeSpan diff = startDT - DateTime.Now;
 
@@ -273,30 +403,34 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             else
                 emphasis = ((int)Math.Floor(diff.TotalHours)) + " hour(s) left";
 
-            string badgeClass = StatusBadge(status);
-
-            string dateStr = HttpUtility.HtmlEncode(resDate.ToString("yyyy-MM-dd"));
-            string startStr = HttpUtility.HtmlEncode(DateTime.Today.Add(start).ToString("hh:mm tt"));
-            string endStr = HttpUtility.HtmlEncode(DateTime.Today.Add(end).ToString("hh:mm tt"));
-            string badgeClassEncoded = HttpUtility.HtmlEncode(badgeClass);
-            string emphasisEncoded = HttpUtility.HtmlEncode(emphasis);
+            emphasis = HttpUtility.HtmlEncode(emphasis);
 
             return $@"
-<div class='res-item'>
-  <div class='res-top'>
-    <div>
-      <div style='font-weight:800;'>
-        Reservation #{resId} • Court {court} • {dateStr}
-      </div>
-      <div class='muted'>
-        {startStr} - {endStr}
-      </div>
-      <div class='mt-1'>
-        <span class='badge-status {badgeClassEncoded}'>{statusEncoded}</span>
-        <span class='badge-status badge-approved ms-1' style='font-weight:800;'>{emphasisEncoded}</span>
-      </div>
+<div class='res-clean'>
+    <div class='res-clean-top'>
+        <div>
+            <div class='res-main-title'>{court}</div>
+            <div class='res-subline'>{sport}</div>
+
+            <div class='res-meta-row'>
+                <span class='pill-chip pill-date'>📅 {friendlyDate}</span>
+                <span class='pill-chip pill-time'>🕒 {timeRange}</span>
+                <span class='badge-status {badgeClass}'>{statusEncoded}</span>
+                <span class='badge-status badge-approved'>{emphasis}</span>
+            </div>
+        </div>
+
+        <div class='payment-box'>
+            <div class='payment-label'>Paid so far</div>
+            <div class='payment-paid'>{paidAmount}</div>
+            <div class='payment-balance'>{balance}</div>
+        </div>
     </div>
-  </div>
+
+    <div class='extras-box'>
+        <div class='extras-title'>Added items</div>
+        <div class='extras-line'>{extras}</div>
+    </div>
 </div>";
         }
         private string StatusBadge(string status)
@@ -587,6 +721,21 @@ SET PhoneNumber=@P,
             public decimal AmountPhp { get; set; }
         }
 
+
+        protected void rptPayments_ItemDataBound(object sender, RepeaterItemEventArgs e)
+        {
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem)
+                return;
+
+            PaymentGroupVM group = (PaymentGroupVM)e.Item.DataItem;
+            Repeater inner = (Repeater)e.Item.FindControl("rptPaymentsInner");
+
+            if (inner != null)
+            {
+                inner.DataSource = group.Items;
+                inner.DataBind();
+            }
+        }
         private void BindPaymentsModal(int userId)
         {
             var list = new List<PaymentRowVM>();
@@ -600,21 +749,18 @@ SELECT TOP 400
     p.ReservationID,
     p.RentalID,
     p.ConsumableID,
-    p.Amount,
+    CAST(p.Amount AS DECIMAL(10,2)) AS Amount,
 
-    -- reservation
     res.ResDate,
     res.StartTime AS ResStart,
     res.EndTime AS ResEnd,
     c.CourtNumber,
 
-    -- rental
     rntl.RentalDate,
     rntl.ReturnedAt,
     rm.EquipmentType AS RentalEquipmentType,
     ISNULL(rm.EquipmentSpec,'') AS RentalEquipmentSpec,
 
-    -- consumable
     cons.PurchaseDate,
     cons.Quantity,
     cons.UnitPrice AS ConsumableUnitPrice,
@@ -715,8 +861,35 @@ ORDER BY ISNULL(p.PaymentDate, '19000101') DESC, p.PaymentID DESC;", con))
                 }
             }
 
-            pnlPaymentsEmpty.Visible = (list.Count == 0);
-            rptPayments.DataSource = list;
+            DateTime today = DateTime.Today;
+            DateTime weekStart = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Sunday);
+            DateTime monthStart = new DateTime(today.Year, today.Month, 1);
+
+            var grouped = new List<PaymentGroupVM>
+    {
+        new PaymentGroupVM
+        {
+            GroupTitle = "This Week",
+            Items = list.Where(x => x.PaymentDate.HasValue && x.PaymentDate.Value.Date >= weekStart).ToList()
+        },
+        new PaymentGroupVM
+        {
+            GroupTitle = "This Month",
+            Items = list.Where(x => x.PaymentDate.HasValue &&
+                                    x.PaymentDate.Value.Date >= monthStart &&
+                                    x.PaymentDate.Value.Date < weekStart).ToList()
+        },
+        new PaymentGroupVM
+        {
+            GroupTitle = "Older",
+            Items = list.Where(x => !x.PaymentDate.HasValue || x.PaymentDate.Value.Date < monthStart).ToList()
+        }
+    };
+
+            grouped = grouped.Where(g => g.Items.Count > 0).ToList();
+
+            pnlPaymentsEmpty.Visible = (grouped.Count == 0);
+            rptPayments.DataSource = grouped;
             rptPayments.DataBind();
         }
         // --------------RENTALS MODAL --------------
