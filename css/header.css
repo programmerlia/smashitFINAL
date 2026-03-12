@@ -36,8 +36,9 @@ body {
 }
 
     .logo img {
-        height: auto;
-        width: 3vw;
+        height: 100px;
+        width: auto;
+        display: block;
     }
 
 .logo-text-wrapper {

@@ -9,6 +9,8 @@ using System.Linq;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 
 namespace Smash_IT.homepage
 {
@@ -56,6 +58,45 @@ namespace Smash_IT.homepage
         {
             public string GroupTitle { get; set; }
             public List<PaymentRowVM> Items { get; set; }
+        }
+
+        // ------------------- cloudinary helper -----------
+        private string UploadImageToCloudinary(FileUpload fu, string currentImagePath, string folderName, string filePrefix)
+        {
+            if (fu == null || !fu.HasFile)
+                return currentImagePath;
+
+            string[] allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            string fileExtension = Path.GetExtension(fu.FileName).ToLowerInvariant();
+
+            if (!allowedExtensions.Contains(fileExtension))
+                throw new Exception("Invalid file type. Allowed: jpg, jpeg, png, gif, webp.");
+
+            string cloudname = ConfigurationManager.AppSettings["CloudinaryCloudName"];
+            string apikey = ConfigurationManager.AppSettings["CloudinaryApiKey"];
+            string secretKey = ConfigurationManager.AppSettings["CloudinaryApiSecret"];
+
+            Account account = new Account(cloudname, apikey, secretKey);
+            Cloudinary cloudinary = new Cloudinary(account);
+
+            string uniqueFileName = $"{filePrefix}_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+
+            var uploadParams = new ImageUploadParams()
+            {
+                File = new FileDescription(fu.FileName, fu.PostedFile.InputStream),
+                Folder = folderName,
+                PublicId = uniqueFileName,
+                Overwrite = false,
+                UseFilename = false,
+                UniqueFilename = false
+            };
+
+            var uploadResult = cloudinary.Upload(uploadParams);
+
+            if (uploadResult.Error != null)
+                throw new Exception(uploadResult.Error.Message);
+
+            return uploadResult.SecureUrl?.ToString() ?? currentImagePath;
         }
         // -------------------- PROFILE --------------------
         private void LoadProfile(int userId)
@@ -109,7 +150,9 @@ WHERE UserID = @ID;", con))
                 return ResolveUrl("~/images/person.png");
 
             dbPath = dbPath.Trim();
-            if (dbPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+
+            if (dbPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                dbPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 return dbPath;
 
             return ResolveUrl("~/" + dbPath.TrimStart('~', '/'));
@@ -645,35 +688,44 @@ WHERE Username=@U AND UserID<>@ID;", con))
                 }
             }
 
-            string newImgPath = null;
+            string currentImgPath = null;
+
+            using (SqlConnection con = new SqlConnection(CS))
+            using (SqlCommand cmd = new SqlCommand("SELECT ImgPath FROM tblPlayerAccount WHERE UserID = @ID", con))
+            {
+                cmd.Parameters.AddWithValue("@ID", userId);
+                con.Open();
+                object result = cmd.ExecuteScalar();
+                currentImgPath = result == DBNull.Value || result == null ? null : Convert.ToString(result);
+            }
+
+            string newImgPath = currentImgPath;
 
             if (fuAvatar != null && fuAvatar.HasFile)
             {
-                string ext = Path.GetExtension(fuAvatar.FileName).ToLowerInvariant();
-                if (ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".webp")
+                try
                 {
-                    lblEditMsg.Text = "<div class='alert alert-danger'>Invalid image type. Use JPG/PNG/WEBP.</div>";
+                    newImgPath = UploadImageToCloudinary(
+                        fuAvatar,
+                        currentImgPath,
+                        "smash-it/profile-pictures",
+                        "profile_" + userId
+                    );
+                }
+                catch (Exception ex)
+                {
+                    lblEditMsg.Text = "<div class='alert alert-danger'>Image upload failed: " + Server.HtmlEncode(ex.Message) + "</div>";
                     return;
                 }
-
-                string folderRel = "uploads/avatars";
-                string folderAbs = Server.MapPath("~/" + folderRel);
-                Directory.CreateDirectory(folderAbs);
-
-                string fileName = "u" + userId + "_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ext;
-                string absPath = Path.Combine(folderAbs, fileName);
-
-                fuAvatar.SaveAs(absPath);
-                newImgPath = folderRel + "/" + fileName;
             }
 
             string sql = @"
 UPDATE tblPlayerAccount
 SET PhoneNumber=@P,
-    Username=@U";
+    Username=@U,
+    ImgPath=@IMG";
 
             if (!string.IsNullOrWhiteSpace(newPass)) sql += ", [Password]=@PW";
-            if (newImgPath != null) sql += ", ImgPath=@IMG";
             sql += " WHERE UserID=@ID;";
 
             using (SqlConnection con = new SqlConnection(CS))
@@ -681,10 +733,11 @@ SET PhoneNumber=@P,
             {
                 cmd.Parameters.AddWithValue("@P", string.IsNullOrWhiteSpace(phone) ? (object)DBNull.Value : phone);
                 cmd.Parameters.AddWithValue("@U", username);
+                cmd.Parameters.AddWithValue("@IMG", string.IsNullOrWhiteSpace(newImgPath) ? (object)DBNull.Value : newImgPath);
                 cmd.Parameters.AddWithValue("@ID", userId);
 
-                if (!string.IsNullOrWhiteSpace(newPass)) cmd.Parameters.AddWithValue("@PW", newPass);
-                if (newImgPath != null) cmd.Parameters.AddWithValue("@IMG", newImgPath);
+                if (!string.IsNullOrWhiteSpace(newPass))
+                    cmd.Parameters.AddWithValue("@PW", newPass);
 
                 con.Open();
                 cmd.ExecuteNonQuery();

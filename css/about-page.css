@@ -1,0 +1,272 @@
+﻿/* ================= GLOBAL & LAYOUT ================= */
+.about-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+/* ================= HERO SECTION ================= */
+.about-hero {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+@media (min-width: 768px) {
+    .about-hero {
+        height: 500px;
+    }
+}
+
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+.hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.hero-content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 0 1rem;
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+@media (min-width: 768px) {
+    .hero-title {
+        font-size: 4.5rem;
+    }
+}
+
+.hero-divider {
+    width: 6rem;
+    height: 0.25rem;
+    background-color: var(--primary-color, #111827);
+    margin: 1rem auto 0;
+    border-radius: 9999px;
+}
+
+/* ================= OUR STORY SECTION ================= */
+.story-section {
+    padding: 4rem 0;
+}
+
+@media (min-width: 768px) {
+    .story-section {
+        padding: 6rem 0;
+    }
+}
+
+.story-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+@media (min-width: 1024px) {
+    .story-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.story-heading {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .story-heading {
+        font-size: 3rem;
+    }
+}
+
+.story-text {
+    font-size: 1.125rem;
+    color: #555;
+    line-height: 1.625;
+    white-space: pre-line;
+}
+
+.story-img-wrapper {
+    position: relative;
+}
+
+.story-backdrop {
+    position: absolute;
+    top: -1rem;
+    left: -1rem;
+    right: -1rem;
+    bottom: -1rem;
+    background-color: #222;
+    border-radius: 1.5rem;
+    transform: rotate(2deg);
+    z-index: -10;
+    opacity: 0.7;
+}
+
+.story-img {
+    width: 100%;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ================= MISSION & VISION ================= */
+.mv-section {
+    position: relative;
+    padding: 6rem 0;
+    background-color: #222;
+    color: white;
+}
+
+.mv-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4rem;
+}
+
+@media (min-width: 768px) {
+    .mv-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.mv-card {
+    border-left: 4px solid var(--primary-color, #82c9a8);
+    padding-left: 1.5rem;
+}
+
+.mv-heading {
+    font-size: 1.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.mv-text {
+    color: #d1d5db;
+    font-size: 1.125rem;
+}
+
+/* ================= MEMBERS SECTION ================= */
+.members-section {
+    padding: 5rem 0;
+}
+
+.members-heading {
+    font-size: 2.25rem;
+    font-weight: 700;
+    text-align: center;
+    color: #333;
+    margin-bottom: 3rem;
+}
+
+.members-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2.5rem;
+    justify-items: center;
+}
+
+@media (min-width: 768px) {
+    .members-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.member-card {
+    text-align: center;
+    width: 100%;
+}
+
+.member-img {
+    width: 8rem;
+    height: 8rem;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    object-fit: cover;
+    background-color: #d1d5db;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+@media (min-width: 768px) {
+    .member-img {
+        width: 10rem;
+        height: 10rem;
+    }
+}
+
+.member-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.member-role {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* ================= CTA SECTION ================= */
+.cta-section {
+    background-color: #f9f9f9;
+    padding: 5rem 1.5rem;
+    text-align: center;
+}
+
+.cta-heading {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 1.5rem;
+}
+
+.cta-text {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+    color: #555;
+}
+
+.cta-btn {
+    background-color: #333;
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 9999px;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+    .cta-btn:hover {
+        background-color: var(--primary-color, #111827);
+    }

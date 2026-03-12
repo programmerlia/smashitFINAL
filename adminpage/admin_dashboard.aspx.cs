@@ -1,37 +1,40 @@
 ﻿using System;
-using System.Data;
+using System.Web.UI;
 
 namespace Smash_IT.adminpage
 {
-    public partial class admin_dashboard : System.Web.UI.Page
+    public partial class admin_dashboard : Page
     {
         protected void Page_Load(object sender, EventArgs e)
         {
+            // Security check
+            if (Session["Username"] == null)
+            {
+                Response.Redirect("~/login.aspx");
+                return;
+            }
+
             if (!IsPostBack)
             {
-                BindCourtMonitor();
+                SetDisplayName();
             }
         }
 
-        private void BindCourtMonitor()
+        private void SetDisplayName()
         {
-            // Placeholder data based on your uploaded images (image_2605dc.png)
-            // In a real scenario, you'd fetch this from your 'tblCourts' table
-            DataTable dt = new DataTable();
-            dt.Columns.Add("CourtName");
-            dt.Columns.Add("Sport");
-            dt.Columns.Add("StatusText");
-            dt.Columns.Add("StatusClass"); // For CSS styling
-            dt.Columns.Add("StatusIcon");
-            dt.Columns.Add("CurrentPlayer");
+            // Set the Sidebar/Master Page Labels
+            if (Session["FullName"] != null)
+            {
+                Master.StaffDisplayName = Session["FullName"].ToString();
 
-            dt.Rows.Add("Court 1", "Badminton", "AVAILABLE", "status-available", "fas fa-user-check", "Hidilyn Diaz (Up Next)");
-            dt.Rows.Add("Court 2", "Badminton", "PLAYING", "status-playing", "fas fa-running", "Mike Tyson");
-            dt.Rows.Add("Court 5", "Badminton", "PLAYING", "status-playing", "fas fa-running", "Serena Williams");
-            dt.Rows.Add("Court 6", "Pickleball", "AVAILABLE", "status-pickleball", "fas fa-check", "No bookings");
+                // Also set the big "Hi, Name!" welcome message on the dashboard
+                litStaffName.Text = Session["FullName"].ToString();
+            }
 
-            rptCourts.DataSource = dt;
-            rptCourts.DataBind();
+            if (Session["RoleName"] != null)
+            {
+                Master.StaffRole = Session["RoleName"].ToString();
+            }
         }
     }
 }

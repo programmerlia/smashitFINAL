@@ -4,34 +4,48 @@ using System.Data.SqlClient;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using System.Text;
 
 namespace login
 {
     public partial class login : System.Web.UI.Page
     {
-        // Controls
-        protected TextBox txtUsername;
-        protected TextBox txtPassword;
-        protected Label lblMessage;
-        protected Button btnLogin;
-
         protected void Page_Load(object sender, EventArgs e)
         {
-            lblMessage.Text = string.Empty;
+            if (!IsPostBack)
+            {
+                // Check if both cookies exist
+                if (Request.Cookies["SmashItSavedUser"] != null && Request.Cookies["SmashItSavedPass"] != null)
+                {
+                    txtUsername.Text = Request.Cookies["SmashItSavedUser"].Value;
+
+                    try
+                    {
+                        // Decode the password from Base64
+                        string encodedPass = Request.Cookies["SmashItSavedPass"].Value;
+                        byte[] passBytes = Convert.FromBase64String(encodedPass);
+                        string decodedPass = Encoding.UTF8.GetString(passBytes);
+
+                        // Set the value attribute so it populates the Password box
+                        txtPassword.Attributes.Add("value", decodedPass);
+                        chkRememberMe.Checked = true;
+                    }
+                    catch
+                    {
+                        // If decoding fails (corrupted cookie), clear it
+                    }
+                }
+            }
         }
 
         protected void btnLogin1_Click(object sender, EventArgs e)
         {
-            string username = (txtUsername.Text ?? string.Empty).Trim();
-            string password = (txtPassword.Text ?? string.Empty).Trim();
+            string inputUser = (txtUsername.Text ?? string.Empty).Trim();
+            string inputPass = (txtPassword.Text ?? string.Empty).Trim();
 
-            // Basic validation
-            if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(inputUser) || string.IsNullOrEmpty(inputPass))
             {
-                string message = "Please enter both username and password.";
-                lblMessage.Text = message;
-                ScriptManager.RegisterStartupScript(Page, Page.GetType(), "loginAlert",
-                    $"alert('{HttpUtility.JavaScriptStringEncode(message)}');", true);
+                ShowError("Please enter both username and password.");
                 return;
             }
 
@@ -40,53 +54,101 @@ namespace login
             using (SqlConnection con = new SqlConnection(connStr))
             {
                 con.Open();
-
-                string query = @"
-            SELECT FullName, StaffRole
-            FROM tblStaffAccount
-            WHERE Username = @Username AND Password = @Password";
+                string query = "SELECT Username, [Password], Firstname, Lastname, RoleName FROM tblStaffAccount WHERE Username = @User";
 
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
-                    cmd.Parameters.AddWithValue("@Username", username);
-                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@User", inputUser);
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
                         if (reader.Read())
                         {
-                            string fullName = reader["FullName"].ToString();
-                            string role = reader["StaffRole"].ToString();
+                            string dbUser = reader["Username"].ToString();
+                            string dbPass = reader["Password"].ToString();
+                            string dbRole = reader["RoleName"].ToString();
 
-                            // Store in session
-                            Session["Username"] = username;
-                            Session["FullName"] = fullName;
-                            Session["Role"] = role;
+                            // Case-sensitive validation
+                            if (dbUser.Equals(inputUser, StringComparison.Ordinal) &&
+                                dbPass.Equals(inputPass, StringComparison.Ordinal))
+                            {
+                                HandleCookies(dbUser, inputPass);
 
-                            // 🔥 Role-based redirect
-                            if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
-                            {
-                                Response.Redirect("~/adminpage/admin_dashboard.aspx");
-                            }
-                            else if (role.Equals("Receptionist", StringComparison.OrdinalIgnoreCase))
-                            {
-                                Response.Redirect("~/adminpage/receptionist_dashboard.aspx");
+                                // Set Sessions
+                                Session["Username"] = dbUser;
+                                Session["FullName"] = $"{reader["Firstname"]} {reader["Lastname"]}";
+                                Session["RoleName"] = dbRole;
+
+                                RedirectByRole(dbRole);
                             }
                             else
                             {
-                                lblMessage.Text = "Unknown role assigned.";
+                                ShowError("Invalid Credentials. Check your spelling.");
                             }
                         }
                         else
                         {
-                            string message = "Invalid username or password.";
-                            lblMessage.Text = message;
-                            ScriptManager.RegisterStartupScript(Page, Page.GetType(), "loginAlert",
-                                $"alert('{HttpUtility.JavaScriptStringEncode(message)}');", true);
+                            ShowError("Account not found.");
                         }
                     }
                 }
             }
+        }
+
+        private void HandleCookies(string user, string pass)
+        {
+            if (chkRememberMe.Checked)
+            {
+                // Save Username
+                HttpCookie userCookie = new HttpCookie("SmashItSavedUser")
+                {
+                    Value = user,
+                    Expires = DateTime.Now.AddDays(30)
+                };
+                Response.Cookies.Add(userCookie);
+
+                // Save Password (Base64 Encoded)
+                string encodedPass = Convert.ToBase64String(Encoding.UTF8.GetBytes(pass));
+                HttpCookie passCookie = new HttpCookie("SmashItSavedPass")
+                {
+                    Value = encodedPass,
+                    Expires = DateTime.Now.AddDays(30),
+                    HttpOnly = true // Enhanced security against XSS
+                };
+                Response.Cookies.Add(passCookie);
+            }
+            else
+            {
+                // Expire existing cookies if unchecked
+                if (Request.Cookies["SmashItSavedUser"] != null)
+                {
+                    HttpCookie c1 = new HttpCookie("SmashItSavedUser") { Expires = DateTime.Now.AddDays(-1) };
+                    Response.Cookies.Add(c1);
+                }
+                if (Request.Cookies["SmashItSavedPass"] != null)
+                {
+                    HttpCookie c2 = new HttpCookie("SmashItSavedPass") { Expires = DateTime.Now.AddDays(-1) };
+                    Response.Cookies.Add(c2);
+                }
+            }
+        }
+
+        private void RedirectByRole(string role)
+        {
+            if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                Response.Redirect("~/adminpage/admin_dashboard.aspx");
+            else if (role.Equals("Receptionist", StringComparison.OrdinalIgnoreCase))
+                Response.Redirect("~/adminpage/receptionist_dashboard.aspx");
+            else
+                ShowError("Unauthorized access.");
+        }
+
+        private void ShowError(string msg)
+        {
+            lblMessage.Text = msg;
+            lblMessage.Visible = true;
+            string cleanMsg = HttpUtility.JavaScriptStringEncode(msg);
+            ScriptManager.RegisterStartupScript(this, GetType(), "loginErr", $"alert('{cleanMsg}');", true);
         }
     }
 }

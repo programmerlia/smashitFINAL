@@ -78,11 +78,11 @@ const SafeStore = (() => {
     }
 
     const HF = {
-        courtID: () => byAnyId(null, "hfCourtIDClientID"),
-        resDate: () => byAnyId(null, "hfResDateClientID"),
-        start: () => byAnyId(null, "hfStartTimeClientID"),
-        end: () => byAnyId(null, "hfEndTimeClientID"),
-        lblSlot: () => byAnyId(null, "lblSelectedSlotClientID"),
+        courtID: () => byAnyId("hfCourtID", "hfCourtIDClientID"),
+        resDate: () => byAnyId("hfResDate", "hfResDateClientID"),
+        start: () => byAnyId("hfStartTime", "hfStartTimeClientID"),
+        end: () => byAnyId("hfEndTime", "hfEndTimeClientID"),
+        lblSlot: () => byAnyId("lblSelectedSlot", "lblSelectedSlotClientID"),
         selectedDate: () => byAnyId("hfSelectedDate", "hfSelectedDateClientID"),
         selectedCourtID: () => byAnyId("hfSelectedCourtID", "hfSelectedCourtIDClientID"),
         rentalCart: () => byAnyId("hfRentalCart", "hfRentalCartClientID"),
@@ -176,43 +176,6 @@ const SafeStore = (() => {
         if (hf) hf.value = SafeStore.get(KEY_CONSUMABLE_CART) || "{}";
     }
 
-    function openSportPickerModal() {
-        const modal = $("sportPickerModal");
-        if (modal) modal.style.display = "block";
-    }
-    window.openSportPickerModal = openSportPickerModal;
-
-    function closeSportPickerModal() {
-        const modal = $("sportPickerModal");
-        if (modal) modal.style.display = "none";
-    }
-    window.closeSportPickerModal = closeSportPickerModal;
-
-    function makeCalendarDatesWhite() {
-        document.querySelectorAll(".calendar-compact td").forEach(td => {
-            td.style.backgroundColor = "#fff";
-            td.style.color = "#000";
-        });
-
-        document.querySelectorAll(".calendar-compact td a").forEach(a => {
-            a.style.color = "#000";
-        });
-    }
-    function updateSelectedSportBadge() {
-        const badge = $("selectedSportBadge");
-        if (!badge) return;
-
-        const sport = getSelectedSport();
-        if (!sport) {
-            badge.textContent = "No sport selected";
-            badge.classList.remove("bg-success");
-            badge.classList.add("bg-primary");
-            return;
-        }
-
-        badge.textContent = sport.charAt(0).toUpperCase() + sport.slice(1);
-    }
-
     function getSelection() {
         return {
             sport: getSelectedSport(),
@@ -257,6 +220,10 @@ const SafeStore = (() => {
         SafeStore.set(KEY_BOOKING, JSON.stringify({ ...getSelection(), step: String(step || "1") }));
     }
 
+    function saveExactState(state) {
+        SafeStore.set(KEY_BOOKING, JSON.stringify(state || {}));
+    }
+
     function restoreState() {
         const raw = SafeStore.get(KEY_BOOKING);
         if (!raw) return null;
@@ -267,6 +234,29 @@ const SafeStore = (() => {
             return data;
         } catch {
             return null;
+        }
+    }
+
+    function clearSlotVisuals() {
+        document.querySelectorAll(".slot.selected, .slot.selected-range")
+            .forEach(x => x.classList.remove("selected", "selected-range"));
+    }
+
+    function setSlotLabel() {
+        const lbl = HF.lblSlot();
+        if (!lbl) return;
+
+        const sport = getSelectedSport();
+        const sel = getSelection();
+
+        if (!sel.date && !sport) {
+            lbl.textContent = "No date and sport selected.";
+        } else if (!sel.date) {
+            lbl.textContent = "No date selected.";
+        } else if (!sport) {
+            lbl.textContent = "No sport selected.";
+        } else if (!sel.courtId || !sel.start) {
+            lbl.textContent = "No slot selected.";
         }
     }
 
@@ -320,33 +310,36 @@ const SafeStore = (() => {
         return 1;
     }
 
-    function setSlotLabel() {
-        const lbl = HF.lblSlot();
-        if (!lbl) return;
-
-        const sport = getSelectedSport();
-        const sel = getSelection();
-
-        if (!sel.date && !sport) {
-            lbl.textContent = "No date and sport selected.";
-        } else if (!sel.date) {
-
-            lbl.textContent = "No date selected.";
-        } else if (!sport) {
-            lbl.textContent = "No sport selected.";
-        } else if (!sel.courtId || !sel.start) {
-            lbl.textContent = "No slot selected.";
-        }
-    }
-
-    function clearSlotVisuals() {
-        document.querySelectorAll(".slot.selected, .slot.selected-range")
-            .forEach(x => x.classList.remove("selected", "selected-range"));
-    }
-
     function ensureTimeTableShell() {
         return document.querySelector(".timetable-shell") || document.querySelector(".table-responsive") || null;
     }
+
+    function updateSelectedSportBadge() {
+        const badge = $("selectedSportBadge");
+        if (!badge) return;
+
+        const sport = getSelectedSport();
+        if (!sport) {
+            badge.textContent = "No sport selected";
+            badge.classList.remove("bg-success");
+            badge.classList.add("bg-primary");
+            return;
+        }
+
+        badge.textContent = sport.charAt(0).toUpperCase() + sport.slice(1);
+    }
+
+    function openSportPickerModal() {
+        const modal = $("sportPickerModal");
+        if (modal) modal.style.display = "block";
+    }
+    window.openSportPickerModal = openSportPickerModal;
+
+    function closeSportPickerModal() {
+        const modal = $("sportPickerModal");
+        if (modal) modal.style.display = "none";
+    }
+    window.closeSportPickerModal = closeSportPickerModal;
 
     function applySportFilterToTimeTable() {
         const selected = getSelectedSport();
@@ -357,17 +350,7 @@ const SafeStore = (() => {
         if (!selected) {
             document.querySelectorAll(".slot.reservable")
                 .forEach(el => el.classList.add("sport-disabled"));
-
-            const cur = getSelection();
-            if (cur.courtId || cur.start || cur.end) {
-                setSelection({ ...cur, courtId: "", start: "", end: "" });
-                clearSlotVisuals();
-                setSlotLabel();
-                syncSummaries();
-                saveState(1);
-            } else {
-                setSlotLabel();
-            }
+            setSlotLabel();
             return;
         }
 
@@ -387,11 +370,7 @@ const SafeStore = (() => {
             const sport = String(court?.SportName || "").toLowerCase();
 
             if (sport && sport !== selected) {
-                setSelection({ ...cur, courtId: "", start: "", end: "" });
                 clearSlotVisuals();
-                setSlotLabel();
-                syncSummaries();
-                saveState(1);
             }
         }
 
@@ -437,28 +416,50 @@ const SafeStore = (() => {
             clearSlotVisuals();
             rangeEls.forEach((cell, idx) => cell.classList.add(idx === 0 ? "selected" : "selected-range"));
 
-            if (HF.selectedDate()) HF.selectedDate().value = date;
-            if (HF.resDate()) HF.resDate().value = date;
-
-            if (HF.selectedCourtID()) HF.selectedCourtID().value = courtId;
-            if (HF.courtID()) HF.courtID().value = courtId;
-
-            if (HF.start()) HF.start().value = start;
-            if (HF.end()) HF.end().value = end;
-
-            setSelection({ ...getSelection(), date, courtId, start, end });
+            setSelection({
+                ...getSelection(),
+                date,
+                courtId,
+                start,
+                end,
+                duration: String(getDurationHours())
+            });
 
             const lbl = HF.lblSlot();
-            if (lbl) lbl.textContent = `Selected: ${date} | Court ${courtNum} | ${start} - ${end} (${durH}h)`;
+            if (lbl) {
+                lbl.textContent = `Selected: ${date} | Court ${courtNum} | ${start} - ${end} (${durH}h)`;
+            }
 
             syncSummaries();
             loadAndRenderEquipment();
-            saveState(1);
+
+            saveExactState({
+                ...getSelection(),
+                date,
+                courtId,
+                start,
+                end,
+                duration: String(getDurationHours()),
+                step: "1"
+            });
         });
     }
 
     function reselectSlotFromHidden() {
-        const cur = getSelection();
+        let cur = getSelection();
+
+        if (!cur.courtId || !cur.date || !cur.start) {
+            try {
+                const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+                cur = {
+                    ...cur,
+                    date: cur.date || saved.date || "",
+                    courtId: cur.courtId || saved.courtId || "",
+                    start: cur.start || saved.start || ""
+                };
+            } catch { }
+        }
+
         if (!cur.courtId || !cur.date || !cur.start) return;
 
         const slotsNeeded = Math.max(1, getDurationHours() * 2);
@@ -508,6 +509,7 @@ const SafeStore = (() => {
         const tgt = ids.ddlSportUnique;
         if (typeof __doPostBack === "function" && tgt) __doPostBack(tgt, "");
 
+        $("reservationSection")?.scrollIntoView({ behavior: "smooth" });
         resSection?.scrollIntoView({ behavior: "smooth" });
     }
     window.selectSportAndStart = selectSportAndStart;
@@ -774,7 +776,18 @@ const SafeStore = (() => {
     };
 
     function loadAndRenderEquipment() {
-        const sel = getSelection();
+        let sel = getSelection();
+
+        if (!sel.date || !sel.start) {
+            try {
+                const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+                sel = {
+                    ...sel,
+                    date: sel.date || saved.date || "",
+                    start: sel.start || saved.start || ""
+                };
+            } catch { }
+        }
 
         if (!sel.date || !sel.start) {
             if ($("rentalContainer")) {
@@ -797,7 +810,22 @@ const SafeStore = (() => {
     window.loadAndRenderEquipment = loadAndRenderEquipment;
 
     function syncSummaries() {
-        const sel = getSelection();
+        let sel = getSelection();
+
+        if (!sel.date || !sel.courtId || !sel.start) {
+            try {
+                const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+                sel = {
+                    ...sel,
+                    date: sel.date || saved.date || "",
+                    courtId: sel.courtId || saved.courtId || "",
+                    start: sel.start || saved.start || "",
+                    end: sel.end || saved.end || "",
+                    duration: sel.duration || saved.duration || ""
+                };
+            } catch { }
+        }
+
         const court = (courts || []).find(c => String(c.CourtID) === String(sel.courtId));
         const courtNum = court ? court.CourtNumber : "---";
         const sport = court ? court.SportName : (sel.sport || "---");
@@ -842,7 +870,21 @@ const SafeStore = (() => {
     }
 
     function ensureSlotSelectedOrAlert() {
-        const sel = getSelection();
+        let sel = getSelection();
+
+        if (!sel.date || !sel.courtId || !sel.start || !sel.end) {
+            try {
+                const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+                sel = {
+                    ...sel,
+                    date: sel.date || saved.date || "",
+                    courtId: sel.courtId || saved.courtId || "",
+                    start: sel.start || saved.start || "",
+                    end: sel.end || saved.end || ""
+                };
+            } catch { }
+        }
+
         if (!sel.date || !sel.courtId || !sel.start || !sel.end) {
             alert("Please select a court time slot first.");
             return false;
@@ -853,14 +895,20 @@ const SafeStore = (() => {
     function goToRentals() {
         if (!ensureSlotSelectedOrAlert()) return;
 
-        const sel = getSelection();
+        let sel = getSelection();
+        try {
+            const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+            sel = {
+                ...saved,
+                ...sel,
+                date: sel.date || saved.date || "",
+                courtId: sel.courtId || saved.courtId || "",
+                start: sel.start || saved.start || "",
+                end: sel.end || saved.end || ""
+            };
+        } catch { }
 
-        if (HF.selectedDate()) HF.selectedDate().value = sel.date || "";
-        if (HF.resDate()) HF.resDate().value = sel.date || "";
-        if (HF.selectedCourtID()) HF.selectedCourtID().value = sel.courtId || "";
-        if (HF.courtID()) HF.courtID().value = sel.courtId || "";
-        if (HF.start()) HF.start().value = sel.start || "";
-        if (HF.end()) HF.end().value = sel.end || "";
+        setSelection(sel);
 
         showStep(2);
         loadAndRenderEquipment();
@@ -1010,7 +1058,19 @@ const SafeStore = (() => {
         if (!modal) return;
 
         syncSummaries();
-        const sel = getSelection();
+
+        let sel = getSelection();
+        try {
+            const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+            sel = {
+                ...saved,
+                ...sel,
+                date: sel.date || saved.date || "",
+                courtId: sel.courtId || saved.courtId || "",
+                start: sel.start || saved.start || "",
+                end: sel.end || saved.end || ""
+            };
+        } catch { }
 
         if ($("pmCourt")) $("pmCourt").innerText = $("summaryCourt")?.innerText || "---";
         if ($("pmSport")) $("pmSport").innerText = $("summarySport")?.innerText || "---";
@@ -1033,30 +1093,43 @@ const SafeStore = (() => {
     };
 
     window.confirmAndPay = function () {
+        let sel = null;
+
+        try {
+            sel = JSON.parse(SafeStore.get(KEY_BOOKING) || "null");
+        } catch {
+            sel = null;
+        }
+
+        if (!sel) {
+            sel = getSelection();
+        }
+
+        if (!sel || !sel.date || !sel.courtId || !sel.start || !sel.duration) {
+            alert("Please complete your slot details first.");
+            return false;
+        }
+
+        setSelection(sel);
+
         const rentalHf = HF.rentalCart();
         if (rentalHf) rentalHf.value = SafeStore.get(KEY_RENTAL_CART) || "{}";
 
         const consumableHf = HF.consumableCart();
         if (consumableHf) consumableHf.value = SafeStore.get(KEY_CONSUMABLE_CART) || "{}";
 
-        const sel = getSelection();
-        if (!sel.date || !sel.courtId || !sel.start || !sel.duration) {
-            alert("Please complete your slot details first.");
+        saveExactState({
+            ...sel,
+            step: "3"
+        });
+
+        const btn = document.getElementById(window.resConfig.ids.btnSubmitReservation);
+        if (!btn) {
+            alert("Hidden submit button not found.");
             return false;
         }
 
-        saveState(3);
-        window.closePaymentModal();
-
-        setTimeout(function () {
-            const btn = document.getElementById(window.resConfig.ids.btnSubmitReservation);
-            if (btn) {
-                btn.click();
-            } else if (typeof __doPostBack === "function") {
-                __doPostBack(window.resConfig.ids.btnSubmitReservationUnique, "");
-            }
-        }, 100);
-
+        btn.click();
         return false;
     };
 
@@ -1100,6 +1173,7 @@ const SafeStore = (() => {
             bindControlsOnce();
             initTimeTableClicks();
             applySportFilterToTimeTable();
+            restoreState();
             reselectSlotFromHidden();
             loadAndRenderEquipment();
             syncSummaries();
@@ -1136,16 +1210,24 @@ const SafeStore = (() => {
         if (dur && dur.dataset.bound !== "1") {
             dur.dataset.bound = "1";
             dur.addEventListener("change", () => {
-                const sel = getSelection();
+                let sel = getSelection();
+
+                if (!sel.start) {
+                    try {
+                        const saved = JSON.parse(SafeStore.get(KEY_BOOKING) || "{}");
+                        sel = { ...saved, ...sel };
+                    } catch { }
+                }
+
                 if (sel.start) {
                     const end = addMinutes(sel.start, getDurationHours() * 60);
-                    setSelection({ ...sel, end });
+                    setSelection({ ...sel, end, duration: String(getDurationHours()) });
                     reselectSlotFromHidden();
+                    saveState(getCurrentStep());
                 }
 
                 loadAndRenderEquipment();
                 syncSummaries();
-                saveState(getCurrentStep());
             });
         }
 
@@ -1173,6 +1255,7 @@ const SafeStore = (() => {
         bindInfoInputsOnce();
         syncSummaries();
     }
+
     function clearReservationSelectionForSportChange() {
         setSelection({ ...getSelection(), courtId: "", start: "", end: "" });
         clearSlotVisuals();
@@ -1361,9 +1444,5 @@ const SafeStore = (() => {
         document.addEventListener("DOMContentLoaded", safeInit);
     } else {
         safeInit();
-    }
-
-    if (window.Sys && Sys.Application) {
-        Sys.Application.add_load(safeInit);
     }
 })();

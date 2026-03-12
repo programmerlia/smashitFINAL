@@ -15,12 +15,26 @@ namespace Smash_IT.adminpage
     {
 
         /// <summary>
-        /// rptCourts control.
+        /// litStaffName control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Repeater rptCourts;
+        protected global::System.Web.UI.WebControls.Literal litStaffName;
+
+        /// <summary>
+        /// Master property.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated property.
+        /// </remarks>
+        public new Smash_IT.adminpage.admin Master
+        {
+            get
+            {
+                return ((Smash_IT.adminpage.admin)(base.Master));
+            }
+        }
     }
 }

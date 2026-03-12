@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using System.Configuration;
 
 namespace Smash_IT.homepage
 {
@@ -13,7 +13,32 @@ namespace Smash_IT.homepage
         {
             if (!IsPostBack)
             {
+                LoadHeroImage();
                 LoadPublishedAnnouncements();
+            }
+        }
+
+        private void LoadHeroImage()
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(connectionString))
+                {
+                    string query = "SELECT FilePath FROM tblAnnouncement WHERE Title = 'anno-hero'";
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        con.Open();
+                        object result = cmd.ExecuteScalar();
+                        if (result != null && result != DBNull.Value && !string.IsNullOrEmpty(result.ToString()))
+                        {
+                            AnnoImgHero.ImageUrl = result.ToString();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Error loading hero image: " + ex.Message);
             }
         }
 
@@ -23,9 +48,9 @@ namespace Smash_IT.homepage
             {
                 using (SqlConnection con = new SqlConnection(connectionString))
                 {
-                    string query = @"SELECT Title, [Content], CreatedAt, ImageFIleData, ImageFileType 
+                    string query = @"SELECT Title, Content, CreatedAt, FilePath, URL_FB 
                                      FROM tblAnnouncement 
-                                     WHERE ViewStatus = 1 
+                                     WHERE ViewStatus = 1 AND Title != 'anno-hero' 
                                      ORDER BY DisplayOrder ASC, CreatedAt DESC";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))
@@ -44,21 +69,36 @@ namespace Smash_IT.homepage
             }
             catch (Exception ex)
             {
-                // Log error or show a friendly message
                 System.Diagnostics.Debug.WriteLine("Error loading announcements: " + ex.Message);
             }
         }
 
-        public string GetBase64Image(object imageData, object imageType)
+        protected string ResolveImagePath(object filePathStr)
         {
-            if (imageData != null && imageData != DBNull.Value && !string.IsNullOrEmpty(imageType?.ToString()))
+            if (filePathStr != null && filePathStr != DBNull.Value && !string.IsNullOrEmpty(filePathStr.ToString()))
             {
-                byte[] bytes = (byte[])imageData;
-                return $"data:{imageType};base64,{Convert.ToBase64String(bytes)}";
+                string path = filePathStr.ToString();
+                return ResolveUrl(path);
+            }
+            return ResolveUrl("~/images/placeholder.jpg");
+        }
+
+        protected string GetValidUrl(object urlObj)
+        {
+            if (urlObj == null || urlObj == DBNull.Value || string.IsNullOrWhiteSpace(urlObj.ToString()))
+            {
+                return "#";
             }
 
-            // Modern placeholder service
-            return "https://images.unsplash.com/photo-1506784365847-bbad939e9335?q=80&w=1000&auto=format&fit=crop";
+            string url = urlObj.ToString().Trim();
+
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                url = "https://" + url;
+            }
+
+            return url;
         }
     }
 }

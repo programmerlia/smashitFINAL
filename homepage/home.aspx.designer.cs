@@ -15,6 +15,24 @@ namespace Smash_IT.homepage
     {
 
         /// <summary>
+        /// rptHeroSlider control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Repeater rptHeroSlider;
+
+        /// <summary>
+        /// rptIndicators control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Repeater rptIndicators;
+
+        /// <summary>
         /// hlReserve control.
         /// </summary>
         /// <remarks>
@@ -22,6 +40,15 @@ namespace Smash_IT.homepage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.HyperLink hlReserve;
+
+        /// <summary>
+        /// rptReserve control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Repeater rptReserve;
 
         /// <summary>
         /// rptPromos control.

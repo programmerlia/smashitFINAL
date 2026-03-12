@@ -1,7 +1,7 @@
 ﻿<%@ Master Language="C#" 
     AutoEventWireup="true" 
     CodeBehind="receptionist.master.cs" 
-    Inherits="Smash_IT.adminpage.admin" %>
+    Inherits="Smash_IT.receptionistpage.receptionist" %>
 
 <!DOCTYPE html>
 <html>

@@ -15,49 +15,67 @@ namespace Smash_IT.adminpage
     {
 
         /// <summary>
+        /// lblDisplayDate control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblDisplayDate;
+
+        /// <summary>
+        /// txtAnalyticsDate control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.TextBox txtAnalyticsDate;
+
+        /// <summary>
+        /// btnExportExcel control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.LinkButton btnExportExcel;
+
+        /// <summary>
         /// btnRefresh control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnRefresh;
+        protected global::System.Web.UI.WebControls.LinkButton btnRefresh;
 
         /// <summary>
-        /// lblPending control.
+        /// lblQueueWalkIn control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblPending;
+        protected global::System.Web.UI.WebControls.Label lblQueueWalkIn;
 
         /// <summary>
-        /// lblPaid control.
+        /// lblQueueRes control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblPaid;
+        protected global::System.Web.UI.WebControls.Label lblQueueRes;
 
         /// <summary>
-        /// lblHappening control.
+        /// lblQueuePaid control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblHappening;
-
-        /// <summary>
-        /// lblCancelled control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblCancelled;
+        protected global::System.Web.UI.WebControls.Label lblQueuePaid;
 
         /// <summary>
         /// lblRevenue control.
@@ -69,85 +87,85 @@ namespace Smash_IT.adminpage
         protected global::System.Web.UI.WebControls.Label lblRevenue;
 
         /// <summary>
-        /// lblStaffCount control.
+        /// lblRevCourts control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblStaffCount;
+        protected global::System.Web.UI.WebControls.Label lblRevCourts;
 
         /// <summary>
-        /// lblWaiting control.
+        /// lblRevRentals control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblWaiting;
+        protected global::System.Web.UI.WebControls.Label lblRevRentals;
 
         /// <summary>
-        /// lblPlaying control.
+        /// lblRevConsumables control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblPlaying;
+        protected global::System.Web.UI.WebControls.Label lblRevConsumables;
 
         /// <summary>
-        /// lblDone control.
+        /// lblRevPAYC control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblDone;
+        protected global::System.Web.UI.WebControls.Label lblRevPAYC;
 
         /// <summary>
-        /// lblWalkInToday control.
+        /// lblApproved control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblWalkInToday;
+        protected global::System.Web.UI.WebControls.Label lblApproved;
 
         /// <summary>
-        /// lblTotalCourts control.
+        /// lblPending control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblTotalCourts;
+        protected global::System.Web.UI.WebControls.Label lblPending;
 
         /// <summary>
-        /// lblOccupied control.
+        /// lblCancelled control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblOccupied;
+        protected global::System.Web.UI.WebControls.Label lblCancelled;
 
         /// <summary>
-        /// lblAvailable control.
+        /// lblBadmintonCount control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblAvailable;
+        protected global::System.Web.UI.WebControls.Label lblBadmintonCount;
 
         /// <summary>
-        /// rptTopPlayers control.
+        /// lblPickleballCount control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Repeater rptTopPlayers;
+        protected global::System.Web.UI.WebControls.Label lblPickleballCount;
 
         /// <summary>
         /// gvRecentPayments control.

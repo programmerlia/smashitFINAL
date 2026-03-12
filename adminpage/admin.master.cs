@@ -1,13 +1,27 @@
 ﻿using System;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
 using System.IO;
 
 namespace Smash_IT.adminpage
 {
     public partial class admin : System.Web.UI.MasterPage
     {
+        public string StaffDisplayName
+        {
+            get { return lblFullName.Text; }
+            set { lblFullName.Text = value; }
+        }
+
+        public string StaffRole
+        {
+            get { return lblRole.Text; }
+            set { lblRole.Text = value; }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
-            // 1. Security Check: Redirect if not logged in
             if (Session["Username"] == null)
             {
                 Response.Redirect("~/login.aspx");
@@ -16,59 +30,49 @@ namespace Smash_IT.adminpage
 
             if (!IsPostBack)
             {
-                SetActiveNavLink();
                 DisplayUserInfo();
             }
+
+            // Always run this so the highlight updates when changing pages
+            HighlightActiveNav();
         }
 
-        private void SetActiveNavLink()
+        private void HighlightActiveNav()
         {
-            string page = Path.GetFileName(Request.Path).ToLower();
+            string currentPage = Path.GetFileName(Request.Path).ToLower();
 
-            // Reset classes
-            navAnalytics.CssClass = "";
-            navAnnouncement.CssClass = "";
-            navReservation.CssClass = "";
-            navUsers.CssClass = "";
-            navCourts.CssClass = "";
-            navCustomerAccount.CssClass = "";
-
-            switch (page)
+            // Locate the menu container using its ID
+            if (sidebarMenu != null)
             {
-                case "admin_analytics.aspx":
-                    navAnalytics.CssClass = "active";
-                    break;
-                case "admin_announcement.aspx":
-                    navAnnouncement.CssClass = "active";
-                    break;
-                case "admin_reservation.aspx":
-                    navReservation.CssClass = "active";
-                    break;
-                case "admin_users.aspx":
-                    navUsers.CssClass = "active";
-                    break;
-                case "admin_court.aspx":
-                    navUsers.CssClass = "active";
-                    break;
-                case "admin_customer_account.aspx":
-                    navUsers.CssClass = "active";
-                    break;
+                foreach (Control ctrl in sidebarMenu.Controls)
+                {
+                    if (ctrl is HyperLink navLink)
+                    {
+                        // Match URL to current page
+                        if (navLink.NavigateUrl.ToLower().Contains(currentPage))
+                        {
+                            navLink.CssClass = "active";
+                        }
+                        else
+                        {
+                            // Important: Reset other links so only one is yellow
+                            navLink.CssClass = "";
+                        }
+                    }
+                }
             }
         }
 
         private void DisplayUserInfo()
         {
-            lblFullName.Text = Session["FullName"]?.ToString() ?? "Staff Member";
-            lblRole.Text = Session["Role"]?.ToString() ?? "Administrator";
+            lblFullName.Text = Session["FullName"]?.ToString() ?? "Administrator";
+            lblRole.Text = Session["RoleName"]?.ToString() ?? "Staff";
         }
 
         protected void btnLogout_Click(object sender, EventArgs e)
         {
-
             Session.Clear();
             Session.Abandon();
-
-
             Response.Redirect("~/login.aspx");
         }
     }

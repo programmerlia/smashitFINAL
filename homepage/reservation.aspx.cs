@@ -376,11 +376,11 @@ ORDER BY
                         {
                             rows.Add(new EquipmentAvailabilityRow
                             {
-                                ItemCategory = Convert.ToString(dr["ItemCategory"]),
-                                EquipmentType = Convert.ToString(dr["EquipmentType"]),
-                                EquipmentSpec = Convert.ToString(dr["EquipmentSpec"]),
-                                UnitPrice = Convert.ToDecimal(dr["UnitPrice"]),
-                                AvailableQty = Convert.ToInt32(dr["AvailableQty"])
+                                ItemCategory = SafeString(dr["ItemCategory"]),
+                                EquipmentType = SafeString(dr["EquipmentType"]),
+                                EquipmentSpec = SafeString(dr["EquipmentSpec"]),
+                                UnitPrice = SafeDecimal(dr["UnitPrice"]),
+                                AvailableQty = SafeInt(dr["AvailableQty"])
                             });
                         }
                     }
@@ -392,21 +392,25 @@ ORDER BY
             TimeSpan end = s.Add(TimeSpan.FromHours(durationHours <= 0 ? 1 : durationHours));
             sql = @"
 SELECT
-    m.ItemCategory,
-    m.EquipmentType,
+    ISNULL(m.ItemCategory, '') AS ItemCategory,
+    ISNULL(m.EquipmentType, '') AS EquipmentType,
     ISNULL(m.EquipmentSpec,'') AS EquipmentSpec,
-    CASE
-        WHEN m.ItemCategory = 'Rental' THEN m.DefaultRentalPrice
-        ELSE m.DefaultSellPrice
-    END AS UnitPrice,
-    CASE
-        WHEN m.ItemCategory = 'Rental' THEN
-            SUM(CASE
-                    WHEN ei.ItemID IS NOT NULL AND r.ItemID IS NULL THEN 1
-                    ELSE 0
-                END)
-        ELSE ISNULL(m.ConsumableQty, 0)
-    END AS AvailableQty
+    ISNULL(
+        CASE
+            WHEN m.ItemCategory = 'Rental' THEN m.DefaultRentalPrice
+            ELSE m.DefaultSellPrice
+        END
+    , 0) AS UnitPrice,
+    ISNULL(
+        CASE
+            WHEN m.ItemCategory = 'Rental' THEN
+                SUM(CASE
+                        WHEN ei.ItemID IS NOT NULL AND r.ItemID IS NULL THEN 1
+                        ELSE 0
+                    END)
+            ELSE ISNULL(m.ConsumableQty, 0)
+        END
+    , 0) AS AvailableQty
 FROM tblEquipmentModel m
 LEFT JOIN tblEquipmentItem ei
     ON ei.ModelID = m.ModelID
@@ -424,7 +428,6 @@ ORDER BY
     m.ItemCategory,
     m.EquipmentType,
     ISNULL(m.EquipmentSpec,'');";
-
             using (SqlConnection con = new SqlConnection(cs))
             using (SqlCommand cmd = new SqlCommand(sql, con))
             {
@@ -435,17 +438,32 @@ ORDER BY
                     {
                         rows.Add(new EquipmentAvailabilityRow
                         {
-                            ItemCategory = Convert.ToString(dr["ItemCategory"]),
-                            EquipmentType = Convert.ToString(dr["EquipmentType"]),
-                            EquipmentSpec = Convert.ToString(dr["EquipmentSpec"]),
-                            UnitPrice = Convert.ToDecimal(dr["UnitPrice"]),
-                            AvailableQty = Convert.ToInt32(dr["AvailableQty"])
+                            ItemCategory = SafeString(dr["ItemCategory"]),
+                            EquipmentType = SafeString(dr["EquipmentType"]),
+                            EquipmentSpec = SafeString(dr["EquipmentSpec"]),
+                            UnitPrice = SafeDecimal(dr["UnitPrice"]),
+                            AvailableQty = SafeInt(dr["AvailableQty"])
                         });
                     }
                 }
             }
 
             return rows;
+        }
+
+        private static decimal SafeDecimal(object value)
+        {
+            return value == null || value == DBNull.Value ? 0m : Convert.ToDecimal(value);
+        }
+
+        private static int SafeInt(object value)
+        {
+            return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+        }
+
+        private static string SafeString(object value)
+        {
+            return value == null || value == DBNull.Value ? "" : Convert.ToString(value);
         }
 
         private List<RentalCartLine> ParseRentalCart(string rawJson)
@@ -879,11 +897,26 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
                 return;
             }
 
+            string rawDate = FirstNonEmpty(
+                hfSelectedDate.Value,
+                hfResDate.Value,
+                Request.Form[hfSelectedDate.UniqueID],
+                Request.Form[hfResDate.UniqueID],
+                Request.Form["hfSelectedDate"],
+                Request.Form["hfResDate"]
+            );
+
             DateTime resDate;
-            if (!TryParseDateFlexible((hfSelectedDate.Value ?? "").Trim(), out resDate))
+            if (!TryParseDateFlexible(rawDate, out resDate))
             {
                 Response.StatusCode = 400;
-                Response.Write("Missing/invalid date.");
+                Response.Write("Missing/invalid date."
+                    + "<br/>hfSelectedDate.Value = [" + HttpUtility.HtmlEncode(hfSelectedDate.Value) + "]"
+                    + "<br/>hfResDate.Value = [" + HttpUtility.HtmlEncode(hfResDate.Value) + "]"
+                    + "<br/>Request[hfSelectedDate.UniqueID] = [" + HttpUtility.HtmlEncode(Request.Form[hfSelectedDate.UniqueID]) + "]"
+                    + "<br/>Request[hfResDate.UniqueID] = [" + HttpUtility.HtmlEncode(Request.Form[hfResDate.UniqueID]) + "]"
+                    + "<br/>Request[hfSelectedDate] = [" + HttpUtility.HtmlEncode(Request.Form["hfSelectedDate"]) + "]"
+                    + "<br/>Request[hfResDate] = [" + HttpUtility.HtmlEncode(Request.Form["hfResDate"]) + "]");
                 return;
             }
 
@@ -894,19 +927,43 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
                 return;
             }
 
+            string rawCourtId = FirstNonEmpty(
+                hfSelectedCourtID.Value,
+                hfCourtID.Value,
+                Request.Form[hfSelectedCourtID.UniqueID],
+                Request.Form[hfCourtID.UniqueID],
+                Request.Form["hfSelectedCourtID"],
+                Request.Form["hfCourtID"]
+            );
+
             int courtId;
-            if (!int.TryParse((hfSelectedCourtID.Value ?? "").Trim(), out courtId) || courtId <= 0)
+            if (!int.TryParse(rawCourtId, out courtId) || courtId <= 0)
             {
                 Response.StatusCode = 400;
-                Response.Write("Missing/invalid court.");
+                Response.Write("Missing/invalid court."
+                    + "<br/>hfSelectedCourtID.Value = [" + HttpUtility.HtmlEncode(hfSelectedCourtID.Value) + "]"
+                    + "<br/>hfCourtID.Value = [" + HttpUtility.HtmlEncode(hfCourtID.Value) + "]"
+                    + "<br/>Request[hfSelectedCourtID.UniqueID] = [" + HttpUtility.HtmlEncode(Request.Form[hfSelectedCourtID.UniqueID]) + "]"
+                    + "<br/>Request[hfCourtID.UniqueID] = [" + HttpUtility.HtmlEncode(Request.Form[hfCourtID.UniqueID]) + "]"
+                    + "<br/>Request[hfSelectedCourtID] = [" + HttpUtility.HtmlEncode(Request.Form["hfSelectedCourtID"]) + "]"
+                    + "<br/>Request[hfCourtID] = [" + HttpUtility.HtmlEncode(Request.Form["hfCourtID"]) + "]");
                 return;
             }
 
+            string rawStart = FirstNonEmpty(
+                hfStartTime.Value,
+                Request.Form[hfStartTime.UniqueID],
+                Request.Form["hfStartTime"]
+            );
+
             TimeSpan startTime;
-            if (!TryParseTimeFlexible((hfStartTime.Value ?? "").Trim(), out startTime))
+            if (!TryParseTimeFlexible(rawStart, out startTime))
             {
                 Response.StatusCode = 400;
-                Response.Write("Missing/invalid start time.");
+                Response.Write("Missing/invalid start time."
+                    + "<br/>hfStartTime.Value = [" + HttpUtility.HtmlEncode(hfStartTime.Value) + "]"
+                    + "<br/>Request[hfStartTime.UniqueID] = [" + HttpUtility.HtmlEncode(Request.Form[hfStartTime.UniqueID]) + "]"
+                    + "<br/>Request[hfStartTime] = [" + HttpUtility.HtmlEncode(Request.Form["hfStartTime"]) + "]");
                 return;
             }
 
@@ -930,7 +987,8 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
             int userId = Convert.ToInt32(Session["UserID"]);
 
             using (SqlConnection conCheck = new SqlConnection(CS))
-            using (SqlCommand cmdCheck = new SqlCommand("SELECT COUNT(*) FROM tblCourt WHERE CourtID=@CID AND IsActive=1", conCheck))
+            using (SqlCommand cmdCheck = new SqlCommand(
+                "SELECT COUNT(*) FROM tblCourt WHERE CourtID=@CID AND IsActive=1", conCheck))
             {
                 cmdCheck.Parameters.AddWithValue("@CID", courtId);
                 conCheck.Open();
@@ -1064,7 +1122,6 @@ WHERE CourtID = @CourtID
             Response.Redirect(url, false);
             Context.ApplicationInstance.CompleteRequest();
         }
-
         protected void LoadCourtData()
         {
             hfCourts.Value = GetCourtsJson();
@@ -1465,31 +1522,136 @@ ORDER BY StartTime;";
             {
                 cmd.Connection = con;
                 cmd.CommandText = @"
-DECLARE @d date = @ResDate;
+DECLARE @d DATE = @ResDate;
 
+;WITH TimeSlots AS
+(
+    SELECT CAST('08:00:00' AS TIME) AS SlotStart
+    UNION ALL
+    SELECT CAST(DATEADD(MINUTE, 30, SlotStart) AS TIME)
+    FROM TimeSlots
+    WHERE SlotStart < CAST('23:30:00' AS TIME)
+),
+FilteredCourts AS
+(
+    SELECT CourtID, CourtNumber, SportName
+    FROM tblCourt
+    WHERE IsActive = 1
+      AND CourtNumber BETWEEN 1 AND 6
+      AND (SportName = @SportName OR CourtNumber IN (5, 6))
+)
 SELECT
     c.CourtID,
     c.CourtNumber,
-    a.StartTime AS SlotStart,
-    CASE WHEN EXISTS (
-        SELECT 1
-        FROM tblReservation r
-        WHERE r.CourtID = c.CourtID
-          AND r.ResDate = @d
-          AND r.ReservationStatusName IN ('Approved','Pending')
-          AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
-    ) THEN 1 ELSE 0 END AS IsReservedBlocked,
-    CASE WHEN a.ModeName = 'Queue' THEN 1 ELSE 0 END AS IsQueueCourt,
-    CASE WHEN a.ModeName = 'Closed' THEN 1 ELSE 0 END AS IsClosed,
-    CASE WHEN a.ModeName = 'PlayForAll' THEN 1 ELSE 0 END AS IsPlayForAll,
-    CASE WHEN a.ModeName = 'Reservation' THEN 1 ELSE 0 END AS IsReservable
-FROM tblCourtAvailability a
-JOIN tblCourt c ON c.CourtID = a.CourtID
-WHERE a.[Date] = @d
-  AND c.IsActive = 1
-  AND c.CourtNumber BETWEEN 1 AND 6
-  AND (c.SportName = @SportName OR c.CourtNumber IN (5,6))
-ORDER BY c.CourtNumber, a.StartTime;";
+    ts.SlotStart,
+
+    -- overlapping reservation exists
+    CASE
+        WHEN EXISTS
+        (
+            SELECT 1
+            FROM tblReservation r
+            WHERE r.CourtID = c.CourtID
+              AND r.ResDate = @d
+              AND r.ReservationStatusName IN ('Approved', 'Pending')
+              AND ts.SlotStart < r.EndTime
+              AND DATEADD(MINUTE, 30, ts.SlotStart) > r.StartTime
+        )
+        THEN 1 ELSE 0
+    END AS IsReservedBlocked,
+
+    -- queue / event queue currently occupying that slot through an active session
+    CASE
+        WHEN EXISTS
+        (
+            SELECT 1
+            FROM tblActiveSession s
+            LEFT JOIN tblCourtQueue q ON q.QueueID = s.QueueID
+            WHERE s.CourtID = c.CourtID
+              AND s.StatusName IN ('Active', 'Waiting')
+              AND CAST(s.StartTime AS DATE) = @d
+              AND CAST(s.StartTime AS TIME) < DATEADD(MINUTE, 30, ts.SlotStart)
+              AND CAST(s.ExpectedEndTime AS TIME) > ts.SlotStart
+              AND s.QueueID IS NOT NULL
+        )
+        OR ISNULL(av.ModeName, 'PlayForAll') = 'Queue'
+        THEN 1 ELSE 0
+    END AS IsQueueCourt,
+
+    CASE
+        WHEN ISNULL(av.ModeName, 'PlayForAll') = 'Closed'
+        THEN 1 ELSE 0
+    END AS IsClosed,
+
+    CASE
+        WHEN ISNULL(av.ModeName, 'PlayForAll') = 'PlayForAll'
+             AND NOT EXISTS
+             (
+                 SELECT 1
+                 FROM tblReservation r
+                 WHERE r.CourtID = c.CourtID
+                   AND r.ResDate = @d
+                   AND r.ReservationStatusName IN ('Approved', 'Pending')
+                   AND ts.SlotStart < r.EndTime
+                   AND DATEADD(MINUTE, 30, ts.SlotStart) > r.StartTime
+             )
+             AND NOT EXISTS
+             (
+                 SELECT 1
+                 FROM tblActiveSession s
+                 WHERE s.CourtID = c.CourtID
+                   AND s.StatusName IN ('Active', 'Waiting')
+                   AND CAST(s.StartTime AS DATE) = @d
+                   AND CAST(s.StartTime AS TIME) < DATEADD(MINUTE, 30, ts.SlotStart)
+                   AND CAST(s.ExpectedEndTime AS TIME) > ts.SlotStart
+                   AND s.QueueID IS NOT NULL
+             )
+        THEN 1 ELSE 0
+    END AS IsPlayForAll,
+
+    CASE
+        WHEN ISNULL(av.ModeName, 'PlayForAll') IN ('Reservation', 'PlayForAll')
+             AND ISNULL(av.ModeName, 'PlayForAll') <> 'Closed'
+             AND NOT EXISTS
+             (
+                 SELECT 1
+                 FROM tblReservation r
+                 WHERE r.CourtID = c.CourtID
+                   AND r.ResDate = @d
+                   AND r.ReservationStatusName IN ('Approved', 'Pending')
+                   AND ts.SlotStart < r.EndTime
+                   AND DATEADD(MINUTE, 30, ts.SlotStart) > r.StartTime
+             )
+             AND NOT EXISTS
+             (
+                 SELECT 1
+                 FROM tblActiveSession s
+                 WHERE s.CourtID = c.CourtID
+                   AND s.StatusName IN ('Active', 'Waiting')
+                   AND CAST(s.StartTime AS DATE) = @d
+                   AND CAST(s.StartTime AS TIME) < DATEADD(MINUTE, 30, ts.SlotStart)
+                   AND CAST(s.ExpectedEndTime AS TIME) > ts.SlotStart
+                   AND s.QueueID IS NOT NULL
+             )
+        THEN 1 ELSE 0
+    END AS IsReservable
+
+FROM FilteredCourts c
+CROSS JOIN TimeSlots ts
+
+OUTER APPLY
+(
+    SELECT TOP 1 a.ModeName, a.StartTime, a.EndTime
+    FROM tblCourtAvailability a
+    WHERE a.CourtID = c.CourtID
+      AND a.[Date] = @d
+      AND ts.SlotStart >= a.StartTime
+      AND ts.SlotStart < a.EndTime
+    ORDER BY a.StartTime
+) av
+
+ORDER BY c.CourtNumber, ts.SlotStart
+OPTION (MAXRECURSION 100);";
 
                 cmd.Parameters.AddWithValue("@ResDate", date.Date);
                 cmd.Parameters.AddWithValue("@SportName", sport);
@@ -1499,7 +1661,6 @@ ORDER BY c.CourtNumber, a.StartTime;";
                 return dt;
             }
         }
-
         protected void btnResetReservation_Click(object sender, EventArgs e)
         {
             try { ddlSport.ClearSelection(); } catch { }
@@ -1558,6 +1719,15 @@ ORDER BY c.CourtNumber, a.StartTime;";
 
             UpdateSelectionStatusLabel();
         }
+        private string FirstNonEmpty(params string[] values)
+        {
+            foreach (string v in values)
+            {
+                if (!string.IsNullOrWhiteSpace(v))
+                    return v.Trim();
+            }
+            return "";
+        }
 
         private void EnsureUserSessionInfo()
         {
@@ -1592,5 +1762,6 @@ WHERE UserID = @UserID;", con))
                 }
             }
         }
+
     }
 }

@@ -1,25 +1,13 @@
 ﻿document.addEventListener("DOMContentLoaded", () => {
     let currentSlide = 0;
-
+    const totalSlides = 2;
     const wrapper = document.getElementById('sliderWrapper');
     const dots = document.querySelectorAll('.dot');
-
-    // ✅ If slider is not on this page, don't run slider code
-    if (!wrapper || dots.length === 0) {
-        console.warn("Slider not initialized: wrapper or dots not found", { wrapper, dotsCount: dots.length });
-        return;
-    }
-
-    const totalSlides = dots.length; // ✅ use actual dots count
     let slideInterval;
 
     function goToSlide(index) {
-        // ✅ clamp index
-        if (index < 0 || index >= totalSlides) return;
-
         console.log("Moving to slide index:", index);
         currentSlide = index;
-
         wrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
 
         dots.forEach(dot => dot.classList.remove('active'));

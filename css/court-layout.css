@@ -1,209 +1,162 @@
-﻿/* Container and Layout */
-.staff-container {
-    padding: 20px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+﻿/* ==========================================
+   SECTION SEPARATORS & HEADERS
+   ========================================== */
+.section-divider {
+    border: 0;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 40px 0;
 }
 
-.court-admin-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.section-header {
     margin-bottom: 20px;
-    padding: 15px;
-    background: #fff;
+}
+
+    .section-header h2 {
+        margin: 0 0 5px 0;
+        color: #1e293b;
+        font-size: 1.5rem;
+    }
+
+    .section-header p {
+        margin: 0;
+        color: #64748b;
+    }
+
+/* ==========================================
+   INPUTS AND BUTTONS
+   ========================================== */
+.form-control-inline {
+    padding: 6px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    margin-right: 15px;
+    font-size: 14px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+}
+
+    .btn-secondary:hover {
+        background: #475569;
+    }
+
+.btn-success {
+    background: #10b981;
+    color: white;
+}
+
+    .btn-success:hover {
+        background: #059669;
+    }
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* ==========================================
+   SETUP CONFIGURATION AREA
+   ========================================== */
+.setup-container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.setup-form {
+    flex: 0 0 300px;
+    background: #f8fafc;
+    padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
 }
 
-.legend {
-    display: flex;
-    gap: 20px;
-    font-size: 0.9rem;
-    font-weight: 600;
+.form-group {
+    margin-bottom: 15px;
 }
 
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-    .dot.available {
-        background-color: #22c55e;
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #334155;
+        font-size: 14px;
     }
 
-    .dot.playing {
-        background-color: #ef4444;
-    }
-
-    .dot.closed {
-        background-color: #6b7280;
-    }
-
-    .dot.pickle {
-        background-color: #9333ea;
-        border: 1px solid #fff;
-    }
-
-.court-map {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    background: #222;
-    padding: 30px;
-    border-radius: 15px;
+.btn-align {
+    margin-top: 25px;
+    text-align: right;
 }
 
-/* Court Card Base */
-.court-card {
-    position: relative;
-    background: #2d5a27;
-    border: 3px solid #fff;
-    border-radius: 6px;
-    min-height: 220px;
-    transition: transform 0.2s;
+/* ==========================================
+   DATA GRID (TABLE)
+   ========================================== */
+.schedule-grid-container {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
     overflow: hidden;
 }
 
-    .court-card.horizontal {
-        grid-column: span 2;
-        min-height: 160px;
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .styled-table th {
+        background-color: #f1f5f9;
+        color: #334155;
+        text-align: left;
+        padding: 12px 15px;
+        border-bottom: 2px solid #e2e8f0;
     }
 
-    /* Status Logic */
-    .court-card.playing {
-        border-color: #ef4444;
-        box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.4);
-        animation: pulse 2s infinite;
+    .styled-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #475569;
     }
 
-    .court-card.closed {
-        opacity: 0.6;
-        filter: grayscale(1);
-     
-        background-color: #4b5563 !important;
+    .styled-table tr:hover td {
+        background-color: #f8fafc;
     }
-        .court-card.closed .occupant-display {
-            pointer-events: none;
-        }
-
-
-    .court-card.pickleball {
-        background-color: #6a1b9a !important;
-    }
-
-/* Labels and Text */
-.court-info {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-    z-index: 5;
-}
-
-.court-number {
-    font-size: 1.1rem;
-    font-weight: 800;
-    display: block;
-}
-
-.court-type {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    opacity: 0.8;
-}
-
-/* Central Display */
-.occupant-display {
-    position: absolute;
-    top: 45%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: white;
-    width: 95%;
-    z-index: 2;
-}
-
-.now-playing {
-    margin-bottom: 8px;
-}
-
-.player-name {
-    font-weight: bold;
-    font-size: 1.05rem;
-    display: block;
-}
-
-.current-time {
-    font-size: 0.85rem;
-    color: #fff;
-    font-weight: normal;
-    margin-left: 5px;
-}
-
-/* Next Up Styling */
-.next-up {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px dashed rgba(255,255,255,0.4);
-    font-size: 0.75rem;
-    color: #fad958;
-}
-
-.next-label {
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 0.6rem;
-    display: block;
-    opacity: 0.7;
-}
-
-/* Actions */
-.court-actions {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    display: flex;
-    gap: 8px;
-    z-index: 20;
-}
-
-.btn-action {
-    background: rgba(255,255,255,0.9);
-    border: none;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #333;
-    text-decoration: none;
-    font-size: 0.85rem;
-}
-
-    .btn-action:hover {
-        background: #fff;
-        color: #1e3a8a;
-        transform: scale(1.1);
-    }
-
-@keyframes pulse {
-    0% {
-        box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.4);
-    }
-
-    50% {
-        box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.6);
-    }
-
-    100% {
-        box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.4);
-    }
-}

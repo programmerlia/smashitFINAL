@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Smash_IT.adminpage
+namespace Smash_IT.receptionistpage
 {
     public partial class receptionist_dashboard : System.Web.UI.Page
     {

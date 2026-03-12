@@ -1,17 +1,20 @@
 ﻿using System;
-using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using System.Configuration;
+using System.IO;
+using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using System.Web.Services;
 
 namespace Smash_IT.adminpage
 {
-    public partial class admin_staff : System.Web.UI.Page
+    // CLASS NAME FIXED to match the ASPX Inherits directive
+    public partial class admin_users : System.Web.UI.Page
     {
         string connStr = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
 
-        // ViewState properties to keep track of sorting
         private string SortExpr
         {
             get { return ViewState["SortExpr"]?.ToString() ?? "StaffID"; }
@@ -46,32 +49,56 @@ namespace Smash_IT.adminpage
 
         private void LoadStaff()
         {
-            using (SqlConnection conn = new SqlConnection(connStr))
+            try
             {
-                // Note: Ensure your txtSearch control exists on the .aspx page
-                string searchTerm = "%" + (txtSearch != null ? txtSearch.Text.Trim() : "") + "%";
+                using (SqlConnection conn = new SqlConnection(connStr))
+                {
+                    string searchVal = (txtSearch != null) ? txtSearch.Text.Trim() : string.Empty;
+                    string searchTerm = "%" + searchVal + "%";
 
-                string query = $@"
-                    SELECT StaffID, FullName, StaffRole, Username 
+                    string safeSortExpr = string.IsNullOrEmpty(SortExpr) ? "StaffID" : SortExpr;
+                    string safeSortDir = string.IsNullOrEmpty(SortDir) ? "ASC" : SortDir;
+
+                    string query = $@"
+                    SELECT 
+                        StaffID, 
+                        Firstname + ' ' + Lastname AS FullName, 
+                        Email, 
+                        RoleName AS StaffRole, 
+                        Username, 
+                        ImgPath 
                     FROM tblStaffAccount 
-                    WHERE FullName LIKE @Search OR Username LIKE @Search OR StaffRole LIKE @Search
-                    ORDER BY {SortExpr} {SortDir};
+                    WHERE Firstname LIKE @Search 
+                       OR Lastname LIKE @Search 
+                       OR Username LIKE @Search 
+                       OR RoleName LIKE @Search 
+                       OR Email LIKE @Search
+                    ORDER BY {safeSortExpr} {safeSortDir};
 
                     SELECT COUNT(*) FROM tblStaffAccount;";
 
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@Search", searchTerm);
+                    SqlCommand cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@Search", searchTerm);
 
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                DataSet ds = new DataSet();
-                da.Fill(ds);
+                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    DataSet ds = new DataSet();
+                    da.Fill(ds);
 
-                gvStaff.DataSource = ds.Tables[0];
-                gvStaff.DataBind();
+                    if (gvStaff != null)
+                    {
+                        gvStaff.DataSource = ds.Tables[0];
+                        gvStaff.DataBind();
+                    }
 
-                // If you added a lblTotalStaff stat card to match customers:
-                if (lblTotalStaff != null)
-                    lblTotalStaff.Text = ds.Tables[1].Rows[0][0].ToString();
+                    if (lblTotalStaff != null && ds.Tables.Count > 1)
+                    {
+                        lblTotalStaff.Text = ds.Tables[1].Rows[0][0].ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowMessage("Data Load Error: " + ex.Message, true);
             }
         }
 
@@ -87,6 +114,35 @@ namespace Smash_IT.adminpage
         {
             string username = txtUsername.Text.Trim();
             string staffId = hfStaffID.Value;
+            string email = txtEmail.Text.Trim();
+            bool isNew = string.IsNullOrEmpty(staffId);
+
+            if (string.IsNullOrEmpty(txtFirstName.Text.Trim()) || string.IsNullOrEmpty(txtLastName.Text.Trim()) || string.IsNullOrEmpty(username) || string.IsNullOrEmpty(email))
+            {
+                ShowMessage("First Name, Last Name, Email, and Username are required fields.", true);
+                return;
+            }
+
+            if (isNew && string.IsNullOrEmpty(txtPassword.Text.Trim()))
+            {
+                ShowMessage("Password is required for new staff accounts.", true);
+                return;
+            }
+
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                if (addr.Address != email)
+                {
+                    ShowMessage("Please enter a valid email address.", true);
+                    return;
+                }
+            }
+            catch
+            {
+                ShowMessage("Please enter a valid email address.", true);
+                return;
+            }
 
             try
             {
@@ -94,13 +150,12 @@ namespace Smash_IT.adminpage
                 {
                     conn.Open();
 
-                    // Duplicate Username Check (Copied from Customer logic)
                     string checkQuery = "SELECT COUNT(*) FROM tblStaffAccount WHERE Username = @User";
-                    if (!string.IsNullOrEmpty(staffId)) checkQuery += " AND StaffID != @ID";
+                    if (!isNew) checkQuery += " AND StaffID != @ID";
 
                     SqlCommand checkCmd = new SqlCommand(checkQuery, conn);
                     checkCmd.Parameters.AddWithValue("@User", username);
-                    if (!string.IsNullOrEmpty(staffId)) checkCmd.Parameters.AddWithValue("@ID", staffId);
+                    if (!isNew) checkCmd.Parameters.AddWithValue("@ID", staffId);
 
                     if ((int)checkCmd.ExecuteScalar() > 0)
                     {
@@ -108,25 +163,86 @@ namespace Smash_IT.adminpage
                         return;
                     }
 
-                    bool isNew = string.IsNullOrEmpty(staffId);
-                    string query = isNew
-                        ? "INSERT INTO tblStaffAccount (FullName, StaffRole, Username, [Password]) VALUES (@Name, @Role, @User, @Pass)"
-                        : "UPDATE tblStaffAccount SET FullName=@Name, StaffRole=@Role, Username=@User WHERE StaffID=@ID";
+                    bool hasNewImage = fileAvatar.HasFile;
+                    string imgPath = "uploads/avatars/person.jpg";
+
+                    if (hasNewImage)
+                    {
+                        string ext = Path.GetExtension(fileAvatar.FileName).ToLower();
+                        string[] allowedExtensions = { ".jpg", ".jpeg", ".png", ".gif" };
+
+                        if (allowedExtensions.Contains(ext))
+                        {
+                            string filename = Guid.NewGuid().ToString() + ext;
+                            string folderPath = Server.MapPath("~/uploads/avatars/");
+
+                            if (!Directory.Exists(folderPath))
+                                Directory.CreateDirectory(folderPath);
+
+                            fileAvatar.SaveAs(folderPath + filename);
+                            imgPath = "uploads/avatars/" + filename;
+                        }
+                        else
+                        {
+                            ShowMessage("Invalid image format. Only JPG, PNG, and GIF are allowed.", true);
+                            return;
+                        }
+                    }
+
+                    string query = "";
+                    if (isNew)
+                    {
+                        query = "INSERT INTO tblStaffAccount (Firstname, Lastname, Email, RoleName, Username, [Password], ImgPath) VALUES (@F, @L, @Email, @Role, @User, @Pass, @ImgPath)";
+                    }
+                    else
+                    {
+                        string updatePass = !string.IsNullOrEmpty(txtPassword.Text.Trim()) ? ", [Password]=@Pass" : "";
+                        string updateImg = hasNewImage ? ", ImgPath=@ImgPath" : "";
+
+                        query = $"UPDATE tblStaffAccount SET Firstname=@F, Lastname=@L, Email=@Email, RoleName=@Role, Username=@User {updatePass} {updateImg} WHERE StaffID=@ID";
+                    }
 
                     SqlCommand cmd = new SqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@Name", txtFullName.Text.Trim());
+                    cmd.Parameters.AddWithValue("@F", txtFirstName.Text.Trim());
+                    cmd.Parameters.AddWithValue("@L", txtLastName.Text.Trim());
+                    cmd.Parameters.AddWithValue("@Email", email);
                     cmd.Parameters.AddWithValue("@Role", ddlRole.SelectedValue);
                     cmd.Parameters.AddWithValue("@User", username);
-                    if (isNew) cmd.Parameters.AddWithValue("@Pass", txtPassword.Text.Trim());
-                    else cmd.Parameters.AddWithValue("@ID", staffId);
+
+                    if (isNew || (!isNew && !string.IsNullOrEmpty(txtPassword.Text.Trim())))
+                    {
+                        cmd.Parameters.AddWithValue("@Pass", txtPassword.Text.Trim());
+                    }
+
+                    if (!isNew)
+                    {
+                        cmd.Parameters.AddWithValue("@ID", staffId);
+                    }
+
+                    if (isNew || hasNewImage)
+                    {
+                        cmd.Parameters.AddWithValue("@ImgPath", imgPath);
+                    }
 
                     cmd.ExecuteNonQuery();
+
                     pnlInput.Visible = false;
+                    ClearFields();
                     LoadStaff();
                     ShowMessage(isNew ? "Staff added successfully!" : "Staff updated successfully!");
                 }
             }
-            catch (Exception ex) { ShowMessage("Error: " + ex.Message, true); }
+            catch (SqlException sqlEx)
+            {
+                if (sqlEx.Number == 2627 || sqlEx.Number == 2601)
+                    ShowMessage("That Email or Username is already taken.", true);
+                else
+                    ShowMessage("Database Error: " + sqlEx.Message, true);
+            }
+            catch (Exception ex)
+            {
+                ShowMessage("System Error: " + ex.Message, true);
+            }
         }
 
         protected void gvStaff_RowCommand(object sender, GridViewCommandEventArgs e)
@@ -139,6 +255,7 @@ namespace Smash_IT.adminpage
                     hfStaffID.Value = id.ToString();
                     LoadForEdit(id);
                     pnlInput.Visible = true;
+                    lblMsg.Text = "Editing Staff ID: " + id;
                 }
                 else if (e.CommandName == "DeleteStaff")
                 {
@@ -157,9 +274,27 @@ namespace Smash_IT.adminpage
                 SqlDataReader dr = cmd.ExecuteReader();
                 if (dr.Read())
                 {
-                    txtFullName.Text = dr["FullName"].ToString();
-                    ddlRole.SelectedValue = dr["StaffRole"].ToString();
+                    txtFirstName.Text = dr["Firstname"].ToString();
+                    txtLastName.Text = dr["Lastname"].ToString();
+                    txtEmail.Text = dr["Email"].ToString();
                     txtUsername.Text = dr["Username"].ToString();
+
+                    string roleFromDb = dr["RoleName"].ToString().ToLower();
+                    ListItem roleItem = ddlRole.Items.FindByValue(roleFromDb);
+
+                    if (roleItem != null)
+                    {
+                        ddlRole.ClearSelection();
+                        roleItem.Selected = true;
+                    }
+                    else
+                    {
+                        ddlRole.SelectedIndex = 0;
+                    }
+
+                    string path = dr["ImgPath"].ToString();
+                    imgPreview.ImageUrl = "~/" + path;
+                    imgPreview.Visible = true;
                 }
             }
         }
@@ -175,16 +310,27 @@ namespace Smash_IT.adminpage
                     conn.Open();
                     cmd.ExecuteNonQuery();
                     LoadStaff();
-                    ShowMessage("Staff member deleted.");
+                    ShowMessage("Staff member deleted successfully.");
                 }
             }
-            catch { ShowMessage("Cannot delete staff: They are linked to existing transactions.", true); }
+            catch (SqlException sqlEx)
+            {
+                if (sqlEx.Number == 547)
+                    ShowMessage("Cannot delete staff: They are linked to existing records (e.g., courts, events, announcements).", true);
+                else
+                    ShowMessage("Database error during deletion: " + sqlEx.Message, true);
+            }
+            catch (Exception ex)
+            {
+                ShowMessage("System error during deletion: " + ex.Message, true);
+            }
         }
 
         protected void btnCancel_Click(object sender, EventArgs e)
         {
             pnlInput.Visible = false;
             ClearFields();
+            lblMsg.Text = "";
         }
 
         protected void btnShowAdd_Click(object sender, EventArgs e)
@@ -195,8 +341,58 @@ namespace Smash_IT.adminpage
 
         private void ClearFields()
         {
-            txtFullName.Text = txtUsername.Text = txtPassword.Text = "";
+            txtFirstName.Text = txtLastName.Text = txtEmail.Text = txtUsername.Text = txtPassword.Text = "";
             hfStaffID.Value = "";
+            imgPreview.Visible = false;
+            fileAvatar.Attributes.Clear();
+            ddlRole.SelectedIndex = 0;
+        }
+
+        // ==========================================
+        // PLAYER STATISTICS AJAX METHODS
+        // ==========================================
+        public class UserStats
+        {
+            public decimal TotalPaid { get; set; }
+            public int Reservations { get; set; }
+            public int Games { get; set; }
+            public int Rentals { get; set; }
+            public int PayAllYouCan { get; set; }
+        }
+
+        [WebMethod]
+        public static UserStats GetPlayerStats(string userId)
+        {
+            string dbConn = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
+            UserStats stats = new UserStats();
+
+            if (string.IsNullOrEmpty(userId)) return stats;
+
+            using (SqlConnection conn = new SqlConnection(dbConn))
+            {
+                string query = @"
+                    SELECT ISNULL(SUM(Amount), 0) FROM tblPayment WHERE UserID = @UID;
+                    SELECT COUNT(*) FROM tblReservation WHERE UserID = @UID;
+                    SELECT COUNT(*) FROM tblCourtQueue WHERE UserID = @UID;
+                    SELECT COUNT(*) FROM tblRental WHERE UserID = @UID;
+                    SELECT COUNT(*) FROM tblPlayAllYouCanRegistry r 
+                    JOIN tblPlayerWalkIn w ON r.WalkInID = w.WalkInID WHERE w.UserID = @UID;";
+
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@UID", userId);
+                conn.Open();
+
+                using (SqlDataReader dr = cmd.ExecuteReader())
+                {
+                    if (dr.Read() && !dr.IsDBNull(0)) stats.TotalPaid = Convert.ToDecimal(dr[0]);
+
+                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.Reservations = Convert.ToInt32(dr[0]);
+                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.Games = Convert.ToInt32(dr[0]);
+                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.Rentals = Convert.ToInt32(dr[0]);
+                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.PayAllYouCan = Convert.ToInt32(dr[0]);
+                }
+            }
+            return stats;
         }
     }
 }

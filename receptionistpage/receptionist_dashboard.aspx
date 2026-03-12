@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="receptionist_dashboard.aspx.cs" Inherits="Smash_IT.adminpage.receptionist_dashboard" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="receptionist_dashboard.aspx.cs" Inherits="Smash_IT.receptionistpage.receptionist_dashboard" %>
 
 <!DOCTYPE html>
 

@@ -46,7 +46,12 @@
         window.hfEndTimeClientID = "<%= hfEndTime.ClientID %>";
         window.lblSelectedSlotClientID = "<%= lblSelectedSlot.ClientID %>";
         window.hfSelectedSportClientID = "hfSelectedSport";
-
+        
+            window.hfSelectedCourtIDClientID = "<%= hfSelectedCourtID.ClientID %>";
+    window.hfSelectedDateClientID = "<%= hfSelectedDate.ClientID %>";
+    window.hfRentalCartClientID = "<%= hfRentalCart.ClientID %>";
+    window.hfConsumableCartClientID = "<%= hfConsumableCart.ClientID %>";
+    
         window.formatPhp = function (amount) {
             try {
                 return "₱ " + Number(amount || 0).toLocaleString("en-PH", {
@@ -156,6 +161,8 @@
                         UpdateMode="Conditional"
                         CssClass="row g-4">
                         <ContentTemplate>
+       
+
 
                             <DIV class="row g-3">
                                 <!-- LEFT -->
@@ -263,7 +270,7 @@
                         <Triggers>
                             <asp:AsyncPostBackTrigger ControlID="Calendar1" EventName="SelectionChanged" />
                             <asp:AsyncPostBackTrigger ControlID="ddlSport" EventName="SelectedIndexChanged" />
-                            <asp:PostBackTrigger ControlID="btnSubmitReservation" />
+                        
                         </Triggers>
                     </asp:UpdatePanel>
                 </DIV>

@@ -7,8 +7,15 @@
 <asp:Content ID="ContentMain" ContentPlaceHolderID="MainContent" runat="server">
 
     <section class="announcement-hero">
-        <div class="hero-overlay">
-            <h1>Daily Announcements</h1>
+        <div class="anno-hero-bg">
+            <asp:Image ID="AnnoImgHero" runat="server" CssClass="anno-hero-img" ImageUrl="~/images/placeholder.jpg" />
+        </div>
+        
+        <div class="anno-hero-overlay"></div>
+        
+        <div class="anno-hero-content">
+            <h1 class="anno-hero-title">Announcements</h1>
+            <div class="anno-hero-divider"></div>
         </div>
     </section>
 
@@ -16,7 +23,6 @@
         
         <asp:Repeater ID="rptAnnouncements" runat="server">
             <ItemTemplate>
-                <%-- Logic to add 'reverse' class to every second item for the zig-zag effect --%>
                 <div class='<%# Container.ItemIndex % 2 != 0 ? "announcement-item-wrapper reverse" : "announcement-item-wrapper" %>'>
                     
                     <div class="anno-text-side">
@@ -30,12 +36,18 @@
                             <%# Eval("Content") %>
                         </div>
 
-                        <a href="Reservations.aspx" class="btn-apply-now">Apply Now</a>
+                        <asp:HyperLink ID="hlApply" runat="server" 
+                            NavigateUrl='<%# GetValidUrl(Eval("URL_FB")) %>' 
+                            CssClass="btn-apply-now" 
+                            Target="_blank"
+                            Visible='<%# Eval("URL_FB") != DBNull.Value && !string.IsNullOrWhiteSpace(Eval("URL_FB").ToString()) %>'>
+                            Apply Now
+                        </asp:HyperLink>
                     </div>
 
                     <div class="anno-image-side">
                         <div class="image-container">
-                            <img src='<%# GetBase64Image(Eval("ImageFIleData"), Eval("ImageFileType")) %>' alt='<%# Eval("Title") %>' />
+                            <img src='<%# ResolveImagePath(Eval("FilePath")) %>' alt='<%# Eval("Title") %>' />
                         </div>
                     </div>
 

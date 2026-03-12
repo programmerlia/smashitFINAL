@@ -43,6 +43,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CloudinaryDotNet, Version=1.28.0.0, Culture=neutral, PublicKeyToken=c8234dc617ae7841, processorArchitecture=MSIL">
+      <HintPath>packages\CloudinaryDotNet.1.28.0\lib\net452\CloudinaryDotNet.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Net.Http.Formatting, Version=5.2.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
     <Reference Include="System.Web.DynamicData" />
@@ -69,13 +72,27 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="adminpage\admin_analytics.aspx" />
-    <Content Include="adminpage\admin_announcement.aspx" />
     <Content Include="adminpage\admin_court.aspx" />
     <Content Include="adminpage\admin_customer_account.aspx" />
+    <Content Include="adminpage\admin_dashboard.aspx" />
+    <Content Include="adminpage\admin_inventory.aspx" />
+    <Content Include="adminpage\admin_manage_queue.aspx" />
+    <Content Include="adminpage\admin_playallyoucan.aspx" />
+    <Content Include="adminpage\admin_queue.aspx" />
     <Content Include="adminpage\admin_reservation.aspx" />
+    <Content Include="adminpage\admin_transactions.aspx" />
     <Content Include="adminpage\admin_users.aspx" />
+    <Content Include="adminpage\Content_Manager.aspx" />
     <Content Include="controls\AuthModal.ascx" />
+    <Content Include="css\about-page.css" />
     <Content Include="css\admin_announcement.css" />
+    <Content Include="css\admin_content_manager.css" />
+    <Content Include="css\admin_dashboard.css" />
+    <Content Include="css\admin_inventory.css" />
+    <Content Include="css\admin_manage_queue.css" />
+    <Content Include="css\admin_playallyoucan.css" />
+    <Content Include="css\admin_queue.css" />
+    <Content Include="css\admin_reservation.css" />
     <Content Include="css\announcement.css" />
     <Content Include="css\court-layout.css" />
     <Content Include="css\home_sliding_promos.css" />
@@ -84,6 +101,8 @@
     <Content Include="css\SlidingHome.css" />
     <Content Include="homepage\reservation_archive.aspx" />
     <Content Include="images\P.png" />
+    <Content Include="images\person.jpg" />
+    <Content Include="js\Header_indicator.js" />
     <Content Include="PreparingPayment.aspx" />
     <Content Include="proj-doc\seed.sql" />
     <Content Include="ReservationSuccess.aspx" />
@@ -114,7 +133,6 @@
     <Content Include="homepage\home.aspx" />
     <Content Include="homepage\reservation.aspx" />
     <Content Include="homepage\about.aspx" />
-    <Content Include="adminpage\admin_dashboard.aspx" />
     <Content Include="login.aspx" />
     <Content Include="proj-doc\createTables.sql" />
     <Content Include="Web.config" />
@@ -134,13 +152,6 @@
     <Compile Include="adminpage\admin_analytics.aspx.designer.cs">
       <DependentUpon>admin_analytics.aspx</DependentUpon>
     </Compile>
-    <Compile Include="adminpage\admin_announcement.aspx.cs">
-      <DependentUpon>admin_announcement.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="adminpage\admin_announcement.aspx.designer.cs">
-      <DependentUpon>admin_announcement.aspx</DependentUpon>
-    </Compile>
     <Compile Include="adminpage\admin_court.aspx.cs">
       <DependentUpon>admin_court.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -155,6 +166,41 @@
     <Compile Include="adminpage\admin_customer_account.aspx.designer.cs">
       <DependentUpon>admin_customer_account.aspx</DependentUpon>
     </Compile>
+    <Compile Include="adminpage\admin_dashboard.aspx.cs">
+      <DependentUpon>admin_dashboard.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_dashboard.aspx.designer.cs">
+      <DependentUpon>admin_dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="adminpage\admin_inventory.aspx.cs">
+      <DependentUpon>admin_inventory.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_inventory.aspx.designer.cs">
+      <DependentUpon>admin_inventory.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="adminpage\admin_manage_queue.aspx.cs">
+      <DependentUpon>admin_manage_queue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_manage_queue.aspx.designer.cs">
+      <DependentUpon>admin_manage_queue.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="adminpage\admin_playallyoucan.aspx.cs">
+      <DependentUpon>admin_playallyoucan.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_playallyoucan.aspx.designer.cs">
+      <DependentUpon>admin_playallyoucan.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="adminpage\admin_queue.aspx.cs">
+      <DependentUpon>admin_queue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_queue.aspx.designer.cs">
+      <DependentUpon>admin_queue.aspx</DependentUpon>
+    </Compile>
     <Compile Include="adminpage\admin_reservation.aspx.cs">
       <DependentUpon>admin_reservation.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -162,12 +208,26 @@
     <Compile Include="adminpage\admin_reservation.aspx.designer.cs">
       <DependentUpon>admin_reservation.aspx</DependentUpon>
     </Compile>
+    <Compile Include="adminpage\admin_transactions.aspx.cs">
+      <DependentUpon>admin_transactions.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_transactions.aspx.designer.cs">
+      <DependentUpon>admin_transactions.aspx</DependentUpon>
+    </Compile>
     <Compile Include="adminpage\admin_users.aspx.cs">
       <DependentUpon>admin_users.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="adminpage\admin_users.aspx.designer.cs">
       <DependentUpon>admin_users.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="adminpage\Content_Manager.aspx.cs">
+      <DependentUpon>Content_Manager.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\Content_Manager.aspx.designer.cs">
+      <DependentUpon>Content_Manager.aspx</DependentUpon>
     </Compile>
     <Compile Include="controls\AuthModal.ascx.cs">
       <DependentUpon>AuthModal.ascx</DependentUpon>
@@ -210,13 +270,6 @@
     </Compile>
     <Compile Include="homepage\about.aspx.designer.cs">
       <DependentUpon>about.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="adminpage\admin_dashboard.aspx.cs">
-      <DependentUpon>admin_dashboard.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="adminpage\admin_dashboard.aspx.designer.cs">
-      <DependentUpon>admin_dashboard.aspx</DependentUpon>
     </Compile>
     <Compile Include="login.aspx.cs">
       <DependentUpon>login.aspx</DependentUpon>
@@ -263,8 +316,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="adminpage\admin.master" />
     <Content Include="CreateCheckout.ashx" />
+    <Content Include="adminpage\admin.master" />
     <None Include="packages.config" />
     <Content Include="proj-doc\README.md" />
     <Content Include="homepage\homepage.master" />
