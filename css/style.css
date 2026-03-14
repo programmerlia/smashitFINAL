@@ -3,17 +3,18 @@
 
 
 :root {
-    --primary-color: #000058;
+    --primary-color: #1e3a8a;
     --secondary-color: #333;
     --text-color: #555;
     --light-bg: #f9f9f9;
     --dark-bg: #222;
     --white: #fff;
+    --Yellow: #e7c44b;
 }
 
 
 body {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Inter', 'Poppins', -apple-system, sans-serif;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -26,10 +27,9 @@ body {
 }
 
 .container {
-    width: 100%;
+    width: 90%;
     max-width: 1200px;
     margin: 0 auto;
-    
 }
 
 a {

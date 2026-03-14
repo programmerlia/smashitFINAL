@@ -1,7 +1,7 @@
 ﻿<%@ Page Language="C#" AutoEventWireup="true"
-    MasterPageFile="~/receptionistpage/receptionist.Master"
-   CodeBehind="receptionist_dashboard.aspx.cs" 
-    Inherits="Smash_IT.receptionistpage.receptionist_dashboard" %>
+    MasterPageFile="~/queuemasterpage/queuemaster.Master"
+   CodeBehind="q_dashboard.aspx.cs" 
+    Inherits="Smash_IT.queuemasterpage.q_dashboard" %>
 
 
 <asp:Content ID="ContentHead" ContentPlaceHolderID="head" runat="server">

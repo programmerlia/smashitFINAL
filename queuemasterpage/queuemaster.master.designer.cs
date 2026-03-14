@@ -7,11 +7,11 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Smash_IT.receptionistpage
+namespace Smash_IT.queuemasterpage
 {
 
 
-    public partial class receptionist
+    public partial class queuemaster
     {
 
         /// <summary>

@@ -327,7 +327,7 @@ CREATE TABLE tblAnnouncement (
 );
 
 CREATE TABLE tblAboutUsMembers (
-    MemberID INT IDENTITY PRIMARY KEY,
+    MemberID INT IDENTITY PRIMARY KEY, 
     Firstname VARCHAR(150) NOT NULL,
     Lastname VARCHAR(150) NOT NULL,
     Position VARCHAR(100) NULL,

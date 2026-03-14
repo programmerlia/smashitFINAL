@@ -7,9 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web.UI;
 
-namespace Smash_IT.adminpage
+namespace Smash_IT.queuemasterpage
 {
-    public partial class admin_manage_queue : System.Web.UI.Page
+    public partial class q_manage_queue : System.Web.UI.Page
     {
         string connString = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
         private DataTable dtAllMatches;

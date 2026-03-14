@@ -135,7 +135,7 @@ const SafeStore = (() => {
     }
 
     function getCourtTotal() {
-        return getDurationHours() * 330;
+        return getDurationHours() * getCourtPricePerHour();
     }
 
     function getRentalsTotalFromUI() {
@@ -147,6 +147,44 @@ const SafeStore = (() => {
         const t = $("consumablesTotal")?.innerText || "₱ 0";
         return Number((t.replace(/[^\d.]/g, "")) || 0);
     }
+
+    function getCourtPricePerHour() {
+        return Number(cfg.pricing?.courtPricePerHourPhp || 330);
+    }
+
+    function getCourtDepositRate() {
+        return Number(cfg.pricing?.courtDepositRate || 0.50);
+    }
+
+    function getPaymentMode() {
+        const hf = byAnyId("hfPaymentMode", "hfPaymentModeClientID");
+        const v = (hf?.value || "dp").toLowerCase();
+        return v === "full" ? "full" : "dp";
+    }
+
+    function setPaymentMode(mode, fromModal) {
+        const normalized = String(mode || "dp").toLowerCase() === "full" ? "full" : "dp";
+
+        const hf = byAnyId("hfPaymentMode", "hfPaymentModeClientID");
+        if (hf) hf.value = normalized;
+
+        const stepDp = $("payModeDp");
+        const stepFull = $("payModeFull");
+        const modalDp = $("payModeDpModal");
+        const modalFull = $("payModeFullModal");
+
+        if (stepDp) stepDp.checked = normalized === "dp";
+        if (stepFull) stepFull.checked = normalized === "full";
+        if (modalDp) modalDp.checked = normalized === "dp";
+        if (modalFull) modalFull.checked = normalized === "full";
+
+        syncSummaries();
+
+        if (!fromModal && $("paymentModal")?.style.display === "block") {
+            updatePaymentModalTotals();
+        }
+    }
+    window.setPaymentMode = setPaymentMode;
 
     function getRentalCart() {
         try {
@@ -832,6 +870,23 @@ const SafeStore = (() => {
         const timeRange = sel.start && sel.end ? `${formatTime12Hour(sel.start)} - ${formatTime12Hour(sel.end)}` : "---";
         const durTxt = `${getDurationHours()} Hour${getDurationHours() > 1 ? "s" : ""}`;
 
+        const courtTotal = getCourtTotal();
+        const rentalsTotal = getRentalsTotalFromUI();
+        const consumablesTotal = getConsumablesTotalFromUI();
+        const grandTotal = courtTotal + rentalsTotal + consumablesTotal;
+
+        const paymentMode = getPaymentMode();
+        const courtPayNow = paymentMode === "full"
+            ? courtTotal
+            : (courtTotal * getCourtDepositRate());
+
+        const payNowTotal = courtPayNow;
+        const remainingBalance = grandTotal - payNowTotal;
+
+        const infoText = paymentMode === "full"
+            ? "You are paying 100% of the court now. Rentals and sale items will be paid later."
+            : "You are paying 50% court deposit now. Rentals and sale items will be paid later.";
+
         if ($("courtSummaryCourt")) $("courtSummaryCourt").innerText = sel.courtId ? `Court ${courtNum}` : "---";
         if ($("courtSummarySport")) $("courtSummarySport").innerText = sel.courtId ? sport : (sel.sport || "---");
         if ($("courtSummaryTime")) $("courtSummaryTime").innerText = sel.start ? timeRange : "---";
@@ -843,16 +898,14 @@ const SafeStore = (() => {
         if ($("summaryDuration")) $("summaryDuration").innerText = durTxt;
         if ($("summaryPlayers")) $("summaryPlayers").innerText = sel.players || "1";
 
-        const courtTotal = getCourtTotal();
-        const rentalsTotal = getRentalsTotalFromUI();
-        const consumablesTotal = getConsumablesTotalFromUI();
-        const grandTotal = courtTotal + rentalsTotal + consumablesTotal;
-        const payNowTotal = (courtTotal / 2) + rentalsTotal + consumablesTotal;
-
         if ($("totalPrice")) $("totalPrice").innerText = "₱ " + courtTotal.toFixed(2);
         if ($("totalFinal")) $("totalFinal").innerText = "₱ " + grandTotal.toFixed(2);
         if ($("summary-totalPrice")) $("summary-totalPrice").innerText = "₱ " + payNowTotal.toFixed(2);
         if ($("summary-totalPriceInfo")) $("summary-totalPriceInfo").innerText = "₱ " + payNowTotal.toFixed(2);
+
+        if ($("summaryPayNowNoteStep2")) $("summaryPayNowNoteStep2").innerText = infoText;
+        if ($("summaryPayNowNoteStep3")) $("summaryPayNowNoteStep3").innerText = infoText;
+        if ($("pmPayNowNote")) $("pmPayNowNote").innerText = infoText;
 
         if ($("summaryFirstname")) $("summaryFirstname").innerText = $id("txtFirstname")?.value || "------";
         if ($("summaryLastname")) $("summaryLastname").innerText = $id("txtLastname")?.value || "------";
@@ -868,7 +921,21 @@ const SafeStore = (() => {
         setSlotLabel();
         updateSelectedSportBadge();
     }
+    function updatePaymentModalTotals() {
+        const courtTotal = getCourtTotal();
+        const paymentMode = getPaymentMode();
+        const payNowTotal = paymentMode === "full"
+            ? courtTotal
+            : (courtTotal * getCourtDepositRate());
 
+        if ($("pmTotal")) $("pmTotal").innerText = "₱ " + payNowTotal.toFixed(2);
+
+        const note = paymentMode === "full"
+            ? "You are paying 100% of the court now. Rentals and sale items will be paid later."
+            : "You are paying 50% of the court now. Rentals and sale items will be paid later.";
+
+        if ($("pmPayNowNote")) $("pmPayNowNote").innerText = note;
+    }
     function ensureSlotSelectedOrAlert() {
         let sel = getSelection();
 
@@ -1078,7 +1145,7 @@ const SafeStore = (() => {
         if ($("pmTime")) $("pmTime").innerText = $("summaryTime")?.innerText || "---";
         if ($("pmDuration")) $("pmDuration").innerText = $("summaryDuration")?.innerText || "---";
         if ($("pmPlayers")) $("pmPlayers").innerText = $("summaryPlayers")?.innerText || "---";
-        if ($("pmTotal")) $("pmTotal").innerText = $("summary-totalPrice")?.innerText || "---";
+        updatePaymentModalTotals();
 
         renderPaymentRentals();
         renderPaymentConsumables();
@@ -1128,6 +1195,12 @@ const SafeStore = (() => {
             alert("Hidden submit button not found.");
             return false;
         }
+
+        const hfPaymentMode = byAnyId("hfPaymentMode", "hfPaymentModeClientID");
+        if (hfPaymentMode && !hfPaymentMode.value) {
+            hfPaymentMode.value = "dp";
+        }
+
 
         btn.click();
         return false;
@@ -1379,6 +1452,15 @@ const SafeStore = (() => {
         clearEl(HF.rentalCart());
         clearEl(HF.consumableCart());
         clearEl(hfSelectedSport());
+
+        const hfPaymentMode = byAnyId("hfPaymentMode", "hfPaymentModeClientID");
+        if (hfPaymentMode) hfPaymentMode.value = "dp";
+
+        if ($("payModeDp")) $("payModeDp").checked = true;
+        if ($("payModeFull")) $("payModeFull").checked = false;
+        if ($("payModeDpModal")) $("payModeDpModal").checked = true;
+        if ($("payModeFullModal")) $("payModeFullModal").checked = false;
+
 
         const modal = $("paymentModal");
         if (modal) modal.style.display = "none";

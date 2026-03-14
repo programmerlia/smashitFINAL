@@ -83,6 +83,7 @@
     <Content Include="adminpage\admin_transactions.aspx" />
     <Content Include="adminpage\admin_users.aspx" />
     <Content Include="adminpage\Content_Manager.aspx" />
+    <Content Include="controls\CourtLive.ascx" />
     <Content Include="controls\AuthModal.ascx" />
     <Content Include="css\about-page.css" />
     <Content Include="css\admin_announcement.css" />
@@ -99,12 +100,23 @@
     <Content Include="css\res_active.css" />
     <Content Include="css\res_main.css" />
     <Content Include="css\SlidingHome.css" />
+    <Content Include="homepage\live.aspx" />
     <Content Include="homepage\reservation_archive.aspx" />
     <Content Include="images\P.png" />
     <Content Include="images\person.jpg" />
     <Content Include="js\Header_indicator.js" />
+    <Content Include="js\script.js" />
     <Content Include="PreparingPayment.aspx" />
     <Content Include="proj-doc\seed.sql" />
+    <Content Include="queuemasterpage\q_manage_queue.aspx" />
+    <Content Include="queuemasterpage\q_dashboard.aspx" />
+    <Content Include="queuemasterpage\q_live_court.aspx" />
+    <Content Include="queuemasterpage\q_queue.aspx" />
+    <Content Include="receptionistpage\rec_pfa.aspx" />
+    <Content Include="receptionistpage\rec_court_override.aspx" />
+    <Content Include="receptionistpage\rec_live_courts.aspx" />
+    <Content Include="receptionistpage\rec_queue.aspx" />
+    <Content Include="receptionistpage\rec_res.aspx" />
     <Content Include="ReservationSuccess.aspx" />
     <Content Include="homepage\profile.aspx" />
     <Content Include="images\B.png" />
@@ -229,6 +241,13 @@
     <Compile Include="adminpage\Content_Manager.aspx.designer.cs">
       <DependentUpon>Content_Manager.aspx</DependentUpon>
     </Compile>
+    <Compile Include="controls\CourtLive.ascx.cs">
+      <DependentUpon>CourtLive.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="controls\CourtLive.ascx.designer.cs">
+      <DependentUpon>CourtLive.ascx</DependentUpon>
+    </Compile>
     <Compile Include="controls\AuthModal.ascx.cs">
       <DependentUpon>AuthModal.ascx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -236,12 +255,90 @@
     <Compile Include="controls\AuthModal.ascx.designer.cs">
       <DependentUpon>AuthModal.ascx</DependentUpon>
     </Compile>
+    <Compile Include="CourtAvailabilityHelper.cs" />
+    <Compile Include="homepage\live.aspx.cs">
+      <DependentUpon>live.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="homepage\live.aspx.designer.cs">
+      <DependentUpon>live.aspx</DependentUpon>
+    </Compile>
     <Compile Include="PreparingPayment.aspx.cs">
       <DependentUpon>PreparingPayment.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="PreparingPayment.aspx.designer.cs">
       <DependentUpon>PreparingPayment.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="queuemasterpage\q_manage_queue.aspx.cs">
+      <DependentUpon>q_manage_queue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="queuemasterpage\q_manage_queue.aspx.designer.cs">
+      <DependentUpon>q_manage_queue.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="queuemasterpage\queuemaster.master.cs">
+      <DependentUpon>queuemaster.master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="queuemasterpage\queuemaster.master.designer.cs">
+      <DependentUpon>queuemaster.master</DependentUpon>
+    </Compile>
+    <Compile Include="queuemasterpage\q_dashboard.aspx.cs">
+      <DependentUpon>q_dashboard.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="queuemasterpage\q_dashboard.aspx.designer.cs">
+      <DependentUpon>q_dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="queuemasterpage\q_live_court.aspx.cs">
+      <DependentUpon>q_live_court.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="queuemasterpage\q_live_court.aspx.designer.cs">
+      <DependentUpon>q_live_court.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="queuemasterpage\q_queue.aspx.cs">
+      <DependentUpon>q_queue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="queuemasterpage\q_queue.aspx.designer.cs">
+      <DependentUpon>q_queue.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="receptionistpage\rec_pfa.aspx.cs">
+      <DependentUpon>rec_pfa.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="receptionistpage\rec_pfa.aspx.designer.cs">
+      <DependentUpon>rec_pfa.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="receptionistpage\rec_court_override.aspx.cs">
+      <DependentUpon>rec_court_override.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="receptionistpage\rec_court_override.aspx.designer.cs">
+      <DependentUpon>rec_court_override.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="receptionistpage\rec_live_courts.aspx.cs">
+      <DependentUpon>rec_live_courts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="receptionistpage\rec_live_courts.aspx.designer.cs">
+      <DependentUpon>rec_live_courts.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="receptionistpage\rec_queue.aspx.cs">
+      <DependentUpon>rec_queue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="receptionistpage\rec_queue.aspx.designer.cs">
+      <DependentUpon>rec_queue.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="receptionistpage\rec_res.aspx.cs">
+      <DependentUpon>rec_res.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="receptionistpage\rec_res.aspx.designer.cs">
+      <DependentUpon>rec_res.aspx</DependentUpon>
     </Compile>
     <Compile Include="ReservationSuccess.aspx.cs">
       <DependentUpon>ReservationSuccess.aspx</DependentUpon>
@@ -323,6 +420,7 @@
     <Content Include="homepage\homepage.master" />
     <Content Include="receptionistpage\receptionist.master" />
     <Content Include="PaymongoWebhook.ashx" />
+    <Content Include="queuemasterpage\queuemaster.master" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

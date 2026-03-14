@@ -2,20 +2,7 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link href='<%= ResolveUrl("~/css/admin-staff.css?v=" + DateTime.Now.Ticks) %>' rel="stylesheet" type="text/css" />
-    <style>
-        /* Popup Modal Styles */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; z-index: 10001; align-items: center; justify-content: center; }
-        .details-modal { background: #fff; width: 450px; border-radius: 15px; overflow: hidden; box-shadow: 0 15px 30px rgba(0,0,0,0.3); animation: fadeIn 0.3s; }
-        .modal-header-smash { background: #1e3a8a; color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .modal-body-smash { padding: 20px; }
-        .stat-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; font-family: 'Poppins', sans-serif; }
-        .stat-item:last-child { border-bottom: none; }
-        .stat-label { color: #64748b; font-weight: 600; }
-        .stat-value { color: #1e3a8a; font-weight: 800; }
-        .name-link { color: #1e3a8a; font-weight: bold; cursor: pointer; text-decoration: none; }
-        .name-link:hover { color: #facc15; text-decoration: underline; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-    </style>
+   
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
@@ -54,6 +41,7 @@
                         <asp:DropDownList ID="ddlRole" runat="server" CssClass="form-control">
                             <asp:ListItem Value="receptionist" Text="Receptionist"></asp:ListItem>
                             <asp:ListItem Value="admin" Text="Admin"></asp:ListItem>
+                               <asp:ListItem Value="queuemaster" Text="Queue Master"></asp:ListItem>
                         </asp:DropDownList>
                     </div>
                     <div class="input-group"><label>Username</label><asp:TextBox ID="txtUsername" runat="server" /></div>
@@ -81,13 +69,7 @@
                             </ItemTemplate>
                         </asp:TemplateField>
                         
-                        <asp:TemplateField HeaderText="Staff Name" SortExpression="FullName">
-                            <ItemTemplate>
-                                <a class="name-link" href="javascript:void(0);" onclick="showDetails('<%# Eval("StaffID") %>', '<%# Eval("FullName") %>')">
-                                    <%# Eval("FullName") %>
-                                </a>
-                            </ItemTemplate>
-                        </asp:TemplateField>
+                     <asp:BoundField DataField="FullName" HeaderText="Staff Name" SortExpression="FullName" />
 
                         <asp:BoundField DataField="Email" HeaderText="Email" SortExpression="Email" />
                         <asp:TemplateField HeaderText="Role" SortExpression="StaffRole">
@@ -108,73 +90,4 @@
         </div>
     </div>
 
-    <%-- PLAYER DETAILS POPUP MODAL --%>
-    <div id="popupDetails" class="modal-overlay">
-        <div class="details-modal">
-            <div class="modal-header-smash">
-                <h3 id="popName" style="margin:0;">Name</h3>
-                <span onclick="closePopup()" style="cursor:pointer; font-size: 24px;">&times;</span>
-            </div>
-            <div class="modal-body-smash">
-                <div id="popLoading" style="text-align:center;">
-                    <i class="fas fa-circle-notch fa-spin"></i> Fetching stats...
-                </div>
-                <div id="popContent" style="display:none;">
-                    <div class="stat-item"><span class="stat-label">Total Payments</span><span id="statPayments" class="stat-value">0</span></div>
-                    <div class="stat-item"><span class="stat-label">Reservations</span><span id="statRes" class="stat-value">0</span></div>
-                    <div class="stat-item"><span class="stat-label">Games Played (Queue)</span><span id="statGames" class="stat-value">0</span></div>
-                    <div class="stat-item"><span class="stat-label">Equipment Rentals</span><span id="statRentals" class="stat-value">0</span></div>
-                    <div class="stat-item"><span class="stat-label">Play-All-You-Can</span><span id="statPayc" class="stat-value">0</span></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        function showDetails(id, name) {
-            $("#popName").text(name);
-            $("#popupDetails").css("display", "flex");
-            $("#popLoading").show();
-            $("#popContent").hide();
-
-            var pageUrl = window.location.pathname.split('/').pop();
-            if (pageUrl === "") pageUrl = "admin_users.aspx";
-
-            $.ajax({
-                type: "POST",
-                url: pageUrl + "/GetPlayerStats",
-                data: JSON.stringify({ userId: id }),
-                contentType: "application/json; charset=utf-8",
-                dataType: "json",
-                success: function (response) {
-                    var data = response.d;
-                    $("#statPayments").text("₱" + data.TotalPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-                    $("#statRes").text(data.Reservations);
-                    $("#statGames").text(data.Games);
-                    $("#statRentals").text(data.Rentals);
-                    $("#statPayc").text(data.PayAllYouCan);
-
-                    $("#popLoading").hide();
-                    $("#popContent").show();
-                },
-                error: function (xhr, status, error) {
-                    console.error(xhr.responseText);
-                    alert("Error retrieving data. Check console for details.");
-                    closePopup();
-                }
-            });
-        }
-
-        function closePopup() {
-            $("#popupDetails").hide();
-        }
-
-        window.onclick = function (event) {
-            var modal = document.getElementById('popupDetails');
-            if (event.target == modal) {
-                closePopup();
-            }
-        }
-    </script>
 </asp:Content>

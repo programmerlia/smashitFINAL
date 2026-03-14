@@ -54,7 +54,7 @@ namespace login
             using (SqlConnection con = new SqlConnection(connStr))
             {
                 con.Open();
-                string query = "SELECT Username, [Password], Firstname, Lastname, RoleName FROM tblStaffAccount WHERE Username = @User";
+                string query = "SELECT  StaffID, Username, [Password], Firstname, Lastname, RoleName FROM tblStaffAccount WHERE Username = @User";
 
                 using (SqlCommand cmd = new SqlCommand(query, con))
                 {
@@ -64,6 +64,7 @@ namespace login
                     {
                         if (reader.Read())
                         {
+                            string dbID = reader["StaffID"].ToString();
                             string dbUser = reader["Username"].ToString();
                             string dbPass = reader["Password"].ToString();
                             string dbRole = reader["RoleName"].ToString();
@@ -75,6 +76,7 @@ namespace login
                                 HandleCookies(dbUser, inputPass);
 
                                 // Set Sessions
+                                Session["StaffID"] = dbID;
                                 Session["Username"] = dbUser;
                                 Session["FullName"] = $"{reader["Firstname"]} {reader["Lastname"]}";
                                 Session["RoleName"] = dbRole;
@@ -138,7 +140,7 @@ namespace login
             if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
                 Response.Redirect("~/adminpage/admin_dashboard.aspx");
             else if (role.Equals("Receptionist", StringComparison.OrdinalIgnoreCase))
-                Response.Redirect("~/adminpage/receptionist_dashboard.aspx");
+                Response.Redirect("~/receptionistpage/receptionist_dashboard.aspx");
             else
                 ShowError("Unauthorized access.");
         }

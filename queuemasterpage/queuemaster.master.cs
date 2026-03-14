@@ -29,6 +29,7 @@ namespace Smash_IT.receptionistpage
 
             if (!IsPostBack)
             {
+                DisplayUserInfo();
             }
 
             HighlightActiveNav();

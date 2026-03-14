@@ -50,7 +50,8 @@
             window.hfSelectedCourtIDClientID = "<%= hfSelectedCourtID.ClientID %>";
     window.hfSelectedDateClientID = "<%= hfSelectedDate.ClientID %>";
     window.hfRentalCartClientID = "<%= hfRentalCart.ClientID %>";
-    window.hfConsumableCartClientID = "<%= hfConsumableCart.ClientID %>";
+        window.hfConsumableCartClientID = "<%= hfConsumableCart.ClientID %>";
+        window.hfPaymentModeClientID = "<%= hfPaymentMode.ClientID %>";
     
         window.formatPhp = function (amount) {
             try {
@@ -113,6 +114,9 @@
 
     <!-- Consumable hidden field -->
     <asp:HiddenField ID="hfConsumableCart" runat="server" ClientIDMode="Static" />
+
+    <!-- Payment hidden field -->
+    <asp:HiddenField ID="hfPaymentMode" runat="server" ClientIDMode="Static" Value="dp" />
 
     <DIV style="display: flex; align-items: flex-start; justify-content: center;">
         <DIV id="reservationSection"
@@ -335,9 +339,9 @@
                                     <DIV class="total-price-display mb-3">
                                         <DIV class="label">Pay Now (PayMongo):</DIV>
                                         <DIV id="summary-totalPrice" class="amount">₱ 0</DIV>
-                                        <DIV class="small text-muted mt-1">
-                                            You pay rentals (100%) + sale items (100%) + court deposit (50%) once via PayMongo.
-                                        </DIV>
+                                        <DIV class="small text-muted mt-1" id="summaryPayNowNoteStep2">
+    You pay 50% court deposit now. Rentals and sale items will be paid later.
+</DIV>
                                     </DIV>
 
                                     <DIV class="d-flex gap-2 w-100 align-items-stretch">
@@ -393,16 +397,31 @@
                                     </DIV>
                                 </DIV>
 
-                                <DIV class="d-flex justify-content-between align-items-end">
-                                    <DIV>
-                                        <H5 class="fw-bold mb-3">Payment Method
-                                            <SMALL class="fw-normal text-success" style="font-size: 0.7rem; cursor: pointer;">click here for payment details</SMALL>
-                                        </H5>
+                                <div class="card border-0 shadow-sm p-3 mb-3" style="border-radius: 15px;">
+    <div class="fw-bold mb-2">Court Payment Option</div>
 
-                                        <DIV class="payment-methods">
-                                            <asp:FileUpload ID="fuPayment" runat="server" CssClass="form-control mb-3" />
-                                        </DIV>
-                                    </DIV>
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="radio" name="courtPaymentMode"
+            id="payModeDp" value="dp" checked onclick="setPaymentMode('dp')" />
+        <label class="form-check-label" for="payModeDp">
+            Downpayment only (50% of court)
+        </label>
+    </div>
+
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="courtPaymentMode"
+            id="payModeFull" value="full" onclick="setPaymentMode('full')" />
+        <label class="form-check-label" for="payModeFull">
+            Full court payment (100% of court)
+        </label>
+    </div>
+
+    <div class="small text-muted mt-2">
+        Rentals and consumables are saved with the reservation but will be paid later.
+    </div>
+</div>
+                                <DIV class="d-flex justify-content-between align-items-end">
+                               
 
                                     <DIV class="total-price-display">
                                         <DIV class="label">Pay Now (PayMongo):</DIV>
@@ -411,7 +430,7 @@
                                 </DIV>
 
                                 <DIV class="mt-3 small text-muted" style="display: none;">
-                                    Required Amount stored in reservation (Court 100% + Rentals 100%):
+                                    Required Amount stored in reservation:
                                     <B><SPAN id="summary-requiredAmountStored">₱ 0</SPAN></B>
                                 </DIV>
                             </DIV>
@@ -433,9 +452,11 @@
                                         <P class="mb-1 small">Sport: <SPAN id="summarySport" class="fw-bold">---</SPAN></P>
                                         <P class="mb-1 small">Time: <SPAN id="summaryTime" class="fw-bold">---</SPAN></P>
                                         <P class="mb-3 small">Duration: <SPAN id="summaryDuration" class="fw-bold">---</SPAN></P>
-                                        <P class="mb-1 small">Players: <SPAN id="summaryPlayers" class="fw-bold">1</SPAN></P>
+                                    
                                     </DIV>
-
+                                    <DIV class="small text-muted mt-1" id="summaryPayNowNoteStep3">
+    You pay 50% court deposit now. Rentals and sale items will be paid later.
+</DIV>
                                     <DIV class="d-flex gap-2 w-100 align-items-stretch">
                                         <BUTTON type="button" class="btn btn-outline-secondary flex-fill" onclick="goBackToRentals()">Back</BUTTON>
 
@@ -570,18 +591,29 @@
                 <SPAN id="pmConsumablesTotal" class="fw-bold">₱ 0.00</SPAN>
             </DIV>
 
-            <HR class="my-3" />
+        <HR class="my-3" />
 
-            <DIV class="d-flex justify-content-between align-items-center">
-                <DIV>
-                    <DIV class="text-muted small">Pay Now (PayMongo)</DIV>
-                    <DIV id="pmTotal" class="fw-bold" style="font-size: 1.4rem;">₱ 0.00</DIV>
-                    <DIV class="text-muted small" style="max-width: 320px;">
-                        You pay rentals (100%) + sale items (100%) + court deposit (50%) now.
-                    </DIV>
-                </DIV>
-            </DIV>
+<DIV class="fw-bold mb-2" style="font-size: .95rem;">Court Payment Option</DIV>
 
+<DIV class="form-check mb-2">
+    <INPUT class="form-check-input" type="radio" name="courtPaymentModeModal"
+        id="payModeDpModal" value="dp" checked onclick="setPaymentMode('dp', true)" />
+    <LABEL class="form-check-label" for="payModeDpModal">
+        Downpayment only (50% of court)
+    </LABEL>
+</DIV>
+
+<DIV class="form-check mb-2">
+    <INPUT class="form-check-input" type="radio" name="courtPaymentModeModal"
+        id="payModeFullModal" value="full" onclick="setPaymentMode('full', true)" />
+    <LABEL class="form-check-label" for="payModeFullModal">
+        Full court payment (100% of court)
+    </LABEL>
+</DIV>
+
+<DIV class="text-muted small mt-2">
+    Rentals and sale items are not charged in PayMongo now. They stay linked to this reservation and can be paid later.
+</DIV>
 
 
             <DIV class="d-flex gap-2 w-100 align-items-stretch">

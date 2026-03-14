@@ -7,11 +7,20 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Smash_IT.receptionistpage
+namespace Smash_IT.homepage
 {
 
 
-    public partial class receptionist_dashboard
+    public partial class live
     {
+
+        /// <summary>
+        /// CourtLive1 control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::Smash_IT.controls.CourtLive CourtLive1;
     }
 }

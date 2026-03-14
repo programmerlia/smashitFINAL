@@ -1,81 +1,143 @@
-
 .hero-section {
     position: relative;
-    width:100%;
+    width: 100%;
+    height: 100%;
+    max-height: 910px;
+    overflow: hidden;
+    background-color: #000;
 }
 
-.hero-slide {
-    height: 90vh;
-    background-size: cover;
-    background-position: center;
-    position: relative;
+.slider-wrapper {
     display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s ease-in-out;
 }
 
-    .hero-slide::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
+.slide {
+    min-width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+    .slide img {
+        position: relative;
+        z-index: 1;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.4);
-    }
-
-
-.hero-content {
-
-    margin-top: 100px;
-    position: relative;
-    z-index: 1;
-    color: var(--white);
-    text-align: left;
-    padding: 20px;
-}
-
-    .hero-content h1 {
-        font-size: 4rem;
-        font-weight: 700;
-        margin-bottom: 15px;
-        color: var(--white);
-    }
-
-    .hero-content p {
-        font-size: 1.2rem;
-        max-width: 600px;
-        margin-bottom: 30px;
-    }
-
-.hero-hours {
-    display: flex;
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-    .hero-hours div {
-        margin-right: 30px;
-    }
-
-    .hero-hours span {
+        object-fit: cover;
         display: block;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        opacity: 0.8;
+        filter: brightness(0.4) contrast(1.1);
     }
 
-.hero-slider .slick-dots {
-    bottom: 25px;
+/* ================= TEXT OVERLAY ================= */
+.hero-overlay-container {
+    position: absolute !important;
+    z-index: 10 !important;
+    bottom: 12%;
+    left: 8%;
+    color: #ffffff;
+    display: block;
+    visibility: visible;
+    width: 80% !important;
+    max-width: 800px !important;
+    pointer-events: none;
+    animation: fadeInUp 0.8s ease-out forwards;
 }
 
-    .hero-slider .slick-dots li button:before {
-        font-size: 12px;
-        color: var(--white);
-        opacity: 0.5;
+.hero-display-title {
+    font-size: clamp(3rem, 8vw, 5rem) !important;
+    font-weight: 800 !important;
+    color: #ffffff !important;
+    margin-bottom: 15px !important;
+    letter-spacing: -2px !important;
+    line-height: 1.1 !important;
+    text-transform: uppercase !important;
+}
+
+.hero-subtext {
+    font-size: 1.2rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 35px !important;
+    opacity: 0.95 !important;
+    color: #ffffff !important;
+    display: block !important;
+}
+
+.hero-schedule-row {
+    display: flex;
+    gap: 50px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 25px;
+}
+/* Removed the extra } that was here */
+
+.schedule-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.schedule-label {
+    color: #f0d673;
+}
+
+
+/* ================= INDICATORS (DOTS) ================= */
+.slider-indicators {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 20;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+}
+
+    .dot.active {
+        background: #ffffff;
+        transform: scale(1.2);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
     }
 
-    .hero-slider .slick-dots li.slick-active button:before {
+/* Simple entry animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
         opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-display-title {
+        font-size: 3rem;
     }
 
+    .hero-schedule-row {
+        gap: 20px;
+        flex-direction: column;
+    }
+
+    .hero-overlay-container {
+        bottom: 15%;
+        left: 5%;
+    }
+}

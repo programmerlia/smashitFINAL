@@ -71,7 +71,7 @@ namespace Smash_IT.adminpage
                     LEFT JOIN tblPlayerAccount u ON pay.UserID = u.UserID
                     LEFT JOIN tblPlayerWalkIn w ON pay.WalkInID = w.WalkInID
                     WHERE 1=1 {dateClause}
-                    ORDER BY pay.PaymentDate DESC";
+                    ORDER BY pay.PaymentDate DESC, pay.PaymentID DESC";
 
                 SqlDataAdapter da = new SqlDataAdapter(query, conn);
                 DataTable dt = new DataTable();
@@ -302,9 +302,11 @@ namespace Smash_IT.adminpage
             using (SqlConnection conn = new SqlConnection(connStr))
             {
                 string query = @"SELECT pay.PaymentID, pay.PaymentDate, 
-                                COALESCE(u.Firstname, 'Walk-In') as Cust, pay.PaymentTypeName, 
-                                pay.Amount 
-                                FROM tblPayment pay LEFT JOIN tblPlayerAccount u ON pay.UserID = u.UserID";
+                COALESCE(u.Firstname, 'Walk-In') as Cust, pay.PaymentTypeName, 
+                pay.Amount 
+                FROM tblPayment pay 
+                LEFT JOIN tblPlayerAccount u ON pay.UserID = u.UserID
+                ORDER BY pay.PaymentDate DESC, pay.PaymentID DESC";
 
                 SqlCommand cmd = new SqlCommand(query, conn);
                 conn.Open();

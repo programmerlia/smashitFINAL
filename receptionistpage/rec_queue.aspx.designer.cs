@@ -7,210 +7,147 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Smash_IT.homepage
+namespace Smash_IT.receptionistpage
 {
 
 
-    public partial class reservation
+    public partial class rec_queue
     {
 
         /// <summary>
-        /// btnReserveNow control.
+        /// UpdateProgress1 control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnReserveNow;
+        protected global::System.Web.UI.UpdateProgress UpdateProgress1;
 
         /// <summary>
-        /// hfCourts control.
+        /// upMain control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfCourts;
+        protected global::System.Web.UI.UpdatePanel upMain;
 
         /// <summary>
-        /// hfQueues control.
+        /// txtDate control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfQueues;
+        protected global::System.Web.UI.WebControls.TextBox txtDate;
 
         /// <summary>
-        /// hfSelectedCourtID control.
+        /// btnToday control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfSelectedCourtID;
+        protected global::System.Web.UI.WebControls.Button btnToday;
 
         /// <summary>
-        /// hfSelectedDate control.
+        /// chkHideCancelled control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfSelectedDate;
+        protected global::System.Web.UI.WebControls.CheckBox chkHideCancelled;
 
         /// <summary>
-        /// hfCourtID control.
+        /// gvScheduleGrid control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfCourtID;
+        protected global::System.Web.UI.WebControls.GridView gvScheduleGrid;
 
         /// <summary>
-        /// hfCourtNum control.
+        /// lblDgvDate control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfCourtNum;
+        protected global::System.Web.UI.WebControls.Label lblDgvDate;
 
         /// <summary>
-        /// hfStartTime control.
+        /// gvAllEvents control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfStartTime;
+        protected global::System.Web.UI.WebControls.GridView gvAllEvents;
 
         /// <summary>
-        /// hfEndTime control.
+        /// pnlSidebarWrapper control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfEndTime;
+        protected global::System.Web.UI.WebControls.Panel pnlSidebarWrapper;
 
         /// <summary>
-        /// hfResDate control.
+        /// litSidebarHeader control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfResDate;
+        protected global::System.Web.UI.WebControls.Literal litSidebarHeader;
 
         /// <summary>
-        /// hfSelectedSport control.
+        /// pnlEmptyState control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfSelectedSport;
+        protected global::System.Web.UI.WebControls.Panel pnlEmptyState;
 
         /// <summary>
-        /// hfRentalCart control.
+        /// pnlEventForm control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfRentalCart;
+        protected global::System.Web.UI.WebControls.Panel pnlEventForm;
 
         /// <summary>
-        /// hfRentalItems control.
+        /// hfIsEdit control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfRentalItems;
+        protected global::System.Web.UI.WebControls.HiddenField hfIsEdit;
 
         /// <summary>
-        /// hfRentalStock control.
+        /// hfEventID control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfRentalStock;
+        protected global::System.Web.UI.WebControls.HiddenField hfEventID;
 
         /// <summary>
-        /// hfConsumableCart control.
+        /// txtEventTitle control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfConsumableCart;
-
-        /// <summary>
-        /// hfPaymentMode control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hfPaymentMode;
-
-        /// <summary>
-        /// reservationSection control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.HtmlControls.HtmlGenericControl reservationSection;
-
-        /// <summary>
-        /// btnResetReservation control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnResetReservation;
-
-        /// <summary>
-        /// updReservation control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.UpdatePanel updReservation;
-
-        /// <summary>
-        /// Calendar1 control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Calendar Calendar1;
-
-        /// <summary>
-        /// lblUnavailableHours control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblUnavailableHours;
-
-        /// <summary>
-        /// ddlDuration control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.DropDownList ddlDuration;
+        protected global::System.Web.UI.WebControls.TextBox txtEventTitle;
 
         /// <summary>
         /// ddlSport control.
@@ -222,93 +159,147 @@ namespace Smash_IT.homepage
         protected global::System.Web.UI.WebControls.DropDownList ddlSport;
 
         /// <summary>
-        /// lblSelectedSlot control.
+        /// txtFee control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblSelectedSlot;
+        protected global::System.Web.UI.WebControls.TextBox txtFee;
 
         /// <summary>
-        /// phTimeTable control.
+        /// txtMaxPlayers control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.PlaceHolder phTimeTable;
+        protected global::System.Web.UI.WebControls.TextBox txtMaxPlayers;
 
         /// <summary>
-        /// btn_proceed_rentals control.
+        /// cblCourts control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btn_proceed_rentals;
+        protected global::System.Web.UI.WebControls.CheckBoxList cblCourts;
 
         /// <summary>
-        /// btn_proceed_details control.
+        /// ddlStartTime control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btn_proceed_details;
+        protected global::System.Web.UI.WebControls.DropDownList ddlStartTime;
 
         /// <summary>
-        /// txtFirstname control.
+        /// ddlEndTime control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtFirstname;
+        protected global::System.Web.UI.WebControls.DropDownList ddlEndTime;
 
         /// <summary>
-        /// txtLastname control.
+        /// btnSaveEvent control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtLastname;
+        protected global::System.Web.UI.WebControls.Button btnSaveEvent;
 
         /// <summary>
-        /// txtContact control.
+        /// btnRemoveSlot control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtContact;
+        protected global::System.Web.UI.WebControls.Button btnRemoveSlot;
 
         /// <summary>
-        /// txtEmail control.
+        /// btnCancelEvent control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.TextBox txtEmail;
+        protected global::System.Web.UI.WebControls.Button btnCancelEvent;
 
         /// <summary>
-        /// btnBookReservation control.
+        /// pnlMatchSummary control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnBookReservation;
+        protected global::System.Web.UI.WebControls.Panel pnlMatchSummary;
 
         /// <summary>
-        /// btnSubmitReservation control.
+        /// rptSummary control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnSubmitReservation;
+        protected global::System.Web.UI.WebControls.Repeater rptSummary;
+
+        /// <summary>
+        /// litNoSummary control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litNoSummary;
+
+        /// <summary>
+        /// hfActionType control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfActionType;
+
+        /// <summary>
+        /// hfActionCourt control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfActionCourt;
+
+        /// <summary>
+        /// hfActionTime control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfActionTime;
+
+        /// <summary>
+        /// hfActionEventID control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfActionEventID;
+
+        /// <summary>
+        /// btnHiddenTrigger control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnHiddenTrigger;
     }
 }

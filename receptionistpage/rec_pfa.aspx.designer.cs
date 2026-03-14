@@ -11,142 +11,142 @@ namespace Smash_IT.receptionistpage
 {
 
 
-    public partial class receptionist
+    public partial class rec_pfa
     {
 
         /// <summary>
-        /// head control.
+        /// txtFilterDate control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.ContentPlaceHolder head;
+        protected global::System.Web.UI.WebControls.TextBox txtFilterDate;
 
         /// <summary>
-        /// ScriptManager1 control.
+        /// lblMsg control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.ScriptManager ScriptManager1;
+        protected global::System.Web.UI.WebControls.Label lblMsg;
 
         /// <summary>
-        /// sidebar control.
+        /// hfPAYCID control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.HtmlControls.HtmlGenericControl sidebar;
+        protected global::System.Web.UI.WebControls.HiddenField hfPAYCID;
 
         /// <summary>
-        /// recLogo control.
+        /// hfWalkInID control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Image recLogo;
+        protected global::System.Web.UI.WebControls.HiddenField hfWalkInID;
 
         /// <summary>
-        /// sidebarMenu control.
+        /// hfPlayerData control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.HtmlControls.HtmlGenericControl sidebarMenu;
+        protected global::System.Web.UI.WebControls.HiddenField hfPlayerData;
 
         /// <summary>
-        /// navDashboard control.
+        /// txtPlayerName control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HyperLink navDashboard;
+        protected global::System.Web.UI.WebControls.TextBox txtPlayerName;
 
         /// <summary>
-        /// HyperLink1 control.
+        /// ddlSport control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HyperLink HyperLink1;
+        protected global::System.Web.UI.WebControls.DropDownList ddlSport;
 
         /// <summary>
-        /// navReservations control.
+        /// txtTime control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HyperLink navReservations;
+        protected global::System.Web.UI.WebControls.TextBox txtTime;
 
         /// <summary>
-        /// navQueue control.
+        /// cblEquipment control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HyperLink navQueue;
+        protected global::System.Web.UI.WebControls.CheckBoxList cblEquipment;
 
         /// <summary>
-        /// navCourt control.
+        /// cblConsumables control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HyperLink navCourt;
+        protected global::System.Web.UI.WebControls.CheckBoxList cblConsumables;
 
         /// <summary>
-        /// HyperLink3 control.
+        /// lblTotalDisplay control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.HyperLink HyperLink3;
+        protected global::System.Web.UI.WebControls.Label lblTotalDisplay;
 
         /// <summary>
-        /// lblFullName control.
+        /// btnCheckIn control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblFullName;
+        protected global::System.Web.UI.WebControls.Button btnCheckIn;
 
         /// <summary>
-        /// lblRole control.
+        /// btnCancelEdit control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Label lblRole;
+        protected global::System.Web.UI.WebControls.LinkButton btnCancelEdit;
 
         /// <summary>
-        /// btnLogout control.
+        /// gvBadminton control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.LinkButton btnLogout;
+        protected global::System.Web.UI.WebControls.GridView gvBadminton;
 
         /// <summary>
-        /// MainContent control.
+        /// gvPickleball control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.ContentPlaceHolder MainContent;
+        protected global::System.Web.UI.WebControls.GridView gvPickleball;
     }
 }

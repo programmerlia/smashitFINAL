@@ -1,8 +1,10 @@
-
+/* ================= FOOTER SECTION ================= */
 .site-footer {
-    background-color: var(--light-bg);
+    background-color: #f5f7f9;
     padding: 60px 0 20px;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    font-family: 'Inter', 'Poppins', -apple-system, sans-serif;
 }
 
 .footer-content {
@@ -16,8 +18,12 @@
 }
 
     .footer-col h3 {
+        font-family: 'Inter', 'Poppins', -apple-system, sans-serif;
         font-size: 1.2rem;
+        color: var(--text-dark);
+        font-weight: 800;
         margin-bottom: 20px;
+        letter-spacing: -0.5px;
     }
 
 .footer-logo {
@@ -28,6 +34,22 @@
     display: block;
 }
 
+.footer-col ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+    .footer-col ul li a {
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: var(--transition);
+    }
+
+        .footer-col ul li a:hover {
+            color: var(--primary-color);
+        }
+
 .footer-col.links ul li {
     margin-bottom: 10px;
 }
@@ -36,6 +58,7 @@
     margin-bottom: 10px;
     display: flex;
     align-items: center;
+    color: var(--text-muted);
 }
 
     .footer-col.contact ul li i {
@@ -51,37 +74,50 @@
         display: inline-block;
         width: 35px;
         height: 35px;
-        background-color: #ddd;
-        color: var(--secondary-color);
+        background-color: rgba(0, 0, 88, 0.05);
+        color: var(--primary-color);
         text-align: center;
         line-height: 35px;
         border-radius: 50%;
         margin-right: 10px;
-        transition: background-color 0.3s ease;
+        transition: var(--transition);
     }
 
         .social-icons a:hover {
             background-color: var(--primary-color);
-            color: var(--white);
+            color: #ffffff;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 88, 0.2);
         }
 
 .footer-bottom {
-    border-top: 1px solid #ddd;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
     padding-top: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: var(--text-muted);
 }
 
 .back-to-top {
     display: flex;
     align-items: center;
+    color: var(--text-dark);
+    font-weight: 700;
+    text-decoration: none;
+    transition: var(--transition);
+    cursor: pointer;
 }
+
+    .back-to-top:hover {
+        color: var(--primary-color);
+    }
 
     .back-to-top i {
         margin-left: 10px;
     }
 
+/* ================= MOBILE RESPONSIVENESS (Untouched Positioning) ================= */
 @media (max-width: 768px) {
     .site-nav {
         display: none;

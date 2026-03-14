@@ -11,7 +11,16 @@ namespace Smash_IT.receptionistpage
 {
 
 
-    public partial class receptionist_dashboard
+    public partial class rec_live_courts
     {
+
+        /// <summary>
+        /// CourtLive1 control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::Smash_IT.controls.CourtLive CourtLive1;
     }
 }

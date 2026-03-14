@@ -1,71 +1,127 @@
+:root {
+    --primary-color: #000058;
+    --accent-color: #ff4d4d;
+    --text-dark: #1a1a1a;
+    --text-muted: #64748b;
+    --transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+/* ================= SECTION LAYOUT ================= */
 .reserve-section {
-    padding: 80px 0;
+    background-color: #f5f7f9;
+    width: 100%;
+    padding: 80px 20px;
+    margin: 0 auto;
+    box-shadow: inset 0 20px 20px -20px rgba(0,0,0,0.05);
 }
 
 .reserve-content {
     display: flex;
     align-items: center;
-    gap: 50px;
+    gap: 80px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
+/* ================= IMAGE STYLING ================= */
 .reserve-image {
     flex: 1;
+    width: 100%;
+    height: 450px;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
     .reserve-image img {
         width: 100%;
-        height: auto;
+        height: 100%;
+        object-fit: cover;
         display: block;
-        border-radius: 10px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: var(--transition);
     }
 
+.reserve-content:hover .reserve-image img {
+    transform: scale(1.06);
+}
+
+/* ================= TEXT STYLING ================= */
 .reserve-text {
-    flex: 1;
+    flex: 1.2;
 }
 
     .reserve-text h2 {
-        font-size: 2.5rem;
+        font-family: 'Inter', 'Poppins', -apple-system, sans-serif;
+        font-size: 2.8rem;
+        color: var(--text-dark);
+        font-weight: 800;
         margin-bottom: 20px;
-        color: var(--secondary-color, #333);
+        letter-spacing: -1px;
+        line-height: 1.1;
     }
 
     .reserve-text p {
-        font-size: 1rem;
-        line-height: 1.6;
-        margin-bottom: 25px;
-        color: #555;
+        line-height: 1.8;
+        color: var(--text-muted);
+        margin-bottom: 35px;
+        font-size: 1.15rem;
     }
 
     .reserve-text .note {
-        font-size: 0.9rem;
-        color: #777;
-        margin-top: 15px;
+        display: block;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        background: transparent;
+        padding: 0;
+        margin-top: 12px;
         margin-bottom: 0;
+        text-transform: none;
     }
 
-.btn-reserve-hero {
+/* ================= BUTTONS ================= */
+.btn-reserve {
     display: inline-block;
-    background-color: #000058;
-    color: var(--brand);
-    padding: 12px 30px;
+    background-color: var(--primary-color);
+    color: white !important;
+    padding: 16px 40px;
     text-decoration: none;
-    font-weight: 600;
-    border-radius: 5px;
+    font-weight: 700;
     text-transform: uppercase;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    letter-spacing: 1px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    transition: var(--transition);
 }
 
-    .btn-reserve-hero:hover {
-        background-color: #000030;
-        color: #ffffff;
-        transform: translateY(-2px);
+    .btn-reserve:hover {
+        background-color: var(--text-dark);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0, 0, 88, 0.2);
     }
+
+/* ================= MOBILE RESPONSIVENESS ================= */
+@media (max-width: 992px) {
+    .reserve-content {
+        gap: 40px;
+    }
+
+    .reserve-text h2 {
+        font-size: 2.2rem;
+    }
+}
 
 @media (max-width: 850px) {
     .reserve-content {
-        flex-direction: column;
-        text-align: center;
-        gap: 30px;
+        flex-direction: column !important;
+        text-align: center !important;
+        margin-bottom: 80px;
+    }
+
+    .reserve-text, .reserve-image {
+        width: 100%;
+    }
+
+    .reserve-image {
+        height: 350px;
     }
 }

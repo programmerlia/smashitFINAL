@@ -348,51 +348,6 @@ namespace Smash_IT.adminpage
             ddlRole.SelectedIndex = 0;
         }
 
-        // ==========================================
-        // PLAYER STATISTICS AJAX METHODS
-        // ==========================================
-        public class UserStats
-        {
-            public decimal TotalPaid { get; set; }
-            public int Reservations { get; set; }
-            public int Games { get; set; }
-            public int Rentals { get; set; }
-            public int PayAllYouCan { get; set; }
-        }
-
-        [WebMethod]
-        public static UserStats GetPlayerStats(string userId)
-        {
-            string dbConn = ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
-            UserStats stats = new UserStats();
-
-            if (string.IsNullOrEmpty(userId)) return stats;
-
-            using (SqlConnection conn = new SqlConnection(dbConn))
-            {
-                string query = @"
-                    SELECT ISNULL(SUM(Amount), 0) FROM tblPayment WHERE UserID = @UID;
-                    SELECT COUNT(*) FROM tblReservation WHERE UserID = @UID;
-                    SELECT COUNT(*) FROM tblCourtQueue WHERE UserID = @UID;
-                    SELECT COUNT(*) FROM tblRental WHERE UserID = @UID;
-                    SELECT COUNT(*) FROM tblPlayAllYouCanRegistry r 
-                    JOIN tblPlayerWalkIn w ON r.WalkInID = w.WalkInID WHERE w.UserID = @UID;";
-
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@UID", userId);
-                conn.Open();
-
-                using (SqlDataReader dr = cmd.ExecuteReader())
-                {
-                    if (dr.Read() && !dr.IsDBNull(0)) stats.TotalPaid = Convert.ToDecimal(dr[0]);
-
-                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.Reservations = Convert.ToInt32(dr[0]);
-                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.Games = Convert.ToInt32(dr[0]);
-                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.Rentals = Convert.ToInt32(dr[0]);
-                    if (dr.NextResult() && dr.Read() && !dr.IsDBNull(0)) stats.PayAllYouCan = Convert.ToInt32(dr[0]);
-                }
-            }
-            return stats;
-        }
+      
     }
 }

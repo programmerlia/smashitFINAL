@@ -1,10 +1,11 @@
+/* ========== CSS ========== */
 body {
     padding-top: 70px;
     margin: 0;
 }
 
 .site-header {
-    background-color: var(--white, #ffffff);
+    background-color: #1e3a8a !important;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     position: fixed;
     width: 100%;
@@ -22,44 +23,51 @@ body {
         max-width: 100%;
         max-height: 100px;
         margin: 0;
-        padding: 15px 30px;
+        padding: 12px 30px;
         box-sizing: border-box;
     }
 
+/* ========== LOGO FIX ========== */
 .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 15px;
     text-decoration: none;
     margin-right: auto;
-    margin-left: 20px;
+    margin-left: 10px;
+    transform: translateY(8px);
 }
 
     .logo img {
-        height: 100px;
+        height: 42px;
         width: auto;
         display: block;
+        object-fit: contain;
     }
 
 .logo-text-wrapper {
     display: flex;
     flex-direction: column;
+    justify-content: center;
 }
 
 .logo-text {
     font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--secondary-color, #333);
+    font-weight: 800;
+    color: #ffffff;
     white-space: nowrap;
-    line-height: 1.1;
+    line-height: 1;
 }
 
 .under-text {
-    font-size: .75rem;
+    font-size: 0.8rem;
     font-weight: 400;
+    color: #f5f5f5;
     white-space: nowrap;
+    margin-top: 2px;
 }
 
+/* ========== NAVIGATION ========== */
 .site-nav ul {
     display: flex;
     align-items: center;
@@ -71,7 +79,7 @@ body {
 
     .site-nav ul li a {
         text-decoration: none;
-        color: var(--secondary-color, #333);
+        color: #ffffff;
         font-weight: 600;
         font-size: 0.9rem;
         position: relative;
@@ -79,9 +87,10 @@ body {
         padding-bottom: 4px;
     }
 
+        /* This targets the dynamic "active" class assigned by the JavaScript */
         .site-nav ul li a:hover,
         .site-nav ul li a.active {
-            color: var(--primary-color);
+            color: #f0d673;
         }
 
         .site-nav ul li a::after {
@@ -91,7 +100,7 @@ body {
             bottom: -4px;
             width: 0%;
             height: 2px;
-            background: var(--primary-color);
+            background: #f0d673;
             transition: width 0.3s ease;
         }
 

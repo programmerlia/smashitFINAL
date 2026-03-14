@@ -85,6 +85,8 @@ namespace Smash_IT.homepage
             return NormalizeSport(s);
         }
 
+
+
         private DateTime? LastSelectedDate
         {
             get
@@ -138,7 +140,9 @@ namespace Smash_IT.homepage
             public string Email { get; set; }
             public string Contact { get; set; }
             public int Players { get; set; }
-
+            public string PaymentMode { get; set; } // "dp" or "full"
+            public decimal CourtAmountToChargeNowPesos { get; set; }
+            public decimal RemainingBalancePesos { get; set; }
             public string RentalCartJson { get; set; }
             public string ConsumableCartJson { get; set; }
 
@@ -741,7 +745,14 @@ VALUES
             DateTime resDate;
             TimeSpan startTime;
             TimeSpan endTime;
+            bool isFullCourtPayment = string.Equals(draft.PaymentMode, "full", StringComparison.OrdinalIgnoreCase);
+            bool reservationIsPaid = isFullCourtPayment;
+            string reservationPaymentStatus = isFullCourtPayment ? "FullyPaid" : "HalfPaid";
+            if (draft.CourtAmountToChargeNowPesos <= 0m)
+                throw new Exception("Invalid payment amount.");
 
+            if (draft.RequiredAmountStoredPesos < draft.CourtAmountToChargeNowPesos)
+                throw new Exception("Stored required amount is less than amount paid.");
             if (!TryParseDateFlexible(draft.ResDate, out resDate))
                 throw new Exception("Draft date invalid.");
 
@@ -805,11 +816,12 @@ WHERE CourtID = @CourtID
                                 throw new Exception("That slot was taken while payment was in progress.");
                         }
 
+
                         using (SqlCommand cmdInsRes = new SqlCommand(@"
 INSERT INTO tblReservation
 (UserID, CourtID, ResDate, StartTime, EndTime, SportName, ReservationStatusName, IsPaid, PaymentStatus, RequiredAmount, PaymongoCheckoutSessionID)
 VALUES
-(@UserID, @CourtID, @ResDate, @StartTime, @EndTime, @SportName, 'Pending', 1, 'HalfPaid', @RequiredAmount, @CSID);
+(@UserID, @CourtID, @ResDate, @StartTime, @EndTime, @SportName, 'Pending', @IsPaid, @PaymentStatus, @RequiredAmount, @CSID);
 SELECT SCOPE_IDENTITY();", con, tx))
                         {
                             cmdInsRes.Parameters.AddWithValue("@UserID", draft.UserID);
@@ -818,6 +830,8 @@ SELECT SCOPE_IDENTITY();", con, tx))
                             cmdInsRes.Parameters.AddWithValue("@StartTime", startTime);
                             cmdInsRes.Parameters.AddWithValue("@EndTime", endTime);
                             cmdInsRes.Parameters.AddWithValue("@SportName", draft.SportName ?? "");
+                            cmdInsRes.Parameters.AddWithValue("@IsPaid", reservationIsPaid ? 1 : 0);
+                            cmdInsRes.Parameters.AddWithValue("@PaymentStatus", reservationPaymentStatus);
                             cmdInsRes.Parameters.AddWithValue("@RequiredAmount", draft.RequiredAmountStoredPesos);
                             cmdInsRes.Parameters.AddWithValue("@CSID", checkoutSessionId ?? "");
 
@@ -827,43 +841,6 @@ SELECT SCOPE_IDENTITY();", con, tx))
                         CreateRentalRowsForReservation(con, tx, reservationId, draft.UserID, resDate.Date, startTime, endTime, rentalLines);
                         CreateConsumableRowsForReservation(con, tx, reservationId, draft.UserID, consumableLines);
 
-                        if (draft.RentalsFullPesos > 0m)
-                        {
-                            using (SqlCommand cmd = new SqlCommand(@"
-INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
-VALUES ('Rental', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@UserID", draft.UserID);
-                                cmd.Parameters.AddWithValue("@RID", reservationId);
-                                cmd.Parameters.AddWithValue("@Amt", draft.RentalsFullPesos);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            using (SqlCommand cmd = new SqlCommand("UPDATE tblRental SET IsPaid=1 WHERE ReservationID=@RID;", con, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@RID", reservationId);
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
-
-                        if (draft.ConsumablesFullPesos > 0m)
-                        {
-                            using (SqlCommand cmd = new SqlCommand(@"
-INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
-VALUES ('Consumable', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@UserID", draft.UserID);
-                                cmd.Parameters.AddWithValue("@RID", reservationId);
-                                cmd.Parameters.AddWithValue("@Amt", draft.ConsumablesFullPesos);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            using (SqlCommand cmd = new SqlCommand("UPDATE tblConsumable SET IsPaid=1 WHERE ReservationID=@RID;", con, tx))
-                            {
-                                cmd.Parameters.AddWithValue("@RID", reservationId);
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
 
                         using (SqlCommand cmd2 = new SqlCommand(@"
 INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
@@ -871,7 +848,7 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
                         {
                             cmd2.Parameters.AddWithValue("@UserID", draft.UserID);
                             cmd2.Parameters.AddWithValue("@RID", reservationId);
-                            cmd2.Parameters.AddWithValue("@Amt", draft.CourtDepositPesos);
+                            cmd2.Parameters.AddWithValue("@Amt", draft.CourtAmountToChargeNowPesos);
                             cmd2.ExecuteNonQuery();
                         }
 
@@ -920,10 +897,10 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
                 return;
             }
 
-            if (resDate.Date < DateTime.Today || resDate.Date > DateTime.Today.AddDays(14))
+            if (resDate.Date < DateTime.Today || resDate.Date > DateTime.Today.AddDays(3))
             {
                 Response.StatusCode = 400;
-                Response.Write("You can only reserve within 2 weeks from today.");
+                Response.Write("You can only reserve within 3 days from today.");
                 return;
             }
 
@@ -1014,7 +991,16 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
             decimal rentalsFullPesos = 0m;
             decimal consumablesFullPesos = 0m;
             decimal requiredAmountStoredPesos = 0m;
+            string paymentModeRaw = FirstNonEmpty(
+    hfPaymentMode.Value,
+    Request.Form[hfPaymentMode.UniqueID],
+    Request.Form["hfPaymentMode"]
+).ToLowerInvariant();
 
+            string paymentMode = paymentModeRaw == "full" ? "full" : "dp";
+            decimal courtAmountToChargeNowPesos = paymentMode == "full"
+                ? courtFullPesos
+                : courtDepositPesos;
             using (SqlConnection con = new SqlConnection(CS))
             {
                 con.Open();
@@ -1107,10 +1093,12 @@ WHERE CourtID = @CourtID
                 CourtDepositPesos = courtDepositPesos,
                 RentalsFullPesos = rentalsFullPesos,
                 ConsumablesFullPesos = consumablesFullPesos,
-                PaymongoChargeNowPesos = courtDepositPesos + rentalsFullPesos + consumablesFullPesos,
-                RequiredAmountStoredPesos = requiredAmountStoredPesos
+                PaymentMode = paymentMode,
+                CourtAmountToChargeNowPesos = courtAmountToChargeNowPesos,
+                PaymongoChargeNowPesos = courtAmountToChargeNowPesos,
+                RequiredAmountStoredPesos = requiredAmountStoredPesos,
+                RemainingBalancePesos = requiredAmountStoredPesos - courtAmountToChargeNowPesos
             };
-
             Session["PendingReservationDraft"] = new JavaScriptSerializer().Serialize(draft);
             Session["PendingReservationCheckoutSessionID"] = null;
             Session["PendingReservationCheckoutURL"] = null;
@@ -1217,14 +1205,14 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
         protected void Calendar1_DayRender(object sender, DayRenderEventArgs e)
         {
             DateTime min = DateTime.Today;
-            DateTime max = DateTime.Today.AddDays(14);
+            DateTime max = DateTime.Today.AddDays(3);
 
             if (e.Day.Date < min || e.Day.Date > max)
             {
                 e.Day.IsSelectable = false;
                 e.Cell.ForeColor = System.Drawing.Color.LightGray;
                 e.Cell.BackColor = System.Drawing.ColorTranslator.FromHtml("#f5f5f5");
-                e.Cell.ToolTip = "Reservations allowed only within 2 weeks.";
+                e.Cell.ToolTip = "Reservations allowed only within 3 days.";
             }
         }
 
@@ -1249,7 +1237,7 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
             }
 
             DateTime min = DateTime.Today;
-            DateTime max = DateTime.Today.AddDays(14);
+            DateTime max = DateTime.Today.AddDays(3);
 
             if (selectedDate < min || selectedDate > max)
             {
@@ -1467,7 +1455,7 @@ ORDER BY StartTime;";
                                   "data-court='" + courtId + "' " +
                                   "data-courtnum='" + courtNum + "' " +
                                   "data-date='" + date.ToString("yyyy-MM-dd") + "' " +
-                                  "data-start='" + t.ToString(@"hh\:mm") + "'>PFA</div></td>");
+                                  "data-start='" + t.ToString(@"hh\:mm") + "'>Open</div></td>");
                     }
                     else if (isQueue)
                     {

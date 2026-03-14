@@ -41,14 +41,17 @@
           function toggleAccountButtons() {
               var loginBtn = document.getElementById("accountBtn");
               var profileItem = document.getElementById("profileNavItem");
+              var liveBtn = document.getElementById("liveBtn");
               if (!loginBtn || !profileItem) return;
 
               if (window.isLoggedIn) {
                   loginBtn.style.display = "none";
                   profileItem.style.display = "inline-block";
+                  liveBtn.style.display = "inline-block";
               } else {
                   loginBtn.style.display = "inline";
                   profileItem.style.display = "none";
+                  liveBtn.style.display = "none";
               }
           }
 
@@ -100,6 +103,7 @@
                         <li><a href='<%= ResolveUrl("~/homepage/home.aspx") %>'>Home</a></li>
                         <li><a href='<%= ResolveUrl("~/homepage/announcement.aspx") %>'>Announcement</a></li>
                         <li><a href='<%= ResolveUrl("~/homepage/reservation.aspx") %>'>Reservation</a></li>
+                        <li><a href='<%= ResolveUrl("~/homepage/live.aspx") %>' id="liveBtn" >Live Court</a></li>
                         <li><a href='<%= ResolveUrl("~/homepage/about.aspx") %>'>About</a></li>
                         <li><a href='<%= ResolveUrl("~/login.aspx") %>' id="adminBtn">Admin</a></li>
                                        <li><a href="#" id="accountBtn" onclick="checkAccount(); return false;">Login</a></li>
