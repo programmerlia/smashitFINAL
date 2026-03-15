@@ -70,9 +70,10 @@
 <asp:Content ID="ContentMain" ContentPlaceHolderID="MainContent" runat="server" CssClass="main-flex">
 
     <!-- HERO -->
+     <div style="margin-top:10vh;"></div>
     <DIV class="hero-section">
         <DIV class="container hero-content">
-            <H1>BOOK YOUR<BR />
+            <H1 style="color:white;">BOOK YOUR<BR />
                 COURT NOW</H1>
             <P class="hero-subtext">Experience the best indoor courts in town. Badminton &amp; Pickleball available.</P>
 
@@ -93,7 +94,6 @@
 
     <!-- Hidden JSON -->
     <asp:HiddenField ID="hfCourts" runat="server" ClientIDMode="Static" />
-    <asp:HiddenField ID="hfQueues" runat="server" ClientIDMode="Static" />
 
     <!-- Selection hidden fields -->
     <asp:HiddenField ID="hfSelectedCourtID" runat="server" ClientIDMode="Static" />
@@ -299,14 +299,8 @@
                                     <DIV class="summary-details mt-4">
                                         <P class="mb-1 small">Court: <SPAN id="courtSummaryCourt" class="fw-bold">---</SPAN></P>
                                         <P class="mb-1 small">Sport: <SPAN id="courtSummarySport" class="fw-bold">---</SPAN></P>
-                                        <P class="mb-1 small">Time: <SPAN id="courtSummaryTime" class="fw-bold">---</SPAN></P>
-                                        <P class="mb-3 small">Duration: <SPAN id="courtSummaryDuration" class="fw-bold">---</SPAN></P>
-
-                                        <DIV class="player-input-wrapper mb-4">
-                                            <LABEL class="small fw-bold">Number of Players</LABEL>
-                                            <INPUT type="number" id="numPlayers" class="form-control" min="1" max="10" value="1" />
-                                        </DIV>
-
+                                        <P class="mb-1 small">Time: <SPAN id="courtSummaryTime" class="fw-bold">---</SPAN><SPAN id="courtSummaryDuration" class="fw-bold">---</SPAN></P>
+                                    
                                         <DIV class="p-3">
                                             <DIV class="d-flex justify-content-between">
                                                 <SPAN class="fw-bold">Court Total (100%)</SPAN>
@@ -337,11 +331,9 @@
                                     </DIV>
 
                                     <DIV class="total-price-display mb-3">
-                                        <DIV class="label">Pay Now (PayMongo):</DIV>
+                                        <DIV class="label">Pay Now </DIV>
                                         <DIV id="summary-totalPrice" class="amount">₱ 0</DIV>
-                                        <DIV class="small text-muted mt-1" id="summaryPayNowNoteStep2">
-    You pay 50% court deposit now. Rentals and sale items will be paid later.
-</DIV>
+                                     
                                     </DIV>
 
                                     <DIV class="d-flex gap-2 w-100 align-items-stretch">
@@ -423,10 +415,6 @@
                                 <DIV class="d-flex justify-content-between align-items-end">
                                
 
-                                    <DIV class="total-price-display">
-                                        <DIV class="label">Pay Now (PayMongo):</DIV>
-                                        <DIV id="summary-totalPriceInfo" class="amount">₱ 0</DIV>
-                                    </DIV>
                                 </DIV>
 
                                 <DIV class="mt-3 small text-muted" style="display: none;">
@@ -452,11 +440,13 @@
                                         <P class="mb-1 small">Sport: <SPAN id="summarySport" class="fw-bold">---</SPAN></P>
                                         <P class="mb-1 small">Time: <SPAN id="summaryTime" class="fw-bold">---</SPAN></P>
                                         <P class="mb-3 small">Duration: <SPAN id="summaryDuration" class="fw-bold">---</SPAN></P>
-                                    
+                                        
                                     </DIV>
-                                    <DIV class="small text-muted mt-1" id="summaryPayNowNoteStep3">
-    You pay 50% court deposit now. Rentals and sale items will be paid later.
-</DIV>
+                           
+                                    <DIV class="total-price-display">
+                                        <DIV class="label">Pay Now (PayMongo):</DIV>
+                                        <DIV id="summary-totalPriceInfo" class="amount">₱ 0</DIV>
+                                    </DIV>
                                     <DIV class="d-flex gap-2 w-100 align-items-stretch">
                                         <BUTTON type="button" class="btn btn-outline-secondary flex-fill" onclick="goBackToRentals()">Back</BUTTON>
 
@@ -561,17 +551,14 @@
             <HR class="my-3" />
 
             <DIV class="small" style="line-height: 1.6;">
-                <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Court</SPAN><SPAN id="pmCourt" class="fw-bold">---</SPAN></DIV>
+                <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Court</SPAN><SPAN id="pmCourt" class="fw-bold">---</SPAN> (<SPAN id="pmDuration" class="small text-muted">---</SPAN>)</DIV>
                 <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Sport</SPAN><SPAN id="pmSport" class="fw-bold">---</SPAN></DIV>
-                <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Date</SPAN><SPAN id="pmDate" class="fw-bold">---</SPAN></DIV>
+                <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Date</SPAN><SPAN id="pmDate" class="fw-bold">---</SPAN> </DIV>
                 <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Time</SPAN><SPAN id="pmTime" class="fw-bold">---</SPAN></DIV>
-                <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Duration</SPAN><SPAN id="pmDuration" class="fw-bold">---</SPAN></DIV>
-                <DIV class="d-flex justify-content-between"><SPAN class="text-muted">Players</SPAN><SPAN id="pmPlayers" class="fw-bold">---</SPAN></DIV>
-            </DIV>
+                 </DIV>
 
             <HR class="my-3" />
 
-            <DIV class="fw-bold mb-2" style="font-size: .95rem;">Rentals</DIV>
             <DIV id="pmRentals" class="small text-muted" style="max-height: 160px; overflow: auto;">
                 No rental items yet.
             </DIV>
@@ -582,7 +569,6 @@
 
             <HR class="my-3" />
 
-            <DIV class="fw-bold mb-2" style="font-size: .95rem;">Sale Items</DIV>
             <DIV id="pmConsumables" class="small text-muted" style="max-height: 160px; overflow: auto;">
                 No sale items bought.
             </DIV>
@@ -612,7 +598,7 @@
 </DIV>
 
 <DIV class="text-muted small mt-2">
-    Rentals and sale items are not charged in PayMongo now. They stay linked to this reservation and can be paid later.
+    Pay rentals and consuumables upon Walk in
 </DIV>
 
 

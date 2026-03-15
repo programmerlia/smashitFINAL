@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CloudinaryDotNet.Actions;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -8,15 +9,16 @@ using System.Text;
 using System.Web;
 using System.Web.Script.Serialization;
 using System.Web.Script.Services;
-using System.Web.Services;
 using System.Web.Security;
+using System.Web.Services;
+using System.Web.SessionState;
 using System.Web.UI;
 using System.Web.UI.WebControls;
-using System.Web.SessionState;
+using System.Web.UI.WebControls.WebParts;
 
 namespace Smash_IT.homepage
 {
-    public partial class reservation : Page
+    public partial class reservation : System.Web.UI.Page
     {
         private string CS
         {
@@ -774,47 +776,12 @@ VALUES
                 {
                     try
                     {
-                        using (SqlCommand cmdMode = new SqlCommand(@"
-IF EXISTS (
-    SELECT 1
-    FROM tblCourtAvailability a
-    WHERE a.CourtID = @CourtID
-      AND a.[Date] = @ResDate
-      AND a.StartTime < @EndTime
-      AND a.EndTime > @StartTime
-      AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
-)
-    SELECT 1;
-ELSE
-    SELECT 0;", con, tx))
-                        {
-                            cmdMode.Parameters.AddWithValue("@CourtID", draft.CourtID);
-                            cmdMode.Parameters.AddWithValue("@ResDate", resDate.Date);
-                            cmdMode.Parameters.AddWithValue("@StartTime", startTime);
-                            cmdMode.Parameters.AddWithValue("@EndTime", endTime);
+                        ReservationValidationResult validation = ValidateReservationWindow(
+    con, tx, draft.CourtID, resDate.Date, startTime, endTime);
 
-                            int notReservable = Convert.ToInt32(cmdMode.ExecuteScalar());
-                            if (notReservable == 1)
-                                throw new Exception("That time is no longer reservable.");
-                        }
+                        if (!validation.IsValid)
+                            throw new Exception("That slot is no longer available. " + validation.ErrorMessage);
 
-                        using (SqlCommand cmdOverlap = new SqlCommand(@"
-SELECT COUNT(*)
-FROM tblReservation
-WHERE CourtID = @CourtID
-  AND ResDate = @ResDate
-  AND ReservationStatusName IN ('Pending','Approved')
-  AND (@StartTime < EndTime AND @EndTime > StartTime);", con, tx))
-                        {
-                            cmdOverlap.Parameters.AddWithValue("@CourtID", draft.CourtID);
-                            cmdOverlap.Parameters.AddWithValue("@ResDate", resDate.Date);
-                            cmdOverlap.Parameters.AddWithValue("@StartTime", startTime);
-                            cmdOverlap.Parameters.AddWithValue("@EndTime", endTime);
-
-                            int overlap = Convert.ToInt32(cmdOverlap.ExecuteScalar());
-                            if (overlap > 0)
-                                throw new Exception("That slot was taken while payment was in progress.");
-                        }
 
 
                         using (SqlCommand cmdInsRes = new SqlCommand(@"
@@ -1008,48 +975,11 @@ VALUES ('Reservation', @UserID, @RID, CAST(GETDATE() AS DATE), @Amt);", con, tx)
                 {
                     try
                     {
-                        using (SqlCommand cmdMode = new SqlCommand(@"
-IF EXISTS (
-    SELECT 1
-    FROM tblCourtAvailability a
-    WHERE a.CourtID = @CourtID
-      AND a.[Date] = @ResDate
-      AND a.StartTime < @EndTime
-      AND a.EndTime > @StartTime
-      AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
-)
-    SELECT 1;
-ELSE
-    SELECT 0;", con, tx))
-                        {
-                            cmdMode.Parameters.AddWithValue("@CourtID", courtId);
-                            cmdMode.Parameters.AddWithValue("@ResDate", resDate.Date);
-                            cmdMode.Parameters.AddWithValue("@StartTime", startTime);
-                            cmdMode.Parameters.AddWithValue("@EndTime", endTime);
+                        ReservationValidationResult validation = ValidateReservationWindow(
+          con, tx, courtId, resDate.Date, startTime, endTime);
 
-                            int notReservable = Convert.ToInt32(cmdMode.ExecuteScalar());
-                            if (notReservable == 1)
-                                throw new Exception("That time is not reservable (Queue / PlayForAll / Closed).");
-                        }
-
-                        using (SqlCommand cmdOverlap = new SqlCommand(@"
-SELECT COUNT(*)
-FROM tblReservation
-WHERE CourtID = @CourtID
-  AND ResDate = @ResDate
-  AND ReservationStatusName IN ('Pending','Approved')
-  AND (@StartTime < EndTime AND @EndTime > StartTime);", con, tx))
-                        {
-                            cmdOverlap.Parameters.AddWithValue("@CourtID", courtId);
-                            cmdOverlap.Parameters.AddWithValue("@ResDate", resDate.Date);
-                            cmdOverlap.Parameters.AddWithValue("@StartTime", startTime);
-                            cmdOverlap.Parameters.AddWithValue("@EndTime", endTime);
-
-                            int overlap = Convert.ToInt32(cmdOverlap.ExecuteScalar());
-                            if (overlap > 0)
-                                throw new Exception("That court/time is already reserved. Please choose another slot.");
-                        }
-
+                        if (!validation.IsValid)
+                            throw new Exception(validation.ErrorMessage);
                         rentalsFullPesos = ComputeRentalsTotalPesos(con, tx, rentalLines);
                         consumablesFullPesos = ComputeConsumablesTotalPesos(con, tx, consumableLines);
                         requiredAmountStoredPesos = courtFullPesos + rentalsFullPesos + consumablesFullPesos;
@@ -1106,14 +1036,13 @@ WHERE CourtID = @CourtID
 
             SavePendingReservationBackupCookie(draft, null);
 
-            string url = ResolveUrl("~/PreparingPayment.aspx?token=" + draftToken);
+            string url = ResolveUrl("~/payments/PreparingPayment.aspx?token=" + draftToken);
             Response.Redirect(url, false);
             Context.ApplicationInstance.CompleteRequest();
         }
         protected void LoadCourtData()
         {
             hfCourts.Value = GetCourtsJson();
-            hfQueues.Value = GetQueuesJson();
         }
 
         private string GetCourtsJson()
@@ -1130,27 +1059,6 @@ WHERE CourtID = @CourtID
             return js.Serialize(DataTableToList(dt));
         }
 
-        private string GetQueuesJson()
-        {
-            DataTable dt = new DataTable();
-
-            using (SqlConnection con = new SqlConnection(CS))
-            using (SqlCommand cmd = new SqlCommand(@"
-SELECT q.CourtID,
-       q.StatusName,
-       r.ResDate,
-       r.StartTime,
-       r.EndTime
-FROM tblCourtQueue q
-INNER JOIN tblReservation r ON q.ReservationID = r.ReservationID
-WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
-            {
-                new SqlDataAdapter(cmd).Fill(dt);
-            }
-
-            JavaScriptSerializer js = new JavaScriptSerializer();
-            return js.Serialize(DataTableToList(dt));
-        }
 
         private static List<Dictionary<string, object>> DataTableToList(DataTable dt)
         {
@@ -1271,6 +1179,7 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
 
         protected void ddlSport_SelectedIndexChanged(object sender, EventArgs e)
         {
+
             string sport = GetSelectedSport();
             hfSelectedSport.Value = sport;
 
@@ -1307,43 +1216,46 @@ WHERE q.StatusName NOT IN ('Cancelled','Completed');", con))
             }
 
             string query = @"
-DECLARE @d date = @ResDate;
+DECLARE @d DATE = @ResDate;
 
-;WITH Courts AS (
+;WITH Courts AS
+(
     SELECT CourtID
     FROM tblCourt
     WHERE IsActive = 1
       AND (SportName = @Sport OR CourtNumber IN (5,6))
 ),
-NonReservableSlots AS (
+BadWindows AS
+(
+    -- Queue and Closed windows are not reservable
     SELECT a.StartTime, a.EndTime
     FROM tblCourtAvailability a
-    JOIN Courts c ON c.CourtID = a.CourtID
+    INNER JOIN Courts c ON c.CourtID = a.CourtID
     WHERE a.[Date] = @d
-      AND a.ModeName NOT IN ('Reservation', 'PlayForAll')
-),
-ReservedSlots AS (
-    SELECT a.StartTime, a.EndTime
-    FROM tblCourtAvailability a
-    JOIN Courts c ON c.CourtID = a.CourtID
-    WHERE a.[Date] = @d
-      AND a.ModeName IN ('Reservation', 'PlayForAll')
-      AND EXISTS (
-          SELECT 1
-          FROM tblReservation r
-          WHERE r.CourtID = a.CourtID
-            AND r.ResDate = @d
-            AND r.ReservationStatusName IN ('Approved','Pending')
-            AND (a.StartTime < r.EndTime AND a.EndTime > r.StartTime)
-      )
-),
-AllBad AS (
-    SELECT StartTime, EndTime FROM NonReservableSlots
+      AND a.ModeName IN ('Queue', 'Closed')
+
     UNION
-    SELECT StartTime, EndTime FROM ReservedSlots
+
+    -- Approved reservations are hard blockers
+    SELECT r.StartTime, r.EndTime
+    FROM tblReservation r
+    INNER JOIN Courts c ON c.CourtID = r.CourtID
+    WHERE r.ResDate = @d
+      AND r.ReservationStatusName = 'Approved'
+
+    UNION
+
+    -- Active sessions are also hard blockers
+    SELECT
+        CAST(s.StartTime AS TIME) AS StartTime,
+        CAST(s.ExpectedEndTime AS TIME) AS EndTime
+    FROM tblActiveSession s
+    INNER JOIN Courts c ON c.CourtID = s.CourtID
+    WHERE s.StatusName = 'Active'
+      AND CAST(s.StartTime AS DATE) = @d
 )
 SELECT StartTime, EndTime
-FROM AllBad
+FROM BadWindows
 GROUP BY StartTime, EndTime
 ORDER BY StartTime;";
 
@@ -1430,7 +1342,8 @@ ORDER BY StartTime;";
 
                     string k = courtId.ToString() + "|" + t.ToString();
 
-                    bool blocked = true;
+                    bool hasApprovedReservation = false;
+                    bool hasActiveSession = false;
                     bool isQueue = false;
                     bool isClosed = false;
                     bool isPfa = false;
@@ -1438,44 +1351,42 @@ ORDER BY StartTime;";
 
                     if (map.ContainsKey(k))
                     {
-                        blocked = Convert.ToInt32(map[k]["IsReservedBlocked"]) == 1;
+                        hasApprovedReservation = Convert.ToInt32(map[k]["HasApprovedReservation"]) == 1;
+                        hasActiveSession = Convert.ToInt32(map[k]["HasActiveSession"]) == 1;
                         isQueue = Convert.ToInt32(map[k]["IsQueueCourt"]) == 1;
                         isClosed = Convert.ToInt32(map[k]["IsClosed"]) == 1;
                         isPfa = Convert.ToInt32(map[k]["IsPlayForAll"]) == 1;
                         isReservable = Convert.ToInt32(map[k]["IsReservable"]) == 1;
                     }
-
                     if (isClosed)
                     {
                         sb.Append("<td><div class='slot blocked'>Closed</div></td>");
                     }
-                    else if (isPfa)
+                    else if (hasActiveSession)
                     {
-                        sb.Append("<td><div class='slot reservable available' " +
-                                  "data-court='" + courtId + "' " +
-                                  "data-courtnum='" + courtNum + "' " +
-                                  "data-date='" + date.ToString("yyyy-MM-dd") + "' " +
-                                  "data-start='" + t.ToString(@"hh\:mm") + "'>Open</div></td>");
+                        sb.Append("<td><div class='slot blocked'>In Use</div></td>");
+                    }
+                    else if (hasApprovedReservation)
+                    {
+                        sb.Append("<td><div class='slot blocked'>Booked</div></td>");
                     }
                     else if (isQueue)
                     {
                         sb.Append("<td><div class='slot queue'>Queue</div></td>");
                     }
-                    else if (blocked)
-                    {
-                        sb.Append("<td><div class='slot blocked'>Booked</div></td>");
-                    }
-                    else if (!isReservable)
-                    {
-                        sb.Append("<td><div class='slot blocked'>N/A</div></td>");
-                    }
-                    else
+                    else if (isReservable)
                     {
                         sb.Append("<td><div class='slot reservable available' " +
                                   "data-court='" + courtId + "' " +
                                   "data-courtnum='" + courtNum + "' " +
                                   "data-date='" + date.ToString("yyyy-MM-dd") + "' " +
-                                  "data-start='" + t.ToString(@"hh\:mm") + "'>Free</div></td>");
+                                  "data-start='" + t.ToString(@"hh\:mm") + "'>" +
+                                  (isPfa ? "Open" : "Free") +
+                                  "</div></td>");
+                    }
+                    else
+                    {
+                        sb.Append("<td><div class='slot blocked'>N/A</div></td>");
                     }
                 }
 
@@ -1533,7 +1444,18 @@ SELECT
     c.CourtNumber,
     ts.SlotStart,
 
-    -- overlapping reservation exists
+    ISNULL(av.ModeName, 'PlayForAll') AS ModeName,
+
+    CASE
+        WHEN ISNULL(av.ModeName, 'PlayForAll') = 'Closed' THEN 1
+        ELSE 0
+    END AS IsClosed,
+
+    CASE
+        WHEN ISNULL(av.ModeName, 'PlayForAll') = 'Queue' THEN 1
+        ELSE 0
+    END AS IsQueueCourt,
+
     CASE
         WHEN EXISTS
         (
@@ -1541,35 +1463,26 @@ SELECT
             FROM tblReservation r
             WHERE r.CourtID = c.CourtID
               AND r.ResDate = @d
-              AND r.ReservationStatusName IN ('Approved', 'Pending')
+              AND r.ReservationStatusName = 'Approved'
               AND ts.SlotStart < r.EndTime
               AND DATEADD(MINUTE, 30, ts.SlotStart) > r.StartTime
         )
         THEN 1 ELSE 0
-    END AS IsReservedBlocked,
+    END AS HasApprovedReservation,
 
-    -- queue / event queue currently occupying that slot through an active session
     CASE
         WHEN EXISTS
         (
             SELECT 1
             FROM tblActiveSession s
-            LEFT JOIN tblCourtQueue q ON q.QueueID = s.QueueID
             WHERE s.CourtID = c.CourtID
-              AND s.StatusName IN ('Active', 'Waiting')
+              AND s.StatusName = 'Active'
               AND CAST(s.StartTime AS DATE) = @d
               AND CAST(s.StartTime AS TIME) < DATEADD(MINUTE, 30, ts.SlotStart)
               AND CAST(s.ExpectedEndTime AS TIME) > ts.SlotStart
-              AND s.QueueID IS NOT NULL
         )
-        OR ISNULL(av.ModeName, 'PlayForAll') = 'Queue'
         THEN 1 ELSE 0
-    END AS IsQueueCourt,
-
-    CASE
-        WHEN ISNULL(av.ModeName, 'PlayForAll') = 'Closed'
-        THEN 1 ELSE 0
-    END AS IsClosed,
+    END AS HasActiveSession,
 
     CASE
         WHEN ISNULL(av.ModeName, 'PlayForAll') = 'PlayForAll'
@@ -1579,7 +1492,7 @@ SELECT
                  FROM tblReservation r
                  WHERE r.CourtID = c.CourtID
                    AND r.ResDate = @d
-                   AND r.ReservationStatusName IN ('Approved', 'Pending')
+                   AND r.ReservationStatusName = 'Approved'
                    AND ts.SlotStart < r.EndTime
                    AND DATEADD(MINUTE, 30, ts.SlotStart) > r.StartTime
              )
@@ -1588,11 +1501,10 @@ SELECT
                  SELECT 1
                  FROM tblActiveSession s
                  WHERE s.CourtID = c.CourtID
-                   AND s.StatusName IN ('Active', 'Waiting')
+                   AND s.StatusName = 'Active'
                    AND CAST(s.StartTime AS DATE) = @d
                    AND CAST(s.StartTime AS TIME) < DATEADD(MINUTE, 30, ts.SlotStart)
                    AND CAST(s.ExpectedEndTime AS TIME) > ts.SlotStart
-                   AND s.QueueID IS NOT NULL
              )
         THEN 1 ELSE 0
     END AS IsPlayForAll,
@@ -1606,7 +1518,7 @@ SELECT
                  FROM tblReservation r
                  WHERE r.CourtID = c.CourtID
                    AND r.ResDate = @d
-                   AND r.ReservationStatusName IN ('Approved', 'Pending')
+                   AND r.ReservationStatusName = 'Approved'
                    AND ts.SlotStart < r.EndTime
                    AND DATEADD(MINUTE, 30, ts.SlotStart) > r.StartTime
              )
@@ -1615,11 +1527,10 @@ SELECT
                  SELECT 1
                  FROM tblActiveSession s
                  WHERE s.CourtID = c.CourtID
-                   AND s.StatusName IN ('Active', 'Waiting')
+                   AND s.StatusName = 'Active'
                    AND CAST(s.StartTime AS DATE) = @d
                    AND CAST(s.StartTime AS TIME) < DATEADD(MINUTE, 30, ts.SlotStart)
                    AND CAST(s.ExpectedEndTime AS TIME) > ts.SlotStart
-                   AND s.QueueID IS NOT NULL
              )
         THEN 1 ELSE 0
     END AS IsReservable
@@ -1635,7 +1546,7 @@ OUTER APPLY
       AND a.[Date] = @d
       AND ts.SlotStart >= a.StartTime
       AND ts.SlotStart < a.EndTime
-    ORDER BY a.StartTime
+    ORDER BY a.StartTime DESC
 ) av
 
 ORDER BY c.CourtNumber, ts.SlotStart
@@ -1750,6 +1661,114 @@ WHERE UserID = @UserID;", con))
                 }
             }
         }
+        private sealed class ReservationValidationResult
+        {
+            public bool IsValid { get; set; }
+            public string ErrorMessage { get; set; }
+        }
 
+        private ReservationValidationResult ValidateReservationWindow(
+            SqlConnection con,
+            SqlTransaction tx,
+            int courtId,
+            DateTime resDate,
+            TimeSpan startTime,
+            TimeSpan endTime)
+        {
+            ReservationValidationResult result = new ReservationValidationResult
+            {
+                IsValid = false,
+                ErrorMessage = "Invalid reservation window."
+            };
+
+            using (SqlCommand cmd = new SqlCommand(@"
+SELECT COUNT(*)
+FROM tblCourt
+WHERE CourtID = @CourtID
+  AND IsActive = 1;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@CourtID", courtId);
+                int active = Convert.ToInt32(cmd.ExecuteScalar());
+                if (active <= 0)
+                {
+                    result.ErrorMessage = "Selected court is not active.";
+                    return result;
+                }
+            }
+
+            using (SqlCommand cmd = new SqlCommand(@"
+SELECT TOP 1 a.ModeName
+FROM tblCourtAvailability a
+WHERE a.CourtID = @CourtID
+  AND a.[Date] = @ResDate
+  AND a.ModeName IN ('Queue', 'Closed')
+  AND @StartTime < a.EndTime
+  AND @EndTime > a.StartTime
+ORDER BY a.StartTime DESC;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@CourtID", courtId);
+                cmd.Parameters.AddWithValue("@ResDate", resDate.Date);
+                cmd.Parameters.AddWithValue("@StartTime", startTime);
+                cmd.Parameters.AddWithValue("@EndTime", endTime);
+
+                object mode = cmd.ExecuteScalar();
+                if (mode != null && mode != DBNull.Value)
+                {
+                    string blockedMode = Convert.ToString(mode);
+                    result.ErrorMessage = blockedMode == "Closed"
+                        ? "Selected time falls within a closed window."
+                        : "Selected time is currently assigned for queue use.";
+                    return result;
+                }
+            }
+
+            using (SqlCommand cmd = new SqlCommand(@"
+SELECT COUNT(*)
+FROM tblReservation
+WHERE CourtID = @CourtID
+  AND ResDate = @ResDate
+  AND ReservationStatusName = 'Approved'
+  AND @StartTime < EndTime
+  AND @EndTime > StartTime;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@CourtID", courtId);
+                cmd.Parameters.AddWithValue("@ResDate", resDate.Date);
+                cmd.Parameters.AddWithValue("@StartTime", startTime);
+                cmd.Parameters.AddWithValue("@EndTime", endTime);
+
+                int overlap = Convert.ToInt32(cmd.ExecuteScalar());
+                if (overlap > 0)
+                {
+                    result.ErrorMessage = "That court/time is already reserved.";
+                    return result;
+                }
+            }
+
+            using (SqlCommand cmd = new SqlCommand(@"
+SELECT COUNT(*)
+FROM tblActiveSession s
+WHERE s.CourtID = @CourtID
+  AND s.StatusName = 'Active'
+  AND CAST(s.StartTime AS DATE) = @ResDate
+  AND CAST(s.StartTime AS TIME) < @EndTime
+  AND CAST(s.ExpectedEndTime AS TIME) > @StartTime;", con, tx))
+            {
+                cmd.Parameters.AddWithValue("@CourtID", courtId);
+                cmd.Parameters.AddWithValue("@ResDate", resDate.Date);
+                cmd.Parameters.AddWithValue("@StartTime", startTime);
+                cmd.Parameters.AddWithValue("@EndTime", endTime);
+
+                int activeOverlap = Convert.ToInt32(cmd.ExecuteScalar());
+                if (activeOverlap > 0)
+                {
+                    result.ErrorMessage = "That court is currently occupied during the selected time.";
+                    return result;
+                }
+            }
+
+            result.IsValid = true;
+            result.ErrorMessage = "";
+            return result;
+        }
     }
 }

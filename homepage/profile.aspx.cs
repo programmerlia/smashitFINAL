@@ -338,18 +338,26 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
                 decimal totalPaid = row["TotalPaid"] == DBNull.Value ? 0m : Convert.ToDecimal(row["TotalPaid"]);
                 decimal remaining = requiredAmount - totalPaid;
                 if (remaining < 0m) remaining = 0m;
+           
+                if (status.Equals("Refunded", StringComparison.OrdinalIgnoreCase))
+                {
+                    row["PaymentStatusDisplay"] = "Refunded";
+                    row["PaymentBalanceDisplay"] = totalPaid > 0m
+                        ? "Refund issued: ₱ " + totalPaid.ToString("N2")
+                        : "Refund completed";
+                }
+                else
+                {
+                    row["PaymentStatusDisplay"] =
+                        (isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase) || remaining <= 0m)
+                        ? "Paid"
+                        : (string.IsNullOrWhiteSpace(pay) ? "Unpaid" : pay);
 
-                row["PaymentStatusDisplay"] =
-                    (isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase) || remaining <= 0m)
-                    ? "Paid"
-                    : (string.IsNullOrWhiteSpace(pay) ? "Unpaid" : pay);
-
-                row["PaidAmountDisplay"] = "₱ " + totalPaid.ToString("N2");
-
-                row["PaymentBalanceDisplay"] =
-                    remaining > 0m
-                    ? "Remaining: ₱ " + remaining.ToString("N2") + " upon check-in"
-                    : "Fully settled";
+                    row["PaymentBalanceDisplay"] =
+                        remaining > 0m
+                        ? "Remaining: ₱ " + remaining.ToString("N2") + " upon check-in"
+                        : "Fully settled";
+                }
 
                 int rentalCount = row["RentalCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["RentalCount"]);
                 decimal rentalAmount = row["RentalAmount"] == DBNull.Value ? 0m : Convert.ToDecimal(row["RentalAmount"]);
@@ -369,6 +377,15 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
                     ? string.Join("<br/>", extras)
                     : "No rentals or consumables added.";
             }
+        }
+
+        private bool CanRequestCancel(DateTime resDate, string status)
+        {
+            if (!(status.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
+                  status.Equals("Approved", StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            return resDate.Date >= DateTime.Today.AddDays(1);
         }
         // -------------------- TOP 1 ON PROFILE (APPROVED UPCOMING FIRST) --------------------
         private void BindTopReservation(DataTable dt)
@@ -483,9 +500,9 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             if (s == "approved") return "badge-approved";
             if (s == "cancelled") return "badge-cancelled";
             if (s == "completed") return "badge-completed";
+            if (s == "refunded") return "badge-refunded";
             return "badge-request";
         }
-
         // -------------------- MODAL LISTS (CATEGORIES) --------------------
         private void BindReservationLists(DataTable dt)
         {
@@ -504,6 +521,9 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             DataView dvCompleted = new DataView(dt);
             dvCompleted.RowFilter = "ReservationStatusName = 'Completed'";
 
+            DataView dvRefunded = new DataView(dt);
+            dvRefunded.RowFilter = "ReservationStatusName = 'Refunded'";
+
             rptApproved.DataSource = dvApproved;
             rptApproved.DataBind();
 
@@ -518,16 +538,18 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
 
             rptCompleted.DataSource = dvCompleted;
             rptCompleted.DataBind();
-        }
-        // -------------------- Rules --------------------
-        private bool CanRequestCancel(DateTime resDate, string status)
-        {
-            if (!(status.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
-                  status.Equals("Approved", StringComparison.OrdinalIgnoreCase)))
-                return false;
 
-            return resDate.Date >= DateTime.Today.AddDays(1);
+            rptRefunded.DataSource = dvRefunded;
+            rptRefunded.DataBind();
+
+            pnlEmptyApproved.Visible = dvApproved.Count == 0;
+            pnlEmptyPending.Visible = dvPending.Count == 0;
+            pnlEmptyRequests.Visible = dvRequests.Count == 0;
+            pnlEmptyCancelled.Visible = dvCancelled.Count == 0;
+            pnlEmptyCompleted.Visible = dvCompleted.Count == 0;
+            pnlEmptyRefunded.Visible = dvRefunded.Count == 0;
         }
+      
 
         // -------------------- Repeater events --------------------
         protected void rptReservations_ItemDataBound(object sender, RepeaterItemEventArgs e)

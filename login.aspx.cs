@@ -141,6 +141,8 @@ namespace login
                 Response.Redirect("~/adminpage/admin_dashboard.aspx");
             else if (role.Equals("Receptionist", StringComparison.OrdinalIgnoreCase))
                 Response.Redirect("~/receptionistpage/receptionist_dashboard.aspx");
+            else if (role.Equals("queuemaster", StringComparison.OrdinalIgnoreCase))
+                Response.Redirect("~/queuemasterpage/q_dashboard.aspx");
             else
                 ShowError("Unauthorized access.");
         }

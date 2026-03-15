@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Smash_IT
+namespace Smash_IT.payments
 {
 
 

@@ -84,12 +84,52 @@ namespace Smash_IT.adminpage
             using (SqlConnection conn = new SqlConnection(connStr))
             {
                 string query = @"
-                    SELECT i.ItemID, m.EquipmentType + ' (' + ISNULL(m.EquipmentSpec, 'Std') + ')' AS EquipmentName,
-                    CASE WHEN EXISTS (SELECT 1 FROM tblRental r WHERE r.ItemID = i.ItemID AND r.ReturnedAt IS NULL) 
-                    THEN 'In Use' ELSE 'Available' END AS Status
-                    FROM tblEquipmentItem i 
-                    JOIN tblEquipmentModel m ON i.ModelID = m.ModelID 
-                    WHERE i.IsDeleted = 0 ORDER BY i.ItemID DESC";
+            SELECT 
+                i.ItemID,
+                m.EquipmentType + ' (' + ISNULL(m.EquipmentSpec, 'Std') + ')' AS EquipmentName,
+
+             CASE 
+    WHEN r.RentalID IS NULL THEN '—'
+    WHEN r.ReservationID IS NOT NULL THEN 'Reservation'
+    ELSE 'Walk-In'
+END AS PlayMode
+
+                CASE 
+                    WHEN r.RentalID IS NULL THEN '—'
+                    WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Firstname,'') + ' ' + ISNULL(pa.Lastname,'')
+                    WHEN r.WalkInID IS NOT NULL THEN ISNULL(pw.Firstname,'') + ' ' + ISNULL(pw.Lastname,'')
+                    ELSE '—'
+                END AS RentedBy,
+
+                CASE 
+                    WHEN r.RentalID IS NULL THEN '—'
+                    ELSE CONVERT(VARCHAR(20), r.RentalDate, 100)
+                END AS TimeRented,
+
+                CASE 
+                    WHEN r.RentalID IS NULL THEN 'Available'
+                    ELSE 'In Use'
+                END AS Status
+
+            FROM tblEquipmentItem i
+            JOIN tblEquipmentModel m ON i.ModelID = m.ModelID
+
+            LEFT JOIN tblRental r 
+                ON r.ItemID = i.ItemID
+               AND r.ReturnedAt IS NULL
+
+            LEFT JOIN tblReservation res 
+                ON r.ReservationID = res.ReservationID
+
+            LEFT JOIN tblPlayerAccount pa 
+                ON r.UserID = pa.UserID
+
+            LEFT JOIN tblPlayerWalkIn pw 
+                ON r.WalkInID = pw.WalkInID
+
+            WHERE i.IsDeleted = 0
+            ORDER BY i.ItemID DESC";
+
                 SqlDataAdapter da = new SqlDataAdapter(query, conn);
                 DataTable dt = new DataTable();
                 da.Fill(dt);

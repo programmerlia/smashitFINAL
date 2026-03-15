@@ -132,6 +132,15 @@ namespace Smash_IT.adminpage
         protected global::System.Web.UI.WebControls.GridView gvReservations;
 
         /// <summary>
+        /// gvRefunds control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.GridView gvRefunds;
+
+        /// <summary>
         /// pnlSidebarWrapper control.
         /// </summary>
         /// <remarks>

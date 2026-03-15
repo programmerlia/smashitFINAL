@@ -99,6 +99,7 @@
         .badge-approved { background-color: #dcfce7; color: #166534; }
         .badge-cancelled { background-color: #fee2e2; color: #991b1b; }
         .badge-completed { background-color: #dbeafe; color: #1e3a8a; }
+        .badge-refunded { background-color: #d1fae5; color: #065f46; }
         
         .edit-link { color: #1e3a8a; font-weight: 600; padding: 6px 12px; background: #eff6ff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; outline: none; }
         .edit-link:hover { background: #dbeafe; }
@@ -210,6 +211,7 @@
                                         <asp:ListItem Text="Approved" Value="Approved"></asp:ListItem>
                                         <asp:ListItem Text="Completed" Value="Completed"></asp:ListItem>
                                         <asp:ListItem Text="Cancelled" Value="Cancelled"></asp:ListItem>
+                                      <asp:ListItem Text="Refunded" Value="Refunded"></asp:ListItem>
                                     </asp:DropDownList>
                                 </div>
                             </div>
@@ -258,9 +260,9 @@
 
                                     <asp:TemplateField HeaderText="Status">
                                         <ItemTemplate>
-                                            <span class='event-badge-status <%# Eval("StatusName").ToString() == "Approved" ? "badge-approved" : (Eval("StatusName").ToString() == "Pending" ? "badge-pending" : (Eval("StatusName").ToString() == "Completed" ? "badge-completed" : "badge-cancelled")) %>'>
-                                                <%# Eval("StatusName") %>
-                                            </span>
+                                     <span class='event-badge-status <%# Eval("StatusName").ToString() == "Approved" ? "badge-approved" : (Eval("StatusName").ToString() == "Pending" ? "badge-pending" : (Eval("StatusName").ToString() == "Completed" ? "badge-completed" : (Eval("StatusName").ToString() == "Refunded" ? "badge-refunded" : "badge-cancelled"))) %>'>
+    <%# Eval("StatusName") %>
+</span>
                                         </ItemTemplate>
                                     </asp:TemplateField>
 
@@ -280,6 +282,75 @@
                                 </EmptyDataTemplate>
                             </asp:GridView>
                         </div>
+                        <div class="grid-card" style="margin-top:25px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;border-bottom:2px solid #f1f5f9;padding-bottom:10px;flex-wrap:wrap;gap:10px;">
+        <h4 style="color:#b91c1c;font-weight:800;margin:0;"><i class="fas fa-rotate-left" style="margin-right:8px;color:#ef4444;"></i>Refund Queue</h4>
+        <div style="font-size:0.85rem;color:#64748b;font-weight:600;">Reservations cancelled but not yet fully refunded</div>
+    </div>
+
+    <asp:GridView ID="gvRefunds" runat="server" AutoGenerateColumns="False" CssClass="custom-grid" GridLines="None" OnRowCommand="gvRefunds_RowCommand">
+        <Columns>
+            <asp:TemplateField HeaderText="Reservation">
+                <ItemTemplate>
+                    <div style="font-weight:700;color:#1e3a8a;">#<%# Eval("ReservationID") %></div>
+                    <div style="font-size:0.75rem;color:#64748b;">Ref: <%# Eval("ReferenceText") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Customer">
+                <ItemTemplate>
+                    <div style="font-weight:700;color:#0f172a;"><%# Eval("CustomerName") %></div>
+                    <div style="font-size:0.8rem;color:#475569;"><%# Eval("UsernameText") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Contact">
+                <ItemTemplate>
+                    <div><i class="fas fa-envelope" style="color:#64748b;margin-right:6px;"></i><%# Eval("Email") %></div>
+                    <div style="margin-top:4px;"><i class="fas fa-phone" style="color:#64748b;margin-right:6px;"></i><%# Eval("PhoneNumber") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Payment Made">
+                <ItemTemplate>
+                    <div style="font-weight:700;color:#1e3a8a;">₱<%# Convert.ToDecimal(Eval("PaidAmount")).ToString("0.00") %></div>
+                    <span class='<%# Eval("PaymentStatus").ToString() == "FullyPaid" ? "badge-pay-full" : (Eval("PaymentStatus").ToString() == "HalfPaid" ? "badge-pay-half" : "badge-pay-unpaid") %>'>
+                        <%# Eval("PaymentStatus") %>
+                    </span>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Refund Amount">
+                <ItemTemplate>
+                    <div style="font-weight:800;color:#b91c1c;font-size:1rem;">₱<%# Convert.ToDecimal(Eval("RefundAmount")).ToString("0.00") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Instruction">
+                <ItemTemplate>
+                    <div style="font-size:0.82rem;line-height:1.45;color:#475569;max-width:320px;">
+                        Please contact <b><%# Eval("CustomerName") %></b> and arrange a refund of their
+                        <b><%# Eval("PaymentStatus") %></b> reservation payment.
+                    </div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField ItemStyle-HorizontalAlign="Right">
+                <ItemTemplate>
+                    <asp:LinkButton ID="btnMarkRefunded" runat="server" CommandName="MarkRefunded" CommandArgument='<%# Eval("ReservationID") %>' CssClass="edit-link" style="background:#fee2e2;color:#b91c1c;">
+                        <i class="fas fa-check-circle"></i> Mark Refunded
+                    </asp:LinkButton>
+                </ItemTemplate>
+            </asp:TemplateField>
+        </Columns>
+        <EmptyDataTemplate>
+            <div style="text-align:center;padding:35px;color:#94a3b8;">
+                <i class="fas fa-wallet" style="font-size:2rem;margin-bottom:10px;"></i>
+                <h5 style="margin:0;font-weight:700;">No pending refunds.</h5>
+            </div>
+        </EmptyDataTemplate>
+    </asp:GridView>
+</div>
                     </div>
 
                     <%-- SIDEBAR CONFIGURATION --%>

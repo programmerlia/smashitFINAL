@@ -7,7 +7,7 @@ using System.Text;
 using System.Web;
 using System.Web.Script.Serialization;
 
-namespace Smash_IT
+namespace Smash_IT.payments
 {
     public partial class PreparingPayment : System.Web.UI.Page
     {
@@ -61,7 +61,7 @@ namespace Smash_IT
 
             string baseUrl = scheme + "://" + host;
 
-            string successUrl = baseUrl + ResolveUrl("~/ReservationSuccess.aspx?token=" + token);
+            string successUrl = baseUrl + ResolveUrl("~/payments/ReservationSuccess.aspx?token=" + token);
             string cancelUrl = baseUrl + ResolveUrl("~/homepage/reservation.aspx");
 
             int paymongoChargeNowCentavos =

@@ -92,7 +92,6 @@ const SafeStore = (() => {
     const hfSelectedSport = () => byAnyId("hfSelectedSport", "hfSelectedSportClientID");
 
     let courts = [];
-    let queues = [];
     let lastEquipmentRows = [];
 
     function addMinutes(timeHHMM, minutesToAdd) {
@@ -222,7 +221,6 @@ const SafeStore = (() => {
             courtId: HF.selectedCourtID()?.value || HF.courtID()?.value || "",
             start: HF.start()?.value || "",
             end: HF.end()?.value || "",
-            players: $("numPlayers")?.value || "1",
             firstname: $id("txtFirstname")?.value || "",
             lastname: $id("txtLastname")?.value || "",
             email: $id("txtEmail")?.value || "",
@@ -243,7 +241,6 @@ const SafeStore = (() => {
         if ($id("ddlSport")) $id("ddlSport").value = sel.sport ?? $id("ddlSport").value;
         if ($id("ddlDuration")) $id("ddlDuration").value = sel.duration ?? $id("ddlDuration").value;
 
-        if ($("numPlayers") && sel.players) $("numPlayers").value = sel.players;
 
         if ($id("txtFirstname") && sel.firstname && !$id("txtFirstname").value) $id("txtFirstname").value = sel.firstname;
         if ($id("txtLastname") && sel.lastname && !$id("txtLastname").value) $id("txtLastname").value = sel.lastname;
@@ -443,7 +440,9 @@ const SafeStore = (() => {
                 const cell = document.querySelector(q);
 
                 if (!cell) return alert("That duration doesn't fit (missing slot).");
-                if (!cell.classList.contains("reservable")) return alert("That duration overlaps blocked/queue.");
+                if (!cell.classList.contains("reservable")) {
+                    return alert("That duration overlaps a blocked, reserved, closed, queue, or active session slot.");
+                }
                 if (cell.classList.contains("sport-disabled")) return alert("Sport mismatch.");
 
                 rangeEls.push(cell);
@@ -896,7 +895,6 @@ const SafeStore = (() => {
         if ($("summarySport")) $("summarySport").innerText = sel.courtId ? sport : (sel.sport || "---");
         if ($("summaryTime")) $("summaryTime").innerText = sel.start ? timeRange : "---";
         if ($("summaryDuration")) $("summaryDuration").innerText = durTxt;
-        if ($("summaryPlayers")) $("summaryPlayers").innerText = sel.players || "1";
 
         if ($("totalPrice")) $("totalPrice").innerText = "₱ " + courtTotal.toFixed(2);
         if ($("totalFinal")) $("totalFinal").innerText = "₱ " + grandTotal.toFixed(2);
@@ -1144,7 +1142,6 @@ const SafeStore = (() => {
         if ($("pmDate")) $("pmDate").innerText = sel.date || "---";
         if ($("pmTime")) $("pmTime").innerText = $("summaryTime")?.innerText || "---";
         if ($("pmDuration")) $("pmDuration").innerText = $("summaryDuration")?.innerText || "---";
-        if ($("pmPlayers")) $("pmPlayers").innerText = $("summaryPlayers")?.innerText || "---";
         updatePaymentModalTotals();
 
         renderPaymentRentals();
@@ -1234,11 +1231,7 @@ const SafeStore = (() => {
                 courts = [];
             }
 
-            try {
-                queues = JSON.parse($("hfQueues")?.value || "[]");
-            } catch {
-                queues = [];
-            }
+          
 
             const shell = ensureTimeTableShell();
             if (shell) shell.dataset.bound = "0";
@@ -1304,14 +1297,7 @@ const SafeStore = (() => {
             });
         }
 
-        const np = $("numPlayers");
-        if (np && np.dataset.bound !== "1") {
-            np.dataset.bound = "1";
-            np.addEventListener("input", () => {
-                syncSummaries();
-                saveState(getCurrentStep());
-            });
-        }
+     
     }
 
     function resumeToSavedStep() {
@@ -1408,8 +1394,7 @@ const SafeStore = (() => {
             document.getElementById(ids.ddlDuration).value = "1";
         }
 
-        const np = $("numPlayers");
-        if (np) np.value = "1";
+
 
         const setText = (id, val) => {
             const el = $(id);
@@ -1430,7 +1415,6 @@ const SafeStore = (() => {
         setText("summarySport", "---");
         setText("summaryTime", "---");
         setText("summaryDuration", "---");
-        setText("summaryPlayers", "1");
         setText("summaryFirstname", "------");
         setText("summaryLastname", "------");
         setText("summaryContact", "------");
@@ -1478,11 +1462,7 @@ const SafeStore = (() => {
             courts = [];
         }
 
-        try {
-            queues = JSON.parse($("hfQueues")?.value || "[]");
-        } catch {
-            queues = [];
-        }
+     
 
         wireUpdatePanelHookOnce();
         bindControlsOnce();

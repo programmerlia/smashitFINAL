@@ -1,5 +1,4 @@
-﻿using Smash_IT.Helpers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -16,13 +15,19 @@ namespace Smash_IT.receptionistpage
         private readonly string connString =
             ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
 
-        private readonly CourtAvailabilityHelper helper = new CourtAvailabilityHelper();
+        // Your staff IDs now start at 2
+        private const int SYSTEM_STAFF_ID = 2;
+
+        private static readonly TimeSpan DEFAULT_OPEN_TIME = new TimeSpan(8, 0, 0);
+        private static readonly TimeSpan DEFAULT_CLOSE_TIME = new TimeSpan(22, 0, 0);
+        private const int SLOT_MINUTES = 30;
+        private const int WINDOW_DAYS_AHEAD = 7;
 
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
             {
-                helper.EnsureAvailabilityWindow();
+                EnsureAvailabilityWindow();
                 txtDate.Text = DateTime.Today.ToString("yyyy-MM-dd");
                 LoadMatrix();
             }
@@ -30,47 +35,34 @@ namespace Smash_IT.receptionistpage
 
         protected void btnLoadSlots_Click(object sender, EventArgs e)
         {
-            helper.EnsureAvailabilityWindow();
+            EnsureAvailabilityWindow();
             LoadMatrix();
         }
 
         protected void btnConfirmApply_Click(object sender, EventArgs e)
         {
             int availabilityId;
-            int createdByStaffId;
-
-            if (!int.TryParse(hfAvailabilityID.Value, out availabilityId))
+            if (!int.TryParse(hfAvailabilityID.Value, out availabilityId) || availabilityId <= 0)
             {
                 ShowAlert("Invalid slot selected.");
                 return;
             }
 
-            if (!int.TryParse(hfCreatedByStaffID.Value, out createdByStaffId))
+            string newMode = (ddlModalMode.SelectedValue ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(newMode))
             {
-                ShowAlert("Invalid slot state.");
+                ShowAlert("Please select a valid mode.");
                 return;
             }
 
-            if (createdByStaffId == 1)
-            {
-                ShowAlert("This slot is locked and cannot be modified.");
-                return;
-            }
-
-            string newMode = ddlModalMode.SelectedValue;
-
-            int staffId = 2;
-            if (Session["StaffID"] != null)
-            {
-                int.TryParse(Convert.ToString(Session["StaffID"]), out staffId);
-                if (staffId <= 0)
-                    staffId = 2;
-            }
+            int staffId = GetCurrentStaffId();
 
             try
             {
                 UpdateSlotMode(availabilityId, newMode, staffId);
+                EnsureAvailabilityWindow();
                 LoadMatrix();
+
                 ScriptManager.RegisterStartupScript(
                     this,
                     GetType(),
@@ -81,7 +73,7 @@ namespace Smash_IT.receptionistpage
             }
             catch (Exception ex)
             {
-                string safe = (ex.Message ?? "Unable to update slot.").Replace("'", "\\'");
+                string safe = JsEncode(ex.Message ?? "Unable to update slot.");
                 ScriptManager.RegisterStartupScript(
                     this,
                     GetType(),
@@ -89,6 +81,243 @@ namespace Smash_IT.receptionistpage
                     "alert('" + safe + "');",
                     true
                 );
+            }
+        }
+
+        private int GetCurrentStaffId()
+        {
+            int staffId;
+            if (Session["StaffID"] != null &&
+                int.TryParse(Convert.ToString(Session["StaffID"]), out staffId) &&
+                staffId > 0)
+            {
+                return staffId;
+            }
+
+            return SYSTEM_STAFF_ID;
+        }
+
+        private void EnsureAvailabilityWindow()
+        {
+            DateTime startDate = DateTime.Today;
+            DateTime endDate = DateTime.Today.AddDays(WINDOW_DAYS_AHEAD);
+
+            using (SqlConnection conn = new SqlConnection(connString))
+            {
+                conn.Open();
+
+                using (SqlTransaction tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        DeleteExpiredAvailability(conn, tx, startDate);
+                        EnsureBaseSlots(conn, tx, startDate, endDate);
+
+                        // Reset only system-generated rows
+                        ResetSystemSlotsToPlayForAll(conn, tx, startDate, endDate);
+
+                        // Reapply authoritative computed state
+                        ApplyApprovedReservations(conn, tx, startDate, endDate);
+                        ApplyActiveSessionQueue(conn, tx, startDate, endDate);
+                        ApplyActiveSessionClosed(conn, tx, startDate, endDate);
+
+                        tx.Commit();
+                    }
+                    catch
+                    {
+                        tx.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private void DeleteExpiredAvailability(SqlConnection conn, SqlTransaction tx, DateTime minDate)
+        {
+            string sql = @"
+DELETE FROM tblCourtAvailability
+WHERE [Date] < @MinDate;";
+
+            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@MinDate", minDate.Date);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private void EnsureBaseSlots(SqlConnection conn, SqlTransaction tx, DateTime startDate, DateTime endDate)
+        {
+            List<int> activeCourtIds = new List<int>();
+
+            string getCourtsSql = @"
+SELECT CourtID
+FROM tblCourt
+WHERE IsActive = 1;";
+
+            using (SqlCommand cmd = new SqlCommand(getCourtsSql, conn, tx))
+            using (SqlDataReader rdr = cmd.ExecuteReader())
+            {
+                while (rdr.Read())
+                {
+                    activeCourtIds.Add(Convert.ToInt32(rdr["CourtID"]));
+                }
+            }
+
+            for (DateTime date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            {
+                foreach (int courtId in activeCourtIds)
+                {
+                    for (TimeSpan t = DEFAULT_OPEN_TIME; t < DEFAULT_CLOSE_TIME; t = t.Add(TimeSpan.FromMinutes(SLOT_MINUTES)))
+                    {
+                        TimeSpan end = t.Add(TimeSpan.FromMinutes(SLOT_MINUTES));
+
+                        string insertSql = @"
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM tblCourtAvailability
+    WHERE CourtID = @CourtID
+      AND [Date] = @Date
+      AND StartTime = @StartTime
+      AND EndTime = @EndTime
+)
+BEGIN
+    INSERT INTO tblCourtAvailability
+    (
+        CourtID,
+        [Date],
+        StartTime,
+        EndTime,
+        ModeName,
+        CreatedByStaffID
+    )
+    VALUES
+    (
+        @CourtID,
+        @Date,
+        @StartTime,
+        @EndTime,
+        'PlayForAll',
+        @SystemStaffID
+    )
+END";
+
+                        using (SqlCommand cmd = new SqlCommand(insertSql, conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@CourtID", courtId);
+                            cmd.Parameters.AddWithValue("@Date", date.Date);
+                            cmd.Parameters.AddWithValue("@StartTime", t);
+                            cmd.Parameters.AddWithValue("@EndTime", end);
+                            cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ResetSystemSlotsToPlayForAll(SqlConnection conn, SqlTransaction tx, DateTime startDate, DateTime endDate)
+        {
+            string sql = @"
+UPDATE tblCourtAvailability
+SET ModeName = 'PlayForAll'
+WHERE [Date] >= @StartDate
+  AND [Date] <= @EndDate
+  AND CreatedByStaffID = @SystemStaffID;";
+
+            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@StartDate", startDate.Date);
+                cmd.Parameters.AddWithValue("@EndDate", endDate.Date);
+                cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private void ApplyApprovedReservations(SqlConnection conn, SqlTransaction tx, DateTime startDate, DateTime endDate)
+        {
+            string sql = @"
+UPDATE ca
+SET ca.ModeName = 'Reservation'
+FROM tblCourtAvailability ca
+INNER JOIN tblReservation r
+    ON r.CourtID = ca.CourtID
+   AND r.ResDate = ca.[Date]
+   AND ca.StartTime >= r.StartTime
+   AND ca.EndTime <= r.EndTime
+WHERE ca.[Date] >= @StartDate
+  AND ca.[Date] <= @EndDate
+  AND r.ReservationStatusName = 'Approved'
+  AND ca.CreatedByStaffID = @SystemStaffID;";
+
+            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@StartDate", startDate.Date);
+                cmd.Parameters.AddWithValue("@EndDate", endDate.Date);
+                cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private void ApplyActiveSessionQueue(SqlConnection conn, SqlTransaction tx, DateTime startDate, DateTime endDate)
+        {
+            string sql = @"
+UPDATE ca
+SET ca.ModeName = 'Queue'
+FROM tblCourtAvailability ca
+INNER JOIN tblActiveSession s
+    ON s.CourtID = ca.CourtID
+   AND ca.[Date] = CAST(s.StartTime AS DATE)
+   AND ca.StartTime >= CAST(s.StartTime AS TIME)
+   AND ca.EndTime <= CAST(
+        CASE
+            WHEN s.ActualEndTime IS NOT NULL THEN s.ActualEndTime
+            ELSE s.ExpectedEndTime
+        END AS TIME
+   )
+WHERE ca.[Date] >= @StartDate
+  AND ca.[Date] <= @EndDate
+  AND s.StatusName = 'Active'
+  AND s.QueueID IS NOT NULL
+  AND ca.CreatedByStaffID = @SystemStaffID;";
+
+            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@StartDate", startDate.Date);
+                cmd.Parameters.AddWithValue("@EndDate", endDate.Date);
+                cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private void ApplyActiveSessionClosed(SqlConnection conn, SqlTransaction tx, DateTime startDate, DateTime endDate)
+        {
+            string sql = @"
+UPDATE ca
+SET ca.ModeName = 'Closed'
+FROM tblCourtAvailability ca
+INNER JOIN tblActiveSession s
+    ON s.CourtID = ca.CourtID
+   AND ca.[Date] = CAST(s.StartTime AS DATE)
+   AND ca.StartTime >= CAST(s.StartTime AS TIME)
+   AND ca.EndTime <= CAST(
+        CASE
+            WHEN s.ActualEndTime IS NOT NULL THEN s.ActualEndTime
+            ELSE s.ExpectedEndTime
+        END AS TIME
+   )
+WHERE ca.[Date] >= @StartDate
+  AND ca.[Date] <= @EndDate
+  AND s.StatusName = 'Active'
+  AND s.QueueID IS NULL
+  AND ca.CreatedByStaffID = @SystemStaffID;";
+
+            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@StartDate", startDate.Date);
+                cmd.Parameters.AddWithValue("@EndDate", endDate.Date);
+                cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -141,9 +370,13 @@ SELECT
     ca.[Date],
     ca.StartTime,
     ca.EndTime,
-    CONVERT(VARCHAR(5), ca.StartTime, 108) + ' - ' + CONVERT(VARCHAR(5), ca.EndTime, 108) AS TimeRange,
+    LEFT(CONVERT(VARCHAR(8), ca.StartTime, 108), 5) + ' - ' + LEFT(CONVERT(VARCHAR(8), ca.EndTime, 108), 5) AS TimeRange,
     ca.ModeName,
     ca.CreatedByStaffID,
+
+    r.ReservationID,
+    s.SessionID,
+    s.QueueID,
 
     CASE
         WHEN r.ReservationID IS NOT NULL THEN
@@ -152,13 +385,17 @@ SELECT
                 pw.Firstname + ' ' + pw.Lastname,
                 'Reserved Player'
             )
-        ELSE 'Open / No Assigned Player'
+        WHEN s.SessionID IS NOT NULL AND s.QueueID IS NOT NULL THEN 'Queue Session'
+        WHEN s.SessionID IS NOT NULL AND s.QueueID IS NULL THEN 'Blocked / Closed Session'
+        WHEN ca.CreatedByStaffID = @SystemStaffID THEN 'Open / No Assigned Player'
+        ELSE 'Manual Override'
     END AS TakenByName,
 
     CASE
-        WHEN s.SessionID IS NOT NULL THEN 'Active Session'
+        WHEN s.SessionID IS NOT NULL AND s.QueueID IS NOT NULL THEN 'Active Queue'
+        WHEN s.SessionID IS NOT NULL AND s.QueueID IS NULL THEN 'Active Closed Session'
         WHEN r.ReservationID IS NOT NULL THEN 'Reservation'
-        WHEN ca.CreatedByStaffID = 1 THEN 'System'
+        WHEN ca.CreatedByStaffID = @SystemStaffID THEN 'System'
         ELSE 'Manual Override'
     END AS SourceLabel
 
@@ -169,20 +406,26 @@ INNER JOIN tblCourt c
 LEFT JOIN tblReservation r
     ON r.CourtID = ca.CourtID
    AND r.ResDate = ca.[Date]
-   AND r.StartTime = ca.StartTime
-   AND r.EndTime = ca.EndTime
+   AND ca.StartTime >= r.StartTime
+   AND ca.EndTime <= r.EndTime
    AND r.ReservationStatusName = 'Approved'
 
 LEFT JOIN tblPlayerAccount pa
     ON r.UserID = pa.UserID
+
 LEFT JOIN tblPlayerWalkIn pw
     ON r.WalkInID = pw.WalkInID
 
 LEFT JOIN tblActiveSession s
     ON s.CourtID = ca.CourtID
-   AND CAST(s.StartTime AS DATE) = ca.[Date]
-   AND CAST(s.StartTime AS TIME) = ca.StartTime
-   AND CAST(s.ExpectedEndTime AS TIME) = ca.EndTime
+   AND ca.[Date] = CAST(s.StartTime AS DATE)
+   AND ca.StartTime >= CAST(s.StartTime AS TIME)
+   AND ca.EndTime <= CAST(
+        CASE
+            WHEN s.ActualEndTime IS NOT NULL THEN s.ActualEndTime
+            ELSE s.ExpectedEndTime
+        END AS TIME
+   )
    AND s.StatusName = 'Active'
 
 WHERE ca.[Date] = @TargetDate
@@ -191,7 +434,8 @@ ORDER BY ca.StartTime, c.CourtNumber;";
 
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
-                    cmd.Parameters.AddWithValue("@TargetDate", targetDate);
+                    cmd.Parameters.AddWithValue("@TargetDate", targetDate.Date);
+                    cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
 
                     using (SqlDataAdapter da = new SqlDataAdapter(cmd))
                     {
@@ -220,7 +464,6 @@ ORDER BY ca.StartTime, c.CourtNumber;";
             sb.Append("<div class='matrix-wrap'>");
             sb.Append("<table class='matrix-table'>");
 
-            // Header
             sb.Append("<thead><tr>");
             sb.Append("<th class='time-col'>Time Block</th>");
 
@@ -266,22 +509,25 @@ ORDER BY ca.StartTime, c.CourtNumber;";
                     string takenByName = Convert.ToString(slot["TakenByName"]);
                     string sourceLabel = Convert.ToString(slot["SourceLabel"]);
                     int createdByStaffId = Convert.ToInt32(slot["CreatedByStaffID"]);
-                    bool isLocked = createdByStaffId == 1;
 
+                    bool isLocked = IsSlotLockedForEdit(slot);
                     string slotClass = GetSlotCssClass(modeName, isLocked);
+
                     string safeTime = JsEncode(Convert.ToString(slot["TimeRange"]));
                     string safeCourt = JsEncode("Court " + Convert.ToString(court["CourtNumber"]) + " (" + Convert.ToString(court["SportName"]) + ")");
                     string safeMode = JsEncode(modeName);
                     string safeTaken = JsEncode(takenByName);
+                    string safeSource = JsEncode(sourceLabel);
 
                     string click = "openEditModal(" +
-                   availabilityId + ", '" +
-                   safeTime + "', '" +
-                   safeCourt + "', '" +
-                   safeMode + "', '" +
-                   safeTaken + "', '" +
-                   createdByStaffId + "')";
-
+                                   availabilityId + ", '" +
+                                   safeTime + "', '" +
+                                   safeCourt + "', '" +
+                                   safeMode + "', '" +
+                                   safeTaken + "', '" +
+                                   createdByStaffId + "', '" +
+                                   safeSource + "', " +
+                                   (isLocked ? "true" : "false") + ")";
 
                     sb.Append("<td>");
                     sb.Append("<div class='slot-box " + slotClass + "' onclick=\"" + click + "\">");
@@ -291,10 +537,11 @@ ORDER BY ca.StartTime, c.CourtNumber;";
                     sb.Append("</div>");
 
                     sb.Append("<div class='slot-name'>");
-                    if (string.IsNullOrWhiteSpace(takenByName) || takenByName == "Open / No Assigned Player")
-                        sb.Append("<span class='muted-text'>Open / No Assigned Player</span>");
-                    else
-                        sb.Append(HttpUtility.HtmlEncode(takenByName));
+                    sb.Append(HttpUtility.HtmlEncode(takenByName));
+                    sb.Append("</div>");
+
+                    sb.Append("<div class='slot-source'>");
+                    sb.Append(HttpUtility.HtmlEncode(sourceLabel));
                     sb.Append("</div>");
 
                     sb.Append("</div>");
@@ -309,6 +556,17 @@ ORDER BY ca.StartTime, c.CourtNumber;";
             sb.Append("</div>");
 
             return sb.ToString();
+        }
+
+        private bool IsSlotLockedForEdit(DataRow slot)
+        {
+            if (slot == null)
+                return true;
+
+            bool hasReservation = slot["ReservationID"] != DBNull.Value;
+            bool hasSession = slot["SessionID"] != DBNull.Value;
+
+            return hasReservation || hasSession;
         }
 
         private string GetSlotCssClass(string modeName, bool isLocked)
@@ -341,33 +599,125 @@ ORDER BY ca.StartTime, c.CourtNumber;";
         {
             using (SqlConnection conn = new SqlConnection(connString))
             {
-                string sql = @"
+                conn.Open();
+
+                using (SqlTransaction tx = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        SlotEditState slot = GetSlotEditState(conn, tx, availabilityId);
+
+                        if (slot == null)
+                            throw new InvalidOperationException("The selected slot could not be found.");
+
+                        if (slot.HasApprovedReservation)
+                            throw new InvalidOperationException("This slot is occupied by an approved reservation and cannot be modified.");
+
+                        if (slot.HasActiveSession)
+                            throw new InvalidOperationException("This slot is occupied by an active session and cannot be modified.");
+
+                        string sql = @"
 UPDATE tblCourtAvailability
 SET ModeName = @ModeName,
     CreatedByStaffID = @StaffID
-WHERE AvailabilityID = @AvailabilityID
-  AND CreatedByStaffID <> 1;";
+WHERE AvailabilityID = @AvailabilityID;";
 
-                using (SqlCommand cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@ModeName", newMode);
-                    cmd.Parameters.AddWithValue("@StaffID", staffId);
-                    cmd.Parameters.AddWithValue("@AvailabilityID", availabilityId);
+                        using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@ModeName", newMode);
+                            cmd.Parameters.AddWithValue("@StaffID", staffId);
+                            cmd.Parameters.AddWithValue("@AvailabilityID", availabilityId);
 
-                    conn.Open();
-                    int rows = cmd.ExecuteNonQuery();
+                            int rows = cmd.ExecuteNonQuery();
+                            if (rows <= 0)
+                                throw new InvalidOperationException("Unable to update the selected slot.");
+                        }
 
-                    if (rows <= 0)
-                    {
-                        throw new InvalidOperationException("This slot is locked and cannot be modified.");
+                        tx.Commit();
                     }
+                    catch
+                    {
+                        tx.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private SlotEditState GetSlotEditState(SqlConnection conn, SqlTransaction tx, int availabilityId)
+        {
+            string sql = @"
+SELECT TOP 1
+    ca.AvailabilityID,
+    ca.CourtID,
+    ca.[Date],
+    ca.StartTime,
+    ca.EndTime,
+    ca.ModeName,
+    ca.CreatedByStaffID,
+
+    CASE
+        WHEN EXISTS
+        (
+            SELECT 1
+            FROM tblReservation r
+            WHERE r.CourtID = ca.CourtID
+              AND r.ResDate = ca.[Date]
+              AND ca.StartTime >= r.StartTime
+              AND ca.EndTime <= r.EndTime
+              AND r.ReservationStatusName = 'Approved'
+        ) THEN 1 ELSE 0
+    END AS HasApprovedReservation,
+
+    CASE
+        WHEN EXISTS
+        (
+            SELECT 1
+            FROM tblActiveSession s
+            WHERE s.CourtID = ca.CourtID
+              AND ca.[Date] = CAST(s.StartTime AS DATE)
+              AND ca.StartTime >= CAST(s.StartTime AS TIME)
+              AND ca.EndTime <= CAST(
+                    CASE
+                        WHEN s.ActualEndTime IS NOT NULL THEN s.ActualEndTime
+                        ELSE s.ExpectedEndTime
+                    END AS TIME
+              )
+              AND s.StatusName = 'Active'
+        ) THEN 1 ELSE 0
+    END AS HasActiveSession
+
+FROM tblCourtAvailability ca
+WHERE ca.AvailabilityID = @AvailabilityID;";
+
+            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@AvailabilityID", availabilityId);
+
+                using (SqlDataReader rdr = cmd.ExecuteReader())
+                {
+                    if (!rdr.Read())
+                        return null;
+
+                    return new SlotEditState
+                    {
+                        AvailabilityID = Convert.ToInt32(rdr["AvailabilityID"]),
+                        CourtID = Convert.ToInt32(rdr["CourtID"]),
+                        Date = Convert.ToDateTime(rdr["Date"]).Date,
+                        StartTime = (TimeSpan)rdr["StartTime"],
+                        EndTime = (TimeSpan)rdr["EndTime"],
+                        ModeName = Convert.ToString(rdr["ModeName"]),
+                        CreatedByStaffID = Convert.ToInt32(rdr["CreatedByStaffID"]),
+                        HasApprovedReservation = Convert.ToBoolean(rdr["HasApprovedReservation"]),
+                        HasActiveSession = Convert.ToBoolean(rdr["HasActiveSession"])
+                    };
                 }
             }
         }
 
         private void ShowAlert(string message)
         {
-            string safe = (message ?? "").Replace("'", "\\'");
+            string safe = JsEncode(message ?? "");
             ScriptManager.RegisterStartupScript(
                 this,
                 GetType(),
@@ -388,6 +738,19 @@ WHERE AvailabilityID = @AvailabilityID
                 .Replace("\"", "\\\"")
                 .Replace("\r", "")
                 .Replace("\n", " ");
+        }
+
+        private sealed class SlotEditState
+        {
+            public int AvailabilityID { get; set; }
+            public int CourtID { get; set; }
+            public DateTime Date { get; set; }
+            public TimeSpan StartTime { get; set; }
+            public TimeSpan EndTime { get; set; }
+            public string ModeName { get; set; }
+            public int CreatedByStaffID { get; set; }
+            public bool HasApprovedReservation { get; set; }
+            public bool HasActiveSession { get; set; }
         }
     }
 }

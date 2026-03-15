@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="PreparingPayment.aspx.cs" Inherits="Smash_IT.PreparingPayment" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="PreparingPayment.aspx.cs" Inherits="Smash_IT.payments.PreparingPayment" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">

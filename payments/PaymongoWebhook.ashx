@@ -1,4 +1,4 @@
-﻿<%@ WebHandler Language="C#" Class="Smash_IT.PaymongoWebhook" %>
+﻿<%@ WebHandler Language="C#" Class="Smash_IT.payments.PaymongoWebhook" %>
 
 using System;
 using System.Configuration;
@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Web;
 
-namespace Smash_IT
+namespace Smash_IT.payments
 {
     public class PaymongoWebhook : IHttpHandler
     {

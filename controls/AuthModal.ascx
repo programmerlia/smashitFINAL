@@ -390,7 +390,7 @@
         const hf = document.getElementById(ids.step);
         if (hf) hf.value = String(activeStep);
     }
-    }
+    
 
     function goToStep1() { setStep(1); }
     function goToStep2() { setStep(2); }

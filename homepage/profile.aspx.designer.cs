@@ -339,6 +339,24 @@ namespace Smash_IT.homepage
         protected global::System.Web.UI.WebControls.Panel pnlEmptyCompleted;
 
         /// <summary>
+        /// rptRefunded control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Repeater rptRefunded;
+
+        /// <summary>
+        /// pnlEmptyRefunded control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Panel pnlEmptyRefunded;
+
+        /// <summary>
         /// pnlPaymentsEmpty control.
         /// </summary>
         /// <remarks>

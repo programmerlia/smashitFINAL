@@ -7,7 +7,7 @@ using System.Net;
 using System.Text;
 using System.Web.Script.Serialization;
 
-namespace Smash_IT
+namespace Smash_IT.payments
 {
     public partial class ReservationSuccess : reservation
     {

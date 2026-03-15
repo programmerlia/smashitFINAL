@@ -10,7 +10,7 @@ BEGIN TRY
        ========================================================= */
     DECLARE @SeedDates TABLE ([D] DATE PRIMARY KEY);
     INSERT INTO @SeedDates ([D])
-    VALUES  ('2026-03-10'), ('2026-03-11'), ('2026-03-12'), ('2026-03-13'), ('2026-03-14'), ('2026-03-15'), ('2026-03-16'), ('2026-03-17'), ('2026-03-18'), ('2026-03-19'), ('2026-03-20');
+    VALUES  ('2026-03-15'), ('2026-03-16'), ('2026-03-17'), ('2026-03-18');
 
     /* =========================================================
        1) STAFF + PLAYERS
@@ -18,9 +18,11 @@ BEGIN TRY
     INSERT INTO tblStaffAccount (Lastname, Firstname, Email, Username, [Password], RoleName)
     VALUES 
     ('Olayvar', 'Hannali', 'hannaliolayvar@gmail.com', 'admin', 'pass', 'admin'),
-    ('Noda', 'Isaiah', 'isaiahandreinoda@gmail.com', 'receptionist', 'pass', 'receptionist');
+    ('Noda', 'Isaiah', 'isaiahandreinoda@gmail.com', 'receptionist', 'pass', 'receptionist'),
+    ('Par', 'Dean', 'isaiahandreinoda@gmail.com', 'queuemaster', 'pass', 'queuemaster');
 
-    DECLARE @AdminStaffID INT = (SELECT StaffID FROM tblStaffAccount WHERE Username='admin');
+
+    DECLARE @AdminStaffID INT = 1
 
     INSERT INTO tblPlayerAccount (Lastname, Firstname, Email, PhoneNumber, Username, [Password])
     VALUES 
@@ -66,84 +68,7 @@ BEGIN TRY
     DECLARE @ItemA INT = (SELECT MIN(ItemID) FROM tblEquipmentItem);
     DECLARE @ItemB INT = (SELECT MAX(ItemID) FROM tblEquipmentItem);
 
-    /* =========================================================
-       4) EVENTS & COURT POOL
-       ========================================================= */
-    INSERT INTO tblEvent (Title, SportName, EventDate, CreatedByStaffID, IsActive)
-    SELECT 
-        CONCAT('Tournament - ', FORMAT(d.[D], 'MMMM dd')),
-        'badminton', d.[D], @AdminStaffID, 1
-    FROM @SeedDates d;
-
-    INSERT INTO tblEventCourtPool (EventID, CourtID)
-    SELECT e.EventID, c.CourtID
-    FROM tblEvent e
-    CROSS JOIN tblCourt c
-    WHERE c.CourtNumber IN (2, 3, 6);
-
-    /* =========================================================
-       5) WALK-INS
-       ========================================================= */
-    INSERT INTO tblPlayerWalkIn (UserID, Lastname, Firstname, BasePaid, QueuePaid, CreatedAt)
-    VALUES 
-    (NULL, 'Reyes', 'Juan', 1, 1, '2026-02-27 08:30'),
-    (NULL, 'Santos', 'Maria', 1, 1, '2026-02-27 08:45'),
-    (NULL, 'Dela Cruz', 'Paolo', 1, 0, '2026-02-28 09:00'),
-    (NULL, 'Garcia', 'Anne', 1, 1, '2026-03-01 10:00');
-
-    /* =========================================================
-       6) COURT AVAILABILITY (Slot Generation)
-       ========================================================= */
-    DECLARE @Slots TABLE(StartTime TIME(0), EndTime TIME(0));
-    DECLARE @t TIME(0) = '08:00';
-    WHILE (@t < '22:00')
-    BEGIN
-        INSERT INTO @Slots VALUES (@t, CAST(DATEADD(MINUTE, 30, @t) AS TIME(0)));
-        SET @t = CAST(DATEADD(MINUTE, 30, @t) AS TIME(0));
-    END;
-
-    INSERT INTO tblCourtAvailability (CourtID, [Date], StartTime, EndTime, ModeName, CreatedByStaffID)
-    SELECT c.CourtID, d.[D], s.StartTime, s.EndTime,
-        CASE 
-            WHEN c.CourtNumber IN (2,3,6) THEN 'Queue'
-            ELSE 'Reservation'
-        END, @AdminStaffID
-    FROM tblCourt c
-    CROSS JOIN @SeedDates d
-    CROSS JOIN @Slots s;
-
-    /* =========================================================
-       7) RESERVATIONS
-       ========================================================= */
-    INSERT INTO tblReservation (UserID, PlayerNumber, CourtID, ResDate, StartTime, EndTime, IsPaid, SportName, RequiredAmount, ApprovedByStaffID, ReservationStatusName)
-    VALUES 
-    (@UserElyza, 4, @Court1, '2026-02-27', '18:00', '19:00', 1, 'badminton', 400.00, @AdminStaffID, 'Approved'),
-    (@UserElexali, 2, @Court5, '2026-02-27', '19:00', '20:00', 0, 'pickleball', 630.00, NULL, 'Pending');
-
-    /* =========================================================
-       8) QUEUE & SESSIONS
-       ========================================================= */
-    DECLARE @ResID INT = (SELECT TOP 1 ReservationID FROM tblReservation WHERE UserID=@UserElyza);
-
-    INSERT INTO tblCourtQueue (CourtID, ReservationID, QueueDate, QueueTypeName, QueueNumber, StatusName, LastModifiedByStaffID)
-    VALUES (@Court1, @ResID, '2026-02-27', 'Reservation', 1, 'Waiting', @AdminStaffID);
-
-    INSERT INTO tblActiveSession (CourtID, ReservationID, StartTime, ExpectedEndTime, StatusName)
-    VALUES (@Court1, @ResID, '2026-02-27 18:00', '2026-02-27 19:00', 'Active');
-
-    /* =========================================================
-       9) PAYMENTS
-       ========================================================= */
-    INSERT INTO tblPayment (PaymentTypeName, UserID, ReservationID, PaymentDate, Amount)
-    VALUES ('Reservation', @UserElyza, @ResID, '2026-02-27', 400.00);
-
-    /* =========================================================
-       10) ABOUT US & CONTENT
-       ========================================================= */
-    INSERT INTO tblAboutUsMembers(Lastname, Firstname, Position)
-    VALUES ('De Mesa', 'Richie', 'CEO Operations Manager'),
-           ('Unira', 'Mark Odrey', 'Backend Developer');
-
+ 
     COMMIT TRAN;
     PRINT 'Seed successful!';
 END TRY
@@ -153,3 +78,30 @@ BEGIN CATCH
     RAISERROR(@Err, 16, 1);
 END CATCH;
 GO
+
+
+INSERT INTO tblAboutUsMembers (Firstname, Lastname, Position, ImgPath)
+VALUES
+('Harvey', 'Lafuente', 'Docu', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773411879/smash-it-uploads/vzmcjezpwh0jet9bl0xc.jpg'),
+('Isaiah', 'Noda', 'Leader', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773411941/smash-it-uploads/szlmkxs8ubt3zarbirv8.jpg'),
+('Hannali', 'Olayvar', 'Lahat', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773411970/smash-it-uploads/fng3ktsottdxltqu6knb.jpg'),
+('Dean', 'Par', 'Wala', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773412001/smash-it-uploads/nhkvyv5wwajqgfeykwra.jpg'),
+('Mark', 'Unira', 'Backend', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773412022/smash-it-uploads/vergazexkxyk9lkcda6b.jpg');
+
+INSERT INTO tblAnnouncement (Title, Content, FilePath, StartDate, EndDate, CreatedAt, ViewStatus, DisplayOrder, CreatedByStaffID, URL_FB)
+VALUES
+('anno-hero', 'Hero Banner Image', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773410082/smash-it-uploads/xchcd0bq13eugchwj5ug.jpg', '2026-03-13 21:54:34.527', NULL, '2026-03-13 21:54:34.527', 'True', 0, 2, NULL),
+('1st Anniversary Founders Cup Tournament!', 'Celebrate with us and be part of the action on April 19, 2026.
+Registration is now open! Secure your slot and don’t miss the excitement.
+For more details, message Coach Ja – 0923 529 6601 or send a message to our page.', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773410180/smash-it-uploads/wgl92cupp0ckdviqsloi.jpg', '2026-03-13 21:56:11.577', '2026-03-19 00:00:00.000', '2026-03-13 21:56:11.577', 'True', 1, 1, 'https://www.facebook.com/share/p/18HB8xuHtz/'),
+('Summer Camp Badminton Training for Kids 2026', 'Give your kids a fun and active summer on the court! 
+Our training focuses on proper fundamentals, discipline, confidence, and teamwork — all while having FUN!
+ Perfect for beginners and young players who want to improve their skills and stay active during vacation.', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773410245/smash-it-uploads/nnvn03f3di3ch9dgsdq3.jpg', '2026-03-13 21:57:16.340', '2026-03-13 21:57:16.340', '2026-03-13 21:57:16.340', 'True', 2, 1, 'https://www.facebook.com/share/p/1ALYK3hTzX/');
+
+INSERT INTO tblContent (Section, Title, Subtitle, Content, ImgPath, LastModifiedByStaffID)
+VALUES
+('Hero-Home', 'Badminton', 'Expert or beginner, everyone is welcome! Join us on the court for some high-energy fun.', '8:00 AM - 9:00 PM: ?330/hr', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773410440/smash-it-uploads/bbqt1j2gjxbtbwkcwv8j.png', 1),
+('Hero-Home', 'Pickleball', 'Easy to learn, hard to stop! Pro or beginner, we’ve got a court waiting for you.', '8:00 AM - 8:00 PM: ?330/hr', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773410710/smash-it-uploads/flsiedlsy8zocykkkrta.png', 1),
+('Hero-About-Us', NULL, NULL, NULL, 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773411201/smash-it-uploads/hmt0vehcw3bcvdnasfma.jpg', 1),
+('Our-Story-About-Us', NULL, NULL, 'Born in 2020 during the height of the pandemic, Smash-It Sports Center started as a small community haven for badminton and pickleball enthusiasts looking for a safe, active outlet. As our Smash-It family quickly grew into a bustling hub for athletes of all levels, our original manual booking methods—relying on messages and physical waitlists—could no longer keep up with the demand. To ensure our players spend less time waiting and more time playing, we have upgraded to a seamless digital platform that allows you to check real-time court availability, secure reservations, and track your queue status instantly. While our technology has modernized, our core mission remains exactly the same: to provide a premier, hassle-free sports destination where the community comes together to play, compete, and smash their goals.', 'https://res.cloudinary.com/dqtpqzfg9/image/upload/v1773411384/smash-it-uploads/l4860xvolkht07mnqn1i.jpg', 1),
+('Mission-Vision-About-Us', NULL, NULL, 'To provide a high-quality, accessible sports facility with a seamless digital booking experience, allowing our community of badminton and pickleball players to focus on what matters most: playing the game. ; To be the region''s premier, tech-forward sports hub, setting the standard for a modernized, customer-first recreation experience that empowers everyone to stay active.', NULL, 1);

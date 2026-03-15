@@ -70,6 +70,10 @@ SELECT
     act.ExpectedEndTime AS ActiveExpectedEndTime,
     act.SessionMode,
 
+    av.ModeName AS AvailabilityMode,
+    av.StartTime AS AvailabilityStartTime,
+    av.EndTime AS AvailabilityEndTime,
+
     curRes.PlayerName AS CurrentReservationPlayerName,
     curRes.StartTime AS CurrentReservationStartTime,
     curRes.EndTime AS CurrentReservationEndTime,
@@ -86,20 +90,28 @@ OUTER APPLY
 (
     SELECT TOP 1
         CASE
-            WHEN s.QueueID IS NOT NULL THEN ISNULL(ev.Title, 'Event Queue')
-            ELSE COALESCE(
+            WHEN s.ReservationID IS NOT NULL THEN COALESCE(
                 paRes.Firstname + ' ' + paRes.Lastname,
                 pwRes.Firstname + ' ' + pwRes.Lastname,
+                'Reserved Player'
+            )
+            WHEN q.EventID IS NOT NULL THEN ISNULL(ev.Title, 'Event Session')
+            WHEN s.QueueID IS NOT NULL THEN COALESCE(
                 paQ.Firstname + ' ' + paQ.Lastname,
                 pwQ.Firstname + ' ' + pwQ.Lastname,
-                pwP.Firstname + ' ' + pwP.Lastname,
-                'Player'
+                'Queued Player'
             )
+            WHEN s.PAYCID IS NOT NULL THEN COALESCE(
+                pwP.Firstname + ' ' + pwP.Lastname,
+                'Play For All Player'
+            )
+            ELSE 'Active Session'
         END AS PlayerName,
         s.StartTime,
         s.ExpectedEndTime,
         CASE
             WHEN s.ReservationID IS NOT NULL THEN 'Reservation'
+            WHEN q.EventID IS NOT NULL THEN 'Event'
             WHEN s.QueueID IS NOT NULL THEN 'Queue'
             WHEN s.PAYCID IS NOT NULL THEN 'PlayForAll'
             ELSE 'Active Session'
@@ -130,8 +142,22 @@ OUTER APPLY
       AND s.StatusName = 'Active'
       AND s.StartTime <= @NowDateTime
       AND (s.ActualEndTime IS NULL OR s.ActualEndTime > @NowDateTime)
-    ORDER BY s.StartTime DESC
+    ORDER BY s.StartTime DESC, s.SessionID DESC
 ) act
+
+OUTER APPLY
+(
+    SELECT TOP 1
+        ca.ModeName,
+        ca.StartTime,
+        ca.EndTime
+    FROM tblCourtAvailability ca
+    WHERE ca.CourtID = c.CourtID
+      AND ca.[Date] = @TargetDate
+      AND ca.StartTime <= @TargetTime
+      AND ca.EndTime > @TargetTime
+    ORDER BY  ca.StartTime DESC
+) av
 
 OUTER APPLY
 (
@@ -152,8 +178,8 @@ OUTER APPLY
       AND r.ResDate = @TargetDate
       AND r.StartTime <= @TargetTime
       AND r.EndTime > @TargetTime
-      AND r.ReservationStatusName IN ('Pending', 'Approved')
-    ORDER BY r.StartTime
+      AND r.ReservationStatusName = 'Approved'
+    ORDER BY r.StartTime ASC, r.ReservationID ASC
 ) curRes
 
 OUTER APPLY
@@ -174,27 +200,32 @@ OUTER APPLY
     WHERE r.CourtID = c.CourtID
       AND r.ResDate = @TargetDate
       AND r.StartTime > @TargetTime
-      AND r.ReservationStatusName IN ('Pending', 'Approved')
-    ORDER BY r.StartTime ASC
+      AND r.ReservationStatusName = 'Approved'
+    ORDER BY r.StartTime ASC, r.ReservationID ASC
 ) nextRes
 
 OUTER APPLY
 (
     SELECT TOP 1
-        COALESCE(
-            pa.Firstname + ' ' + pa.Lastname,
-            pw.Firstname + ' ' + pw.Lastname,
-            'Queued Player'
-        ) AS PlayerName
+        CASE
+            WHEN cq.EventID IS NOT NULL THEN ISNULL(ev.Title, 'Event Queue')
+            ELSE COALESCE(
+                pa.Firstname + ' ' + pa.Lastname,
+                pw.Firstname + ' ' + pw.Lastname,
+                'Queued Player'
+            )
+        END AS PlayerName
     FROM tblCourtQueue cq
     LEFT JOIN tblPlayerAccount pa
         ON cq.UserID = pa.UserID
     LEFT JOIN tblPlayerWalkIn pw
         ON cq.WalkInID = pw.WalkInID
+    LEFT JOIN tblEvent ev
+        ON cq.EventID = ev.EventID
     WHERE cq.CourtID = c.CourtID
       AND cq.QueueDate = @TargetDate
       AND cq.StatusName = 'Waiting'
-    ORDER BY cq.QueueNumber ASC
+    ORDER BY cq.QueueNumber ASC, cq.QueueID ASC
 ) nextQ
 
 WHERE c.IsActive = 1
@@ -220,22 +251,26 @@ ORDER BY c.CourtNumber;";
         {
             int courtNumber = Convert.ToInt32(row["CourtNumber"]);
 
+            string availabilityMode = row["AvailabilityMode"] == DBNull.Value
+                ? "PlayForAll"
+                : Convert.ToString(row["AvailabilityMode"]);
+
             CourtLiveCard card = new CourtLiveCard
             {
                 CourtID = Convert.ToInt32(row["CourtID"]),
                 CourtNumber = courtNumber,
                 SportName = Convert.ToString(row["SportName"]),
-                CurrentMode = "PlayForAll",
+                CurrentMode = availabilityMode,
                 StatusCssClass = "available",
                 StatusColor = "#22c55e",
-                StatusDisplay = "Available",
-                CurrentLabel = "Currently Taken By",
-                CurrentPlayerName = "Open Play",
-                CurrentTimeRange = "Now",
+                StatusDisplay = "Open",
+                CurrentLabel = "Current Window",
+                CurrentPlayerName = GetFriendlyModeLabel(availabilityMode),
+                CurrentTimeRange = GetAvailabilityTimeRange(row),
                 NextPlayerName = "None",
                 NextTimeRange = "--:--",
-                SourceLabel = "Live Court Status",
-                Remarks = "Court is currently free.",
+                SourceLabel = "Availability Window",
+                Remarks = GetAvailabilityRemarks(availabilityMode),
                 LayoutCssClass = GetLayoutCssClass(courtNumber),
                 OrientationCssClass = GetOrientationCssClass(courtNumber)
             };
@@ -245,6 +280,7 @@ ORDER BY c.CourtNumber;";
             bool hasNextReservation = row["NextReservationStartTime"] != DBNull.Value;
             bool hasNextQueue = row["NextQueuePlayerName"] != DBNull.Value &&
                                 !string.IsNullOrWhiteSpace(Convert.ToString(row["NextQueuePlayerName"]));
+            bool hasAvailability = row["AvailabilityMode"] != DBNull.Value;
 
             if (hasActiveSession)
             {
@@ -258,32 +294,57 @@ ORDER BY c.CourtNumber;";
                 card.CurrentTimeRange = start.ToString("hh:mm tt") + " - " + expectedEnd.ToString("hh:mm tt");
 
                 string sessionMode = Convert.ToString(row["SessionMode"]);
-                card.CurrentMode = string.IsNullOrWhiteSpace(sessionMode) ? "Active Session" : sessionMode;
+                card.CurrentMode = string.IsNullOrWhiteSpace(sessionMode) ? availabilityMode : sessionMode;
 
-                if (card.CurrentMode == "Queue")
+                switch (card.CurrentMode)
                 {
-                    card.CurrentLabel = "Active Event";
-                    card.Remarks = "Court currently assigned to an event queue.";
-                }
-                else if (card.CurrentMode == "Reservation")
-                {
-                    card.CurrentLabel = "Reserved For";
-                    card.Remarks = "Reserved player is currently using this court.";
-                }
-                else
-                {
-                    card.CurrentLabel = "Currently Taken By";
-                    card.Remarks = "Court currently in use.";
+                    case "Reservation":
+                        card.CurrentLabel = "Reserved Player On Court";
+                        card.Remarks = "This approved reservation is now running as an active session.";
+                        break;
+
+                    case "Event":
+                        card.CurrentLabel = "Active Event";
+                        card.Remarks = "Court is currently being used for an event session.";
+                        break;
+
+                    case "Queue":
+                        card.CurrentLabel = "Active Queue Player";
+                        card.Remarks = "Court is currently occupied by a queue-based session.";
+                        break;
+
+                    case "PlayForAll":
+                        card.CurrentLabel = "Active Player";
+                        card.Remarks = "Court is currently in active Play For All use.";
+                        break;
+
+                    default:
+                        card.CurrentLabel = "Currently Taken By";
+                        card.Remarks = "Court is currently in use.";
+                        break;
                 }
 
                 card.SourceLabel = "Active Session";
             }
+            else if (hasAvailability && availabilityMode == "Closed")
+            {
+                card.StatusCssClass = "closed";
+                card.StatusColor = "#e11d48";
+                card.StatusDisplay = "Closed";
+                card.CurrentMode = "Closed";
+                card.CurrentLabel = "Current Window";
+                card.CurrentPlayerName = "Closed";
+                card.CurrentTimeRange = GetAvailabilityTimeRange(row);
+                card.SourceLabel = "Availability Window";
+                card.Remarks = "Court is closed for this time window.";
+            }
             else if (hasCurrentReservation)
             {
+                // No live session yet, but this approved reservation owns the current slot.
                 card.StatusCssClass = "available";
                 card.StatusColor = "#22c55e";
                 card.StatusDisplay = "Reserved";
-                card.CurrentMode = "Reservation";
+                card.CurrentMode = availabilityMode == "Closed" ? "Closed" : "Reservation";
                 card.CurrentLabel = "Reserved For";
                 card.CurrentPlayerName = Convert.ToString(row["CurrentReservationPlayerName"]);
 
@@ -291,20 +352,51 @@ ORDER BY c.CourtNumber;";
                 TimeSpan end = (TimeSpan)row["CurrentReservationEndTime"];
                 card.CurrentTimeRange = FormatTimeRange(start, end);
 
-                card.SourceLabel = "Reservation";
-                card.Remarks = "Reserved player has this slot.";
+                card.SourceLabel = "Approved Reservation";
+                card.Remarks = "This court is reserved in the current time range, but no live session has started yet.";
             }
             else
             {
-                card.StatusCssClass = "available";
-                card.StatusColor = "#22c55e";
-                card.StatusDisplay = "Open";
-                card.CurrentMode = "PlayForAll";
-                card.CurrentLabel = "Currently Taken By";
-                card.CurrentPlayerName = "Open Play";
-                card.CurrentTimeRange = "Now";
-                card.SourceLabel = "Live Court Status";
-                card.Remarks = "Court is currently free.";
+                // No active session and no current approved reservation: use availability as the truth.
+                switch (availabilityMode)
+                {
+                    case "Queue":
+                        card.StatusCssClass = "available";
+                        card.StatusColor = "#22c55e";
+                        card.StatusDisplay = "Queue Window";
+                        card.CurrentLabel = "Current Window";
+                        card.CurrentPlayerName = "Queue Allowed";
+                        card.CurrentTimeRange = GetAvailabilityTimeRange(row);
+                        card.SourceLabel = "Availability Window";
+                        card.Remarks = "Court is currently assigned for queue-based use if staff starts a session.";
+                        break;
+
+                    case "Reservation":
+                        card.StatusCssClass = "available";
+                        card.StatusColor = "#22c55e";
+                        card.StatusDisplay = "Reservation Window";
+                        card.CurrentLabel = "Current Window";
+                        card.CurrentPlayerName = "Reservation Allowed";
+                        card.CurrentTimeRange = GetAvailabilityTimeRange(row);
+                        card.SourceLabel = "Availability Window";
+                        card.Remarks = "Court is currently open for reservations in this time window.";
+                        break;
+
+                    case "PlayForAll":
+                    default:
+                        card.StatusCssClass = "available";
+                        card.StatusColor = "#22c55e";
+                        card.StatusDisplay = "Open";
+                        card.CurrentMode = "PlayForAll";
+                        card.CurrentLabel = "Current Window";
+                        card.CurrentPlayerName = "Open Play";
+                        card.CurrentTimeRange = hasAvailability ? GetAvailabilityTimeRange(row) : "Now";
+                        card.SourceLabel = hasAvailability ? "Availability Window" : "Default Availability";
+                        card.Remarks = hasAvailability
+                            ? "Court is currently open for Play For All use."
+                            : "No availability row matched right now. Falling back to default open status.";
+                        break;
+                }
             }
 
             if (hasNextReservation)
@@ -314,7 +406,7 @@ ORDER BY c.CourtNumber;";
                 card.NextPlayerName = Convert.ToString(row["NextReservationPlayerName"]);
                 card.NextTimeRange = FormatTimeRange(nextStart, nextEnd);
             }
-            else if (card.CurrentMode == "Queue" && hasNextQueue)
+            else if ((card.CurrentMode == "Queue" || card.CurrentMode == "Event") && hasNextQueue)
             {
                 card.NextPlayerName = Convert.ToString(row["NextQueuePlayerName"]);
                 card.NextTimeRange = "On Deck";
@@ -331,6 +423,48 @@ ORDER BY c.CourtNumber;";
             }
 
             return card;
+        }
+
+        private string GetAvailabilityTimeRange(DataRow row)
+        {
+            if (row["AvailabilityStartTime"] == DBNull.Value || row["AvailabilityEndTime"] == DBNull.Value)
+                return "Now";
+
+            TimeSpan start = (TimeSpan)row["AvailabilityStartTime"];
+            TimeSpan end = (TimeSpan)row["AvailabilityEndTime"];
+            return FormatTimeRange(start, end);
+        }
+
+        private string GetFriendlyModeLabel(string mode)
+        {
+            switch (mode)
+            {
+                case "Reservation":
+                    return "Reservation Allowed";
+                case "Queue":
+                    return "Queue Allowed";
+                case "Closed":
+                    return "Closed";
+                case "PlayForAll":
+                default:
+                    return "Open Play";
+            }
+        }
+
+        private string GetAvailabilityRemarks(string mode)
+        {
+            switch (mode)
+            {
+                case "Reservation":
+                    return "Court is currently under a reservation-allowed availability window.";
+                case "Queue":
+                    return "Court is currently under a queue availability window.";
+                case "Closed":
+                    return "Court is currently closed.";
+                case "PlayForAll":
+                default:
+                    return "Court is currently open for Play For All use.";
+            }
         }
 
         private string FormatTimeRange(TimeSpan start, TimeSpan end)

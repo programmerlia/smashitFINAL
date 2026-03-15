@@ -160,11 +160,11 @@
                                 <small style="color: var(--text-muted);"><%# Eval("EquipmentSpec") %></small>
                             </ItemTemplate>
                         </asp:TemplateField>
-                        <asp:TemplateField HeaderText="Price">
-                            <ItemTemplate>
-                                <%# Eval("ItemCategory").ToString() == "Rental" ? "P " + Eval("DefaultRentalPrice") + "/hr" : "P " + Eval("DefaultSellPrice") %>
-                            </ItemTemplate>
-                        </asp:TemplateField>
+                     <asp:TemplateField HeaderText="Price">
+    <ItemTemplate>
+        <%# Eval("ItemCategory").ToString() == "Rental" ? "P " + Convert.ToDecimal(Eval("DefaultRentalPrice")).ToString("0.00") : "P " + Convert.ToDecimal(Eval("DefaultSellPrice")).ToString("0.00") %>
+    </ItemTemplate>
+</asp:TemplateField>
                         <asp:BoundField DataField="TotalStock" HeaderText="Stock" ItemStyle-Font-Bold="true" />
                         <asp:TemplateField ItemStyle-HorizontalAlign="Right">
                             <ItemTemplate>
@@ -202,17 +202,46 @@
                 
                 <div style="max-height: 500px; overflow-y: auto;">
                     <asp:GridView ID="gvItems" runat="server" AutoGenerateColumns="False" DataKeyNames="ItemID" OnRowCommand="gvItems_RowCommand" CssClass="custom-grid" GridLines="None">
-                        <Columns>
-                            <asp:BoundField DataField="ItemID" HeaderText="ID" ItemStyle-Width="50px" ItemStyle-ForeColor="#94a3b8" />
-                            <asp:BoundField DataField="EquipmentName" HeaderText="Asset" />
-                            <asp:TemplateField HeaderText="Status">
-                                <ItemTemplate><span class='pill <%# Eval("Status").ToString() == "Available" ? "pill-avail" : "pill-rented" %>'><%# Eval("Status") %></span></ItemTemplate>
-                            </asp:TemplateField>
-                            <asp:TemplateField ItemStyle-HorizontalAlign="Right">
-                                <ItemTemplate><asp:LinkButton runat="server" CommandName="DeleteItem" CommandArgument='<%# Eval("ItemID") %>' CssClass="action-link delete" OnClientClick="return confirm('Remove unit?');"><i class="fas fa-times"></i></asp:LinkButton></ItemTemplate>
-                            </asp:TemplateField>
-                        </Columns>
-                    </asp:GridView>
+    <Columns>
+        <asp:BoundField DataField="ItemID" HeaderText="ID" ItemStyle-Width="50px" ItemStyle-ForeColor="#94a3b8" />
+
+        <asp:TemplateField HeaderText="Asset">
+            <ItemTemplate>
+                <div style="font-weight:700;color:var(--smash-blue);"><%# Eval("EquipmentName") %></div>
+            </ItemTemplate>
+        </asp:TemplateField>
+
+        <asp:TemplateField HeaderText="Play Mode">
+            <ItemTemplate>
+                <div style="font-weight:600;color:#334155;"><%# Eval("PlayMode") %></div>
+            </ItemTemplate>
+        </asp:TemplateField>
+
+        <asp:TemplateField HeaderText="Rented By">
+            <ItemTemplate>
+                <div style="font-weight:600;color:#0f172a;"><%# Eval("RentedBy") %></div>
+            </ItemTemplate>
+        </asp:TemplateField>
+
+        <asp:TemplateField HeaderText="Time Rented">
+            <ItemTemplate>
+                <div style="font-size:0.85rem;color:#475569;"><%# Eval("TimeRented") %></div>
+            </ItemTemplate>
+        </asp:TemplateField>
+
+        <asp:TemplateField HeaderText="Status">
+            <ItemTemplate>
+                <span class='pill <%# Eval("Status").ToString() == "Available" ? "pill-avail" : "pill-rented" %>'><%# Eval("Status") %></span>
+            </ItemTemplate>
+        </asp:TemplateField>
+
+        <asp:TemplateField ItemStyle-HorizontalAlign="Right">
+            <ItemTemplate>
+                <asp:LinkButton runat="server" CommandName="DeleteItem" CommandArgument='<%# Eval("ItemID") %>' CssClass="action-link delete" OnClientClick="return confirm('Remove unit?');"><i class="fas fa-times"></i></asp:LinkButton>
+            </ItemTemplate>
+        </asp:TemplateField>
+    </Columns>
+</asp:GridView>
                 </div>
             </div>
         </div>

@@ -3,9 +3,9 @@ using System.IO;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
-namespace Smash_IT.receptionistpage
+namespace Smash_IT.queuemasterpage
 {
-    public partial class receptionist : System.Web.UI.MasterPage
+    public partial class queuemaster : System.Web.UI.MasterPage
     {
         public string StaffDisplayName
         {

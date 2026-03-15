@@ -126,10 +126,119 @@ namespace Smash_IT.adminpage
                 lblDgvDate.Text = targetDate.ToString("MMM dd, yyyy");
                 LoadScheduleGrid(targetDate);
                 LoadGrid(targetDate, txtSearch.Text.Trim());
+                LoadRefundGrid();
                 ResetSidebar();
             }
         }
 
+        private void LoadRefundGrid()
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(CS))
+                {
+                    string query = @"
+                SELECT
+                    r.ReservationID,
+                    CASE 
+                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Firstname,'') + ' ' + ISNULL(pa.Lastname,'')
+                        ELSE ISNULL(pw.Firstname,'') + ' ' + ISNULL(pw.Lastname,'')
+                    END AS CustomerName,
+                    CASE 
+                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Username,'')
+                        ELSE 'Walk-In'
+                    END AS UsernameText,
+                    CASE 
+                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Email,'No email')
+                        ELSE 'Walk-In / No email'
+                    END AS Email,
+                    CASE 
+                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.PhoneNumber,'No phone')
+                        ELSE 'Walk-In / No phone'
+                    END AS PhoneNumber,
+                    ISNULL(r.PaymentStatus,'Unpaid') AS PaymentStatus,
+                    ISNULL(r.PaymongoCheckoutSessionID,'Cash / OTC') AS ReferenceText,
+                    ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0) AS PaidAmount,
+                    CASE
+                        WHEN ISNULL(r.PaymentStatus,'Unpaid') = 'FullyPaid' THEN ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0)
+                        WHEN ISNULL(r.PaymentStatus,'Unpaid') = 'HalfPaid' THEN ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0)
+                        ELSE 0
+                    END AS RefundAmount
+                FROM tblReservation r
+                LEFT JOIN tblPlayerAccount pa ON r.UserID = pa.UserID
+                LEFT JOIN tblPlayerWalkIn pw ON r.WalkInID = pw.WalkInID
+                WHERE r.RequestStatus = 'CancelRequest'
+                  AND r.ReservationStatusName = 'Cancelled'
+                  AND ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0) > 0
+                ORDER BY r.ResDate DESC, r.StartTime DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        SqlDataAdapter da = new SqlDataAdapter(cmd);
+                        DataTable dt = new DataTable();
+                        da.Fill(dt);
+
+                        gvRefunds.DataSource = dt;
+                        gvRefunds.DataBind();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("error", "Refund Grid Error", ex.Message);
+            }
+        }
+
+        private void MarkReservationRefunded(int reservationId)
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(CS))
+                {
+                    string query = @"
+                UPDATE tblReservation
+                SET RequestStatus = NULL,
+                    ReservationStatusName = 'Refunded'
+                WHERE ReservationID = @ReservationID
+                  AND RequestStatus = 'CancelRequest'
+                  AND ReservationStatusName = 'Cancelled'";
+
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@ReservationID", reservationId);
+                        con.Open();
+                        int rows = cmd.ExecuteNonQuery();
+
+                        if (rows > 0)
+                        {
+                            ShowAlert("success", "Refund Updated", "Reservation marked as refunded.");
+                            RefreshAllData();
+                        }
+                        else
+                        {
+                            ShowAlert("warning", "No Change", "Reservation was not in refundable cancelled status.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("error", "Refund Update Failed", ex.Message);
+            }
+        }
+
+
+        protected void gvRefunds_RowCommand(object sender, GridViewCommandEventArgs e)
+        {
+            if (e.CommandName == "MarkRefunded")
+            {
+                int reservationId;
+                if (int.TryParse(e.CommandArgument.ToString(), out reservationId))
+                {
+                    MarkReservationRefunded(reservationId);
+                }
+            }
+        }
         private void LoadCourtsAndUsers()
         {
             try
@@ -633,6 +742,11 @@ namespace Smash_IT.adminpage
                 string sport = ddlEditSport.SelectedValue;
 
                 string newStatus = ddlStatus.SelectedValue;
+                if (newStatus == "Refunded")
+                {
+                    ShowAlert("warning", "Invalid Update", "Refunded status can only be set through the Refund Queue.");
+                    return;
+                }
                 string newPayment = ddlPayment.SelectedValue;
                 int isPaid = newPayment == "FullyPaid" ? 1 : 0;
                 int staffId = Session["StaffID"] != null ? Convert.ToInt32(Session["StaffID"]) : 1;

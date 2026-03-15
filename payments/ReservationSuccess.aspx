@@ -1,5 +1,5 @@
 ﻿<%@ Page Title="Reservation Success" Language="C#" MasterPageFile="~/homepage/homepage.Master"
-    AutoEventWireup="true" CodeBehind="ReservationSuccess.aspx.cs" Inherits="Smash_IT.ReservationSuccess" %>
+    AutoEventWireup="true" CodeBehind="ReservationSuccess.aspx.cs" Inherits="Smash_IT.payments.ReservationSuccess" %>
 
 <asp:Content ID="ContentHead" ContentPlaceHolderID="head" runat="server">
     <style>

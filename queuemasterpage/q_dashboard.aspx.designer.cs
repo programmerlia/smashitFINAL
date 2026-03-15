@@ -13,5 +13,14 @@ namespace Smash_IT.queuemasterpage
 
     public partial class q_dashboard
     {
+
+        /// <summary>
+        /// litStaffName control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litStaffName;
     }
 }

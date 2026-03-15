@@ -2,9 +2,14 @@
 
 <%@ Register Src="~/Controls/CourtLive.ascx" TagPrefix="uc" TagName="CourtLive" %>
 
-<asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
+<asp:Content ID="Content1" 
+ContentPlaceHolderID="head" runat="server">
 </asp:Content>
 
-<asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
-    <uc:CourtLive ID="CourtLive1" runat="server" />
+<asp:Content ID="Content2" 
+ContentPlaceHolderID="MainContent" 
+ runat="server">
+ <div style="margin-top:10vh;"></div>
+    <uc:CourtLive ID="CourtLive1" 
+    runat="server" />
 </asp:Content>

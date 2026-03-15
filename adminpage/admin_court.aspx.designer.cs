@@ -78,6 +78,15 @@ namespace Smash_IT.adminpage
         protected global::System.Web.UI.WebControls.Button btnLiveView;
 
         /// <summary>
+        /// btnLiveView2 control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnLiveView2;
+
+        /// <summary>
         /// rptCourts control.
         /// </summary>
         /// <remarks>

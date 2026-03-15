@@ -6,7 +6,22 @@ namespace Smash_IT.queuemasterpage
     {
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (!IsPostBack)
+            {
+                LoadStaffName();
+            }
+        }
 
+        private void LoadStaffName()
+        {
+            if (Session["StaffName"] != null)
+            {
+                litStaffName.Text = Session["StaffName"].ToString();
+            }
+            else
+            {
+                litStaffName.Text = "Queue Master";
+            }
         }
     }
 }

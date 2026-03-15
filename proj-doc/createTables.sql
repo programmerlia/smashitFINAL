@@ -16,7 +16,7 @@ CREATE TABLE tblStaffAccount (
     [Password] VARCHAR(255) NOT NULL,
     RoleName VARCHAR(20) NOT NULL, -- admin, receptionist
     ImgPath VARCHAR(MAX) NOT NULL DEFAULT 'uploads/avatars/person.jpg',
-    CONSTRAINT CHK_StaffAccount_RoleName CHECK (RoleName IN ('admin','receptionist'))
+    CONSTRAINT CHK_StaffAccount_RoleName CHECK (RoleName IN ('admin','receptionist', 'queuemaster'))
 );
 
 CREATE TABLE tblPlayerAccount (
@@ -65,8 +65,6 @@ CREATE TABLE tblCourtAvailability (
     CreatedAt DATETIME NOT NULL DEFAULT GETDATE(),
     FOREIGN KEY (CourtID) REFERENCES tblCourt(CourtID),
     FOREIGN KEY (CreatedByStaffID) REFERENCES tblStaffAccount(StaffID),
-    CONSTRAINT UQ_CourtAvailability UNIQUE (CourtID, [Date], StartTime, EndTime),
-    CONSTRAINT CHK_Availability_Time CHECK (StartTime < EndTime),
     CONSTRAINT CHK_Availability_Mode CHECK (ModeName IN ('PlayForAll','Queue','Reservation','Closed'))
 );
 
@@ -86,7 +84,7 @@ CREATE TABLE tblReservation (
     IsPaid BIT NOT NULL DEFAULT 0,
     SportName VARCHAR(20) NOT NULL,
     ReservationStatusName VARCHAR(30) NOT NULL DEFAULT 'Pending',
-    RequestStatus VARCHAR(40) NULL,
+    RequestStatus VARCHAR(40) NULL, 
     PaymongoCheckoutSessionID VARCHAR(64) NULL,
     PaymentStatus VARCHAR(30) NULL,
     RequiredAmount DECIMAL(10,2) NOT NULL,
@@ -98,7 +96,7 @@ CREATE TABLE tblReservation (
     FOREIGN KEY (ApprovedByStaffID) REFERENCES tblStaffAccount(StaffID),
     CONSTRAINT CHK_Reservation_Time CHECK (StartTime < EndTime),
     CONSTRAINT CHK_Reservation_Person CHECK (UserID IS NOT NULL OR WalkInID IS NOT NULL),
-    CONSTRAINT CHK_Reservation_Status CHECK (ReservationStatusName IN ('Pending','Approved','Cancelled','Completed'))
+    CONSTRAINT CHK_Reservation_Status CHECK (ReservationStatusName IN ('Pending','Approved','Cancelled','Completed','Refunded'))
 );
 
 /* =========================

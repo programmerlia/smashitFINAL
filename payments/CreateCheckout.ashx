@@ -1,4 +1,4 @@
-﻿<%@ WebHandler Language="C#" Class="Smash_IT.CreateCheckout" %>
+﻿<%@ WebHandler Language="C#" Class="Smash_IT.payments.CreateCheckout" %>
 
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.Text;
 using System.Web;
 using System.Web.Script.Serialization;
 
-namespace Smash_IT
+namespace Smash_IT.payments
 {
     public class CreateCheckout : IHttpHandler
     {
@@ -34,7 +34,7 @@ namespace Smash_IT
 
             string baseUrl = scheme + "://" + host;
 
-            string successUrl = baseUrl + "/ReservationSuccess.aspx?resId=" + reservationId;
+            string successUrl = baseUrl + "/payments/ReservationSuccess.aspx?resId=" + reservationId;
             string cancelUrl = baseUrl + "/homepage/reservation.aspx?cancel=1&resId=" + reservationId;
 
             try

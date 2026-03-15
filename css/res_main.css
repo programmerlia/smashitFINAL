@@ -77,12 +77,14 @@ body {
     padding: clamp(18px, 4vw, 40px);
 }
 
+
 .hero-section h1 {
     font-size: clamp(2.0rem, 5vw, 3.4rem);
     font-weight: 800;
     line-height: 1.05;
     margin-bottom: 10px;
     letter-spacing: .4px;
+    color:white;
 }
 
 .hero-subtext {

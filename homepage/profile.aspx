@@ -297,6 +297,11 @@
             color: #1d6a3a;
             border: 1px solid #b8e3c8;
         }
+        .badge-refunded {
+    background: #e0f7ea;
+    color: #166534;
+    border: 1px solid #b7ebc9;
+}
 
         .badge-request {
             background: #ececf3;
@@ -744,6 +749,9 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCompleted" type="button" role="tab">Completed</button>
                         </li>
+                        <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabRefunded" type="button" role="tab">Refunded</button>
+</li>
                     </ul>
 
                     <div class="tab-content pt-1">
@@ -1012,6 +1020,48 @@
                                 <div class="muted">No completed reservations.</div>
                             </asp:Panel>
                         </div>
+
+                        <!-- REDUNDED-->
+                        <div class="tab-pane fade" id="tabRefunded" role="tabpanel">
+    <asp:Repeater ID="rptRefunded" runat="server"
+        OnItemCommand="rptReservations_ItemCommand"
+        OnItemDataBound="rptReservations_ItemDataBound">
+        <ItemTemplate>
+            <div class="res-clean">
+                <div class="res-clean-top">
+                    <div>
+                        <div class="res-main-title">Court <%# Eval("CourtNumber") %></div>
+                        <div class="res-subline"><%# Eval("SportName") %></div>
+
+                        <div class="res-meta-row">
+                            <span class="pill-chip pill-date">📅 <%# Eval("FriendlyDate") %></span>
+                            <span class="pill-chip pill-time">🕒 <%# Eval("TimeRangeDisplay") %></span>
+                            <span class='badge-status <%# Eval("StatusBadgeClass") %>'><%# Eval("ReservationStatusName") %></span>
+                        </div>
+                    </div>
+
+                    <div class="payment-box text-end">
+                        <div class="payment-label">Previously paid</div>
+                        <div class="payment-paid"><%# Eval("PaidAmountDisplay") %></div>
+                        <div class="payment-status-line"><%# Eval("PaymentStatusDisplay") %></div>
+                        <div class="payment-balance"><%# Eval("PaymentBalanceDisplay") %></div>
+                    </div>
+                </div>
+
+                <div class="extras-box">
+                    <div class="extras-title">Added items</div>
+                    <div class="extras-line"><%# Convert.ToString(Eval("ExtrasDisplay")) %></div>
+                </div>
+
+                <asp:Label ID="lblRuleHint" runat="server" CssClass="muted small d-block mt-2" />
+            </div>
+        </ItemTemplate>
+    </asp:Repeater>
+
+    <asp:Panel ID="pnlEmptyRefunded" runat="server" Visible="false">
+        <div class="muted">No refunded reservations.</div>
+    </asp:Panel>
+</div>
 
                     </div>
                 </div>

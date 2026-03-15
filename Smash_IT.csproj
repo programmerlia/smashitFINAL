@@ -83,6 +83,7 @@
     <Content Include="adminpage\admin_transactions.aspx" />
     <Content Include="adminpage\admin_users.aspx" />
     <Content Include="adminpage\Content_Manager.aspx" />
+    <Content Include="adminpage\admin_live_courts.aspx" />
     <Content Include="controls\CourtLive.ascx" />
     <Content Include="controls\AuthModal.ascx" />
     <Content Include="css\about-page.css" />
@@ -106,7 +107,7 @@
     <Content Include="images\person.jpg" />
     <Content Include="js\Header_indicator.js" />
     <Content Include="js\script.js" />
-    <Content Include="PreparingPayment.aspx" />
+    <Content Include="payments\PreparingPayment.aspx" />
     <Content Include="proj-doc\seed.sql" />
     <Content Include="queuemasterpage\q_manage_queue.aspx" />
     <Content Include="queuemasterpage\q_dashboard.aspx" />
@@ -117,7 +118,7 @@
     <Content Include="receptionistpage\rec_live_courts.aspx" />
     <Content Include="receptionistpage\rec_queue.aspx" />
     <Content Include="receptionistpage\rec_res.aspx" />
-    <Content Include="ReservationSuccess.aspx" />
+    <Content Include="payments\ReservationSuccess.aspx" />
     <Content Include="homepage\profile.aspx" />
     <Content Include="images\B.png" />
     <Content Include="images\Court.png" />
@@ -241,6 +242,13 @@
     <Compile Include="adminpage\Content_Manager.aspx.designer.cs">
       <DependentUpon>Content_Manager.aspx</DependentUpon>
     </Compile>
+    <Compile Include="adminpage\admin_live_courts.aspx.cs">
+      <DependentUpon>admin_live_courts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="adminpage\admin_live_courts.aspx.designer.cs">
+      <DependentUpon>admin_live_courts.aspx</DependentUpon>
+    </Compile>
     <Compile Include="controls\CourtLive.ascx.cs">
       <DependentUpon>CourtLive.ascx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -255,7 +263,6 @@
     <Compile Include="controls\AuthModal.ascx.designer.cs">
       <DependentUpon>AuthModal.ascx</DependentUpon>
     </Compile>
-    <Compile Include="CourtAvailabilityHelper.cs" />
     <Compile Include="homepage\live.aspx.cs">
       <DependentUpon>live.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -263,11 +270,11 @@
     <Compile Include="homepage\live.aspx.designer.cs">
       <DependentUpon>live.aspx</DependentUpon>
     </Compile>
-    <Compile Include="PreparingPayment.aspx.cs">
+    <Compile Include="payments\PreparingPayment.aspx.cs">
       <DependentUpon>PreparingPayment.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="PreparingPayment.aspx.designer.cs">
+    <Compile Include="payments\PreparingPayment.aspx.designer.cs">
       <DependentUpon>PreparingPayment.aspx</DependentUpon>
     </Compile>
     <Compile Include="queuemasterpage\q_manage_queue.aspx.cs">
@@ -340,11 +347,11 @@
     <Compile Include="receptionistpage\rec_res.aspx.designer.cs">
       <DependentUpon>rec_res.aspx</DependentUpon>
     </Compile>
-    <Compile Include="ReservationSuccess.aspx.cs">
+    <Compile Include="payments\ReservationSuccess.aspx.cs">
       <DependentUpon>ReservationSuccess.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="ReservationSuccess.aspx.designer.cs">
+    <Compile Include="payments\ReservationSuccess.aspx.designer.cs">
       <DependentUpon>ReservationSuccess.aspx</DependentUpon>
     </Compile>
     <Compile Include="homepage\profile.aspx.cs">
@@ -413,14 +420,15 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="CreateCheckout.ashx" />
+    <Content Include="payments\CreateCheckout.ashx" />
     <Content Include="adminpage\admin.master" />
     <None Include="packages.config" />
     <Content Include="proj-doc\README.md" />
     <Content Include="homepage\homepage.master" />
     <Content Include="receptionistpage\receptionist.master" />
-    <Content Include="PaymongoWebhook.ashx" />
+    <Content Include="payments\PaymongoWebhook.ashx" />
     <Content Include="queuemasterpage\queuemaster.master" />
+    <None Include="Properties\PublishProfiles\SMASHITFINAL - Web Deploy.pubxml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
