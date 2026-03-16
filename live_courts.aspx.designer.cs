@@ -7,11 +7,11 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Smash_IT.adminpage
+namespace Smash_IT
 {
 
 
-    public partial class admin_live_courts
+    public partial class live_courts
     {
 
         /// <summary>

@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Smash_IT.adminpage
+namespace Smash_IT
 {
-    public partial class admin_live_courts : System.Web.UI.Page
+    public partial class live_courts : System.Web.UI.Page
     {
         protected void Page_Load(object sender, EventArgs e)
         {

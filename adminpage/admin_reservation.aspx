@@ -86,11 +86,40 @@
         .dot-red { background: #fee2e2; border: 1px solid #ef4444; }
 
         /* ===== ALL EVENTS GRID ===== */
-        .grid-card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.05); }
-        .custom-grid { width: 100%; border-collapse: collapse; }
-        .custom-grid th { background: #1e3a8a; color: white; padding: 15px; text-align: left; font-size: 0.85rem; text-transform: uppercase; }
-        .custom-grid td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: middle; }
-        
+       /* ===== ALL EVENTS GRID ===== */
+.grid-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(30, 58, 138, 0.05);
+    overflow-x: auto;
+}
+    .custom-grid {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+            .custom-grid th {
+                background: #f8fafc;
+                padding: 15px;
+                text-align: left;
+                font-size: 0.7rem;
+                color: #64748b;
+                text-transform: uppercase;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+         .custom-grid td {
+    padding: 15px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+
+
         .event-badge-status { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; text-align: center; }
         .badge-badminton { background: #dcfce7; color: #166534; }
         .badge-pickleball { background: #fef3c7; color: #92400e; }
@@ -103,6 +132,16 @@
         
         .edit-link { color: #1e3a8a; font-weight: 600; padding: 6px 12px; background: #eff6ff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; outline: none; }
         .edit-link:hover { background: #dbeafe; }
+        .custom-grid .edit-link,
+.custom-grid .btn,
+.custom-grid a {
+    white-space: normal;
+}
+
+.table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
 
         /* ===== SIDEBAR / INPUT PANEL ===== */
         .sidebar-sticky { position: sticky; top: 20px; }
@@ -285,9 +324,10 @@
                         <div class="grid-card" style="margin-top:25px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;border-bottom:2px solid #f1f5f9;padding-bottom:10px;flex-wrap:wrap;gap:10px;">
         <h4 style="color:#b91c1c;font-weight:800;margin:0;"><i class="fas fa-rotate-left" style="margin-right:8px;color:#ef4444;"></i>Refund Queue</h4>
-        <div style="font-size:0.85rem;color:#64748b;font-weight:600;">Reservations cancelled but not yet fully refunded</div>
+     <div style="font-size:0.85rem;color:#64748b;font-weight:600;">Reservations approved for refund processing</div>
     </div>
 
+ <div class="table-scroll">
     <asp:GridView ID="gvRefunds" runat="server" AutoGenerateColumns="False" CssClass="custom-grid" GridLines="None" OnRowCommand="gvRefunds_RowCommand">
         <Columns>
             <asp:TemplateField HeaderText="Reservation">
@@ -326,12 +366,25 @@
                 </ItemTemplate>
             </asp:TemplateField>
 
+            <asp:TemplateField HeaderText="Action">
+    <ItemTemplate>
+        <asp:LinkButton
+            ID="btnVoidRefund"
+            runat="server"
+            CssClass="btn btn-danger btn-sm"
+            Text="Void + Refund"
+            CommandName="VoidRefund"
+            CommandArgument='<%# Eval("ReservationID") %>'
+            OnClientClick="return confirm('Void all payments for this reservation and mark it as refunded?');" />
+    </ItemTemplate>
+</asp:TemplateField>
+
             <asp:TemplateField HeaderText="Instruction">
                 <ItemTemplate>
-                    <div style="font-size:0.82rem;line-height:1.45;color:#475569;max-width:320px;">
-                        Please contact <b><%# Eval("CustomerName") %></b> and arrange a refund of their
-                        <b><%# Eval("PaymentStatus") %></b> reservation payment.
-                    </div>
+                   <div style="font-size:0.82rem;line-height:1.45;color:#475569;max-width:320px;">
+    Process the refund for <b><%# Eval("CustomerName") %></b>. After refunding, click
+    <b>Void + Refund</b> or <b>Mark Refunded</b>.
+</div>
                 </ItemTemplate>
             </asp:TemplateField>
 
@@ -350,6 +403,7 @@
             </div>
         </EmptyDataTemplate>
     </asp:GridView>
+    </div>
 </div>
                     </div>
 
@@ -454,11 +508,18 @@
                                 </div>
 
                                 <div style="margin-top: 25px;">
-                                    <asp:Button ID="btnApproveRes" runat="server" Text="✓ Approve Reservation" CssClass="btn-approve" OnClick="btnApproveRes_Click" Visible="false" />
-                                    <asp:Button ID="btnManageExtras" runat="server" Text="Manage Extras (Rentals/Water)" CssClass="btn-outline" OnClick="btnManageExtras_Click" />
-                                    <asp:Button ID="btnSaveUpdate" runat="server" Text="Apply Updates" CssClass="btn-primary" OnClick="btnSaveUpdate_Click" />
-                                    <asp:Button ID="btnCloseSidebar" runat="server" Text="Cancel" CssClass="btn-secondary" OnClick="btnCloseSidebar_Click" />
-                                </div>
+    <asp:Button ID="btnApproveRes" runat="server" Text="✓ Approve Reservation" CssClass="btn-approve" OnClick="btnApproveRes_Click" Visible="false" />
+    
+    <asp:Button ID="btnConfirmCancel" runat="server"
+        Text="Confirm Cancel → Refund Queue"
+        CssClass="btn-outline"
+        OnClick="btnConfirmCancel_Click"
+        Visible="false" />
+    
+    <asp:Button ID="btnManageExtras" runat="server" Text="Manage Extras (Rentals/Water)" CssClass="btn-outline" OnClick="btnManageExtras_Click" />
+    <asp:Button ID="btnSaveUpdate" runat="server" Text="Apply Updates" CssClass="btn-primary" OnClick="btnSaveUpdate_Click" />
+    <asp:Button ID="btnCloseSidebar" runat="server" Text="Cancel" CssClass="btn-secondary" OnClick="btnCloseSidebar_Click" />
+</div>
                             </asp:Panel>
 
                             <%-- STATE 3: CREATE NEW RESERVATION --%>

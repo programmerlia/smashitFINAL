@@ -56,11 +56,23 @@ namespace Smash_IT.adminpage
             {
                 string search = txtSearchCatalog.Text.Trim();
                 string query = @"
-                    SELECT m.ModelID, m.EquipmentType, m.EquipmentSpec, m.ItemCategory, m.DefaultRentalPrice, m.DefaultSellPrice,
-                    CASE WHEN m.ItemCategory = 'Consumable' THEN ISNULL(m.ConsumableQty, 0)
-                    ELSE (SELECT COUNT(*) FROM tblEquipmentItem WHERE ModelID = m.ModelID AND IsDeleted = 0)
-                    END AS TotalStock FROM tblEquipmentModel m 
-                    WHERE m.IsArchived = 0 ";
+    SELECT 
+        m.ModelID,
+        m.EquipmentType,
+        m.EquipmentSpec,
+        m.ItemCategory,
+        ISNULL(m.DefaultRentalPrice, 0) AS DefaultRentalPrice,
+        ISNULL(m.DefaultSellPrice, 0) AS DefaultSellPrice,
+        CASE 
+            WHEN m.ItemCategory = 'Consumable' THEN ISNULL(m.ConsumableQty, 0)
+            ELSE (
+                SELECT COUNT(*) 
+                FROM tblEquipmentItem 
+                WHERE ModelID = m.ModelID AND IsDeleted = 0
+            )
+        END AS TotalStock
+    FROM tblEquipmentModel m 
+    WHERE m.IsArchived = 0 ";
 
                 if (CurrentFilter != "All") query += " AND m.ItemCategory = @Filter ";
                 if (!string.IsNullOrEmpty(search)) query += " AND (m.EquipmentType LIKE @search OR m.EquipmentSpec LIKE @search) ";
@@ -92,7 +104,7 @@ namespace Smash_IT.adminpage
     WHEN r.RentalID IS NULL THEN '—'
     WHEN r.ReservationID IS NOT NULL THEN 'Reservation'
     ELSE 'Walk-In'
-END AS PlayMode
+END AS PlayMode,
 
                 CASE 
                     WHEN r.RentalID IS NULL THEN '—'
@@ -175,15 +187,15 @@ END AS PlayMode
 
                     if (ddlItemCategory.SelectedValue == "Rental")
                     {
-                        cmd.Parameters.AddWithValue("@RP", decimal.TryParse(txtRentalPrice.Text, out decimal rp) ? (object)rp : (object)0);
-                        cmd.Parameters.AddWithValue("@SP", DBNull.Value);
-                        cmd.Parameters.AddWithValue("@Qty", DBNull.Value);
+                        cmd.Parameters.AddWithValue("@RP", decimal.TryParse(txtRentalPrice.Text, out decimal rp) ? rp : 0m);
+                        cmd.Parameters.AddWithValue("@SP", 0m);
+                        cmd.Parameters.AddWithValue("@Qty", 0);
                     }
                     else
                     {
-                        cmd.Parameters.AddWithValue("@RP", DBNull.Value);
-                        cmd.Parameters.AddWithValue("@SP", decimal.TryParse(txtSellPrice.Text, out decimal sp) ? (object)sp : (object)0);
-                        cmd.Parameters.AddWithValue("@Qty", int.TryParse(txtConsumableQty.Text, out int cq) ? (object)cq : (object)0);
+                        cmd.Parameters.AddWithValue("@RP", 0m);
+                        cmd.Parameters.AddWithValue("@SP", decimal.TryParse(txtSellPrice.Text, out decimal sp) ? sp : 0m);
+                        cmd.Parameters.AddWithValue("@Qty", int.TryParse(txtConsumableQty.Text, out int cq) ? cq : 0);
                     }
 
                     if (isUpdate) cmd.Parameters.AddWithValue("@ID", hfSelectedModelID.Value);
@@ -211,13 +223,31 @@ END AS PlayMode
                     SqlDataReader dr = cmd.ExecuteReader();
                     if (dr.Read())
                     {
+                        string category = dr["ItemCategory"] == DBNull.Value ? "Rental" : dr["ItemCategory"].ToString();
+
                         hfSelectedModelID.Value = id.ToString();
-                        txtEquipType.Text = dr["EquipmentType"].ToString();
-                        txtEquipSpec.Text = dr["EquipmentSpec"].ToString();
-                        ddlItemCategory.SelectedValue = dr["ItemCategory"].ToString();
-                        txtRentalPrice.Text = dr["DefaultRentalPrice"] != DBNull.Value ? dr["DefaultRentalPrice"].ToString() : "";
-                        txtSellPrice.Text = dr["DefaultSellPrice"] != DBNull.Value ? dr["DefaultSellPrice"].ToString() : "";
-                        txtConsumableQty.Text = dr["ConsumableQty"] != DBNull.Value ? dr["ConsumableQty"].ToString() : "";
+                        txtEquipType.Text = dr["EquipmentType"] == DBNull.Value ? "" : dr["EquipmentType"].ToString();
+                        txtEquipSpec.Text = dr["EquipmentSpec"] == DBNull.Value ? "" : dr["EquipmentSpec"].ToString();
+                        ddlItemCategory.SelectedValue = category;
+
+                        txtRentalPrice.Text = "";
+                        txtSellPrice.Text = "";
+                        txtConsumableQty.Text = "";
+
+                        if (category == "Rental")
+                        {
+                            if (dr["DefaultRentalPrice"] != DBNull.Value)
+                                txtRentalPrice.Text = Convert.ToDecimal(dr["DefaultRentalPrice"]).ToString("0.00");
+                        }
+                        else
+                        {
+                            if (dr["DefaultSellPrice"] != DBNull.Value)
+                                txtSellPrice.Text = Convert.ToDecimal(dr["DefaultSellPrice"]).ToString("0.00");
+
+                            if (dr["ConsumableQty"] != DBNull.Value)
+                                txtConsumableQty.Text = Convert.ToInt32(dr["ConsumableQty"]).ToString();
+                        }
+
                         pnlModelInput.Visible = true;
                         btnSaveModel.Text = "Update Item";
                         ddlItemCategory_SelectedIndexChanged(null, null);

@@ -84,7 +84,7 @@ CREATE TABLE tblReservation (
     IsPaid BIT NOT NULL DEFAULT 0,
     SportName VARCHAR(20) NOT NULL,
     ReservationStatusName VARCHAR(30) NOT NULL DEFAULT 'Pending',
-    RequestStatus VARCHAR(40) NULL, 
+    RequestStatus VARCHAR(40) NULL, --forCancel
     PaymongoCheckoutSessionID VARCHAR(64) NULL,
     PaymentStatus VARCHAR(30) NULL,
     RequiredAmount DECIMAL(10,2) NOT NULL,

@@ -1364,7 +1364,7 @@ ORDER BY StartTime;";
                     }
                     else if (hasActiveSession)
                     {
-                        sb.Append("<td><div class='slot blocked'>In Use</div></td>");
+                        sb.Append("<td><div class='slot blocked'>Booked</div></td>");
                     }
                     else if (hasApprovedReservation)
                     {

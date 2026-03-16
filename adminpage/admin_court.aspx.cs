@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
@@ -16,7 +12,7 @@ namespace Smash_IT.adminpage
         private readonly string connString =
             ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
 
-        private const int SYSTEM_STAFF_ID = 2;
+        private const int SYSTEM_STAFF_ID = 1;
         private static readonly TimeSpan DEFAULT_OPEN_TIME = new TimeSpan(8, 0, 0);
         private static readonly TimeSpan DEFAULT_CLOSE_TIME = new TimeSpan(22, 0, 0);
         private const int SLOT_MINUTES = 30;
@@ -27,15 +23,10 @@ namespace Smash_IT.adminpage
             if (!IsPostBack)
             {
                 txtDate.Text = DateTime.Now.ToString("yyyy-MM-dd");
-
                 PopulateTimeDropdowns();
-
-                txtSetupDate.Text = DateTime.Today.ToString("yyyy-MM-dd");
-                BindCourtsDropdown();
 
                 EnsureAvailabilityWindow();
                 LoadCourtDashboard(DateTime.Now);
-                LoadSchedulesGrid(DateTime.Today);
             }
         }
 
@@ -55,8 +46,6 @@ namespace Smash_IT.adminpage
         private void PopulateTimeDropdowns()
         {
             ddlTime.Items.Clear();
-            ddlSetupStart.Items.Clear();
-            ddlSetupEnd.Items.Clear();
 
             for (TimeSpan t = DEFAULT_OPEN_TIME; t <= DEFAULT_CLOSE_TIME; t = t.Add(TimeSpan.FromMinutes(SLOT_MINUTES)))
             {
@@ -65,8 +54,6 @@ namespace Smash_IT.adminpage
                 string text = dt.ToString("h:mm tt");
 
                 ddlTime.Items.Add(new ListItem(text, value));
-                ddlSetupStart.Items.Add(new ListItem(text, value));
-                ddlSetupEnd.Items.Add(new ListItem(text, value));
             }
 
             TimeSpan nowSlot = new TimeSpan(DateTime.Now.Hour, DateTime.Now.Minute < 30 ? 0 : 30, 0);
@@ -79,11 +66,7 @@ namespace Smash_IT.adminpage
         {
             EnsureAvailabilityWindow();
             LoadCourtDashboard(DateTime.Now);
-            if (DateTime.TryParse(txtSetupDate.Text, out DateTime targetDate))
-                LoadSchedulesGrid(targetDate.Date);
-
             upDashboard.Update();
-            upManagement.Update();
         }
 
         protected void btnApplyTime_Click(object sender, EventArgs e)
@@ -117,8 +100,6 @@ namespace Smash_IT.adminpage
             LoadCourtDashboard(DateTime.Now);
             upDashboard.Update();
         }
-
-
 
         /* =========================================================
            SHARED AVAILABILITY ENGINE
@@ -383,9 +364,7 @@ ORDER BY CourtNumber;";
 
                 foreach (CourtSeed court in courts)
                 {
-                    dashboardData.Add(
-                        GetSmartCourtStatus(conn, court.CourtID, court.CourtNumber, court.SportName, targetTime)
-                    );
+                    dashboardData.Add(GetSmartCourtStatus(conn, court.CourtID, court.CourtNumber, court.SportName, targetTime));
                 }
             }
 
@@ -565,10 +544,8 @@ ORDER BY ca.StartTime DESC;";
                         sourceLabel = "Active Closed Session";
                     else if (hasReservation)
                         sourceLabel = "Reservation";
-                    else if (Convert.ToInt32(rdr["CreatedByStaffID"]) == SYSTEM_STAFF_ID)
-                        sourceLabel = "System";
                     else
-                        sourceLabel = "Manual Override";
+                        sourceLabel = "System";
 
                     return new DashboardSlotState
                     {
@@ -674,12 +651,7 @@ ORDER BY ca.StartTime ASC;";
 
                 EnsureAvailabilityWindow();
                 LoadCourtDashboard(DateTime.Now);
-
-                if (DateTime.TryParse(txtSetupDate.Text, out DateTime targetDate))
-                    LoadSchedulesGrid(targetDate.Date);
-
                 upDashboard.Update();
-                upManagement.Update();
             }
             catch (Exception ex)
             {
@@ -732,7 +704,28 @@ WHERE CourtID = @CourtID
                 {
                     try
                     {
-                        UpdateManualSlotsRange(conn, tx, courtId, roundedStart.Date, startTime, endTime, "Closed", staffId);
+                        string sql = @"
+UPDATE tblCourtAvailability
+SET ModeName = 'Closed',
+    CreatedByStaffID = @StaffID
+WHERE CourtID = @CourtID
+  AND [Date] = @Date
+  AND StartTime >= @StartTime
+  AND EndTime <= @EndTime;";
+
+                        using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
+                        {
+                            cmd.Parameters.AddWithValue("@StaffID", staffId);
+                            cmd.Parameters.AddWithValue("@CourtID", courtId);
+                            cmd.Parameters.AddWithValue("@Date", roundedStart.Date);
+                            cmd.Parameters.AddWithValue("@StartTime", startTime);
+                            cmd.Parameters.AddWithValue("@EndTime", endTime);
+
+                            int rows = cmd.ExecuteNonQuery();
+                            if (rows <= 0)
+                                throw new InvalidOperationException("No availability slots were updated for maintenance.");
+                        }
+
                         tx.Commit();
                     }
                     catch
@@ -788,297 +781,6 @@ VALUES
         }
 
         /* =========================================================
-           MANUAL OVERRIDE SECTION
-           ========================================================= */
-
-        private void BindCourtsDropdown()
-        {
-            using (SqlConnection conn = new SqlConnection(connString))
-            {
-                string sql = @"
-SELECT
-    CourtID,
-    'Court ' + CAST(CourtNumber AS VARCHAR(10)) + ' (' + SportName + ')' AS CourtName
-FROM tblCourt
-WHERE IsActive = 1
-ORDER BY CourtNumber;";
-
-                using (SqlCommand cmd = new SqlCommand(sql, conn))
-                {
-                    conn.Open();
-                    ddlSetupCourt.DataSource = cmd.ExecuteReader();
-                    ddlSetupCourt.DataTextField = "CourtName";
-                    ddlSetupCourt.DataValueField = "CourtID";
-                    ddlSetupCourt.DataBind();
-                }
-            }
-        }
-
-        protected void txtSetupDate_TextChanged(object sender, EventArgs e)
-        {
-            if (DateTime.TryParse(txtSetupDate.Text, out DateTime selectedDate))
-            {
-                EnsureAvailabilityWindow();
-                LoadSchedulesGrid(selectedDate.Date);
-                upManagement.Update();
-            }
-        }
-
-        private void LoadSchedulesGrid(DateTime targetDate)
-        {
-            EnsureAvailabilityWindow();
-
-            using (SqlConnection conn = new SqlConnection(connString))
-            {
-                string sql = @"
-SELECT
-    a.AvailabilityID,
-    a.CourtID,
-    'Court ' + CAST(c.CourtNumber AS VARCHAR(10)) + ' (' + c.SportName + ')' AS CourtName,
-    LEFT(CONVERT(VARCHAR(8), a.StartTime, 108), 5) + ' - ' + LEFT(CONVERT(VARCHAR(8), a.EndTime, 108), 5) AS TimeRange,
-    a.ModeName,
-    a.CreatedByStaffID,
-    CASE
-        WHEN a.CreatedByStaffID = @SystemStaffID THEN 'System'
-        ELSE 'Manual Override'
-    END AS SourceLabel
-FROM tblCourtAvailability a
-INNER JOIN tblCourt c
-    ON a.CourtID = c.CourtID
-WHERE a.[Date] = @Date
-  AND a.CreatedByStaffID <> @SystemStaffID
-ORDER BY c.CourtNumber, a.StartTime;";
-
-                using (SqlCommand cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.AddWithValue("@Date", targetDate.Date);
-                    cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
-
-                    SqlDataAdapter da = new SqlDataAdapter(cmd);
-                    DataTable dt = new DataTable();
-                    da.Fill(dt);
-
-                    gvSchedules.DataSource = dt;
-                    gvSchedules.DataBind();
-                }
-            }
-        }
-
-        protected void btnSaveSchedule_Click(object sender, EventArgs e)
-        {
-            DateTime targetDate;
-            TimeSpan startTime;
-            TimeSpan endTime;
-
-            if (!DateTime.TryParse(txtSetupDate.Text, out targetDate))
-            {
-                ShowAlert("Please select a valid date.");
-                return;
-            }
-
-            if (!TimeSpan.TryParse(ddlSetupStart.SelectedValue, out startTime) ||
-                !TimeSpan.TryParse(ddlSetupEnd.SelectedValue, out endTime))
-            {
-                ShowAlert("Please select a valid time range.");
-                return;
-            }
-
-            if (startTime >= endTime)
-            {
-                ShowAlert("End Time must be later than Start Time.");
-                return;
-            }
-
-            if (startTime < DEFAULT_OPEN_TIME || endTime > DEFAULT_CLOSE_TIME)
-            {
-                ShowAlert("Manual overrides must stay within operating hours.");
-                return;
-            }
-
-            int courtId = Convert.ToInt32(ddlSetupCourt.SelectedValue);
-            string modeName = ddlSetupMode.SelectedValue;
-            int staffId = GetCurrentStaffId();
-
-            try
-            {
-                EnsureAvailabilityWindow();
-
-                using (SqlConnection conn = new SqlConnection(connString))
-                {
-                    conn.Open();
-
-                    using (SqlTransaction tx = conn.BeginTransaction())
-                    {
-                        try
-                        {
-                            ValidateManualOverrideRange(conn, tx, courtId, targetDate.Date, startTime, endTime);
-                            UpdateManualSlotsRange(conn, tx, courtId, targetDate.Date, startTime, endTime, modeName, staffId);
-
-                            tx.Commit();
-                        }
-                        catch
-                        {
-                            tx.Rollback();
-                            throw;
-                        }
-                    }
-                }
-
-                EnsureAvailabilityWindow();
-                LoadSchedulesGrid(targetDate.Date);
-                LoadCourtDashboard(DateTime.Now);
-                upManagement.Update();
-                upDashboard.Update();
-
-                ShowAlert("Override applied successfully.");
-            }
-            catch (Exception ex)
-            {
-                ShowAlert(ex.Message);
-            }
-        }
-
-        private void ValidateManualOverrideRange(SqlConnection conn, SqlTransaction tx, int courtId, DateTime targetDate, TimeSpan startTime, TimeSpan endTime)
-        {
-            string sql = @"
-SELECT COUNT(*)
-FROM tblCourtAvailability ca
-WHERE ca.CourtID = @CourtID
-  AND ca.[Date] = @Date
-  AND ca.StartTime >= @StartTime
-  AND ca.EndTime <= @EndTime
-  AND
-  (
-      EXISTS
-      (
-          SELECT 1
-          FROM tblReservation r
-          WHERE r.CourtID = ca.CourtID
-            AND r.ResDate = ca.[Date]
-            AND ca.StartTime >= r.StartTime
-            AND ca.EndTime <= r.EndTime
-            AND r.ReservationStatusName = 'Approved'
-      )
-      OR
-      EXISTS
-      (
-          SELECT 1
-          FROM tblActiveSession s
-          WHERE s.CourtID = ca.CourtID
-            AND s.StatusName = 'Active'
-            AND ca.[Date] = CAST(s.StartTime AS DATE)
-            AND ca.StartTime >= CAST(s.StartTime AS TIME)
-            AND ca.EndTime <= CAST(
-                CASE
-                    WHEN s.ActualEndTime IS NOT NULL THEN s.ActualEndTime
-                    ELSE s.ExpectedEndTime
-                END AS TIME
-            )
-      )
-  );";
-
-            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
-            {
-                cmd.Parameters.AddWithValue("@CourtID", courtId);
-                cmd.Parameters.AddWithValue("@Date", targetDate.Date);
-                cmd.Parameters.AddWithValue("@StartTime", startTime);
-                cmd.Parameters.AddWithValue("@EndTime", endTime);
-
-                int conflictCount = Convert.ToInt32(cmd.ExecuteScalar());
-                if (conflictCount > 0)
-                    throw new InvalidOperationException("That range includes reserved or active-session slots and cannot be overridden.");
-            }
-        }
-
-        private void UpdateManualSlotsRange(SqlConnection conn, SqlTransaction tx, int courtId, DateTime targetDate, TimeSpan startTime, TimeSpan endTime, string modeName, int staffId)
-        {
-            string sql = @"
-UPDATE tblCourtAvailability
-SET ModeName = @ModeName,
-    CreatedByStaffID = @StaffID
-WHERE CourtID = @CourtID
-  AND [Date] = @Date
-  AND StartTime >= @StartTime
-  AND EndTime <= @EndTime;";
-
-            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
-            {
-                cmd.Parameters.AddWithValue("@ModeName", modeName);
-                cmd.Parameters.AddWithValue("@StaffID", staffId);
-                cmd.Parameters.AddWithValue("@CourtID", courtId);
-                cmd.Parameters.AddWithValue("@Date", targetDate.Date);
-                cmd.Parameters.AddWithValue("@StartTime", startTime);
-                cmd.Parameters.AddWithValue("@EndTime", endTime);
-
-                int rows = cmd.ExecuteNonQuery();
-                if (rows <= 0)
-                    throw new InvalidOperationException("No availability slots were updated for the selected range.");
-            }
-        }
-
-        protected void gvSchedules_RowDeleting(object sender, GridViewDeleteEventArgs e)
-        {
-            int availabilityId = Convert.ToInt32(gvSchedules.DataKeys[e.RowIndex].Value);
-
-            try
-            {
-                using (SqlConnection conn = new SqlConnection(connString))
-                {
-                    conn.Open();
-
-                    using (SqlTransaction tx = conn.BeginTransaction())
-                    {
-                        try
-                        {
-                            ResetManualSlotToSystem(conn, tx, availabilityId);
-                            tx.Commit();
-                        }
-                        catch
-                        {
-                            tx.Rollback();
-                            throw;
-                        }
-                    }
-                }
-
-                EnsureAvailabilityWindow();
-
-                if (DateTime.TryParse(txtSetupDate.Text, out DateTime targetDate))
-                    LoadSchedulesGrid(targetDate.Date);
-
-                LoadCourtDashboard(DateTime.Now);
-                upManagement.Update();
-                upDashboard.Update();
-
-                ShowAlert("Override removed successfully.");
-            }
-            catch (Exception ex)
-            {
-                ShowAlert(ex.Message);
-            }
-        }
-
-        private void ResetManualSlotToSystem(SqlConnection conn, SqlTransaction tx, int availabilityId)
-        {
-            string sql = @"
-UPDATE tblCourtAvailability
-SET ModeName = 'PlayForAll',
-    CreatedByStaffID = @SystemStaffID
-WHERE AvailabilityID = @AvailabilityID
-  AND CreatedByStaffID <> @SystemStaffID;";
-
-            using (SqlCommand cmd = new SqlCommand(sql, conn, tx))
-            {
-                cmd.Parameters.AddWithValue("@AvailabilityID", availabilityId);
-                cmd.Parameters.AddWithValue("@SystemStaffID", SYSTEM_STAFF_ID);
-
-                int rows = cmd.ExecuteNonQuery();
-                if (rows <= 0)
-                    throw new InvalidOperationException("This override could not be removed.");
-            }
-        }
-
-        /* =========================================================
            HELPERS
            ========================================================= */
 
@@ -1119,8 +821,6 @@ WHERE AvailabilityID = @AvailabilityID
                 .Replace("\r", "")
                 .Replace("\n", " ");
         }
-
-
 
         /* =========================================================
            VIEW MODELS

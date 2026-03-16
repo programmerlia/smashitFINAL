@@ -83,7 +83,8 @@
     <Content Include="adminpage\admin_transactions.aspx" />
     <Content Include="adminpage\admin_users.aspx" />
     <Content Include="adminpage\Content_Manager.aspx" />
-    <Content Include="adminpage\admin_live_courts.aspx" />
+    <Content Include="adminpage\admin_court_override.aspx" />
+    <Content Include="live_courts.aspx" />
     <Content Include="controls\CourtLive.ascx" />
     <Content Include="controls\AuthModal.ascx" />
     <Content Include="css\about-page.css" />
@@ -113,6 +114,7 @@
     <Content Include="queuemasterpage\q_dashboard.aspx" />
     <Content Include="queuemasterpage\q_live_court.aspx" />
     <Content Include="queuemasterpage\q_queue.aspx" />
+    <Content Include="receptionistpage\rec_manage_queue.aspx" />
     <Content Include="receptionistpage\rec_pfa.aspx" />
     <Content Include="receptionistpage\rec_court_override.aspx" />
     <Content Include="receptionistpage\rec_live_courts.aspx" />
@@ -242,12 +244,19 @@
     <Compile Include="adminpage\Content_Manager.aspx.designer.cs">
       <DependentUpon>Content_Manager.aspx</DependentUpon>
     </Compile>
-    <Compile Include="adminpage\admin_live_courts.aspx.cs">
-      <DependentUpon>admin_live_courts.aspx</DependentUpon>
+    <Compile Include="adminpage\admin_court_override.aspx.cs">
+      <DependentUpon>admin_court_override.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="adminpage\admin_live_courts.aspx.designer.cs">
-      <DependentUpon>admin_live_courts.aspx</DependentUpon>
+    <Compile Include="adminpage\admin_court_override.aspx.designer.cs">
+      <DependentUpon>admin_court_override.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="live_courts.aspx.cs">
+      <DependentUpon>live_courts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="live_courts.aspx.designer.cs">
+      <DependentUpon>live_courts.aspx</DependentUpon>
     </Compile>
     <Compile Include="controls\CourtLive.ascx.cs">
       <DependentUpon>CourtLive.ascx</DependentUpon>
@@ -311,6 +320,13 @@
     </Compile>
     <Compile Include="queuemasterpage\q_queue.aspx.designer.cs">
       <DependentUpon>q_queue.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="receptionistpage\rec_manage_queue.aspx.cs">
+      <DependentUpon>rec_manage_queue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="receptionistpage\rec_manage_queue.aspx.designer.cs">
+      <DependentUpon>rec_manage_queue.aspx</DependentUpon>
     </Compile>
     <Compile Include="receptionistpage\rec_pfa.aspx.cs">
       <DependentUpon>rec_pfa.aspx</DependentUpon>

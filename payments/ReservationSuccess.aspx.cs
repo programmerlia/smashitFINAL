@@ -14,11 +14,7 @@ namespace Smash_IT.payments
         protected void Page_Load(object sender, EventArgs e)
         {
             string token = (Request.QueryString["token"] ?? "").Trim();
-            Response.Write("token=" + Server.HtmlEncode(token) + "<br/>");
-            Response.Write("session draft exists=" + (Session["PendingReservationDraft"] != null ? "YES" : "NO") + "<br/>");
-            Response.Write("session checkout exists=" + (!string.IsNullOrWhiteSpace(Convert.ToString(Session["PendingReservationCheckoutSessionID"] ?? "")) ? "YES" : "NO") + "<br/>");
-            Response.Write("cookie exists=" + (Request.Cookies["PendingReservationBackup"] != null ? "YES" : "NO") + "<br/>");
-            if (string.IsNullOrWhiteSpace(token))
+           if (string.IsNullOrWhiteSpace(token))
             {
                 Response.Redirect("~/homepage/reservation.aspx", false);
                 Context.ApplicationInstance.CompleteRequest();
@@ -36,10 +32,8 @@ namespace Smash_IT.payments
             {
                 draft = GetPendingDraftFromCookie(Request, token);
             }
-            Response.Write("draft found=" + (draft != null ? "YES" : "NO") + "<br/>");
             if (draft == null)
             {
-                Response.Write("Payment draft not found or expired.");
                 return;
             }
 
@@ -48,7 +42,7 @@ namespace Smash_IT.payments
             {
                 checkoutSessionId = GetPendingCheckoutSessionIdFromCookie(Request);
             }
-            Response.Write("checkoutSessionId found=" + (!string.IsNullOrWhiteSpace(checkoutSessionId) ? "YES" : "NO") + "<br/>");
+         
 
             if (string.IsNullOrWhiteSpace(checkoutSessionId))
             {
@@ -60,7 +54,6 @@ namespace Smash_IT.payments
             {
                 if (!IsCheckoutPaid(checkoutSessionId))
                 {
-                    Response.Write("Payment is not yet confirmed.");
                     return;
                 }
 

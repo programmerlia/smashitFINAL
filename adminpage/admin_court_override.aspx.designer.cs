@@ -11,35 +11,17 @@ namespace Smash_IT.adminpage
 {
 
 
-    public partial class admin_court
+    public partial class admin_court_override
     {
 
         /// <summary>
-        /// ScriptManager1 control.
+        /// sm1 control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.ScriptManager ScriptManager1;
-
-        /// <summary>
-        /// upDashboard control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.UpdatePanel upDashboard;
-
-        /// <summary>
-        /// CourtRefreshTimer control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.Timer CourtRefreshTimer;
+        protected global::System.Web.UI.ScriptManager sm1;
 
         /// <summary>
         /// txtDate control.
@@ -51,48 +33,57 @@ namespace Smash_IT.adminpage
         protected global::System.Web.UI.WebControls.TextBox txtDate;
 
         /// <summary>
-        /// ddlTime control.
+        /// btnLoadSlots control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.DropDownList ddlTime;
+        protected global::System.Web.UI.WebControls.Button btnLoadSlots;
 
         /// <summary>
-        /// btnApplyTime control.
+        /// litMatrixTable control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnApplyTime;
+        protected global::System.Web.UI.WebControls.Literal litMatrixTable;
 
         /// <summary>
-        /// btnLiveView control.
+        /// hfAvailabilityID control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnLiveView;
+        protected global::System.Web.UI.WebControls.HiddenField hfAvailabilityID;
 
         /// <summary>
-        /// btnLiveView2 control.
+        /// hfCreatedByStaffID control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnLiveView2;
+        protected global::System.Web.UI.WebControls.HiddenField hfCreatedByStaffID;
 
         /// <summary>
-        /// rptCourts control.
+        /// ddlModalMode control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Repeater rptCourts;
+        protected global::System.Web.UI.WebControls.DropDownList ddlModalMode;
+
+        /// <summary>
+        /// btnConfirmApply control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnConfirmApply;
     }
 }

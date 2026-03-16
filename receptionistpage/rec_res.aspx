@@ -2,8 +2,7 @@
     MasterPageFile="~/receptionistpage/receptionist.Master"
    CodeBehind="rec_res.aspx.cs" 
     Inherits="Smash_IT.receptionistpage.rec_res" %>
-
-
+    
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
@@ -91,11 +90,39 @@
         .dot-red { background: #fee2e2; border: 1px solid #ef4444; }
 
         /* ===== ALL EVENTS GRID ===== */
-        .grid-card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(30, 58, 138, 0.05); }
-        .custom-grid { width: 100%; border-collapse: collapse; }
-        .custom-grid th { background: #1e3a8a; color: white; padding: 15px; text-align: left; font-size: 0.85rem; text-transform: uppercase; }
-        .custom-grid td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; vertical-align: middle; }
-        
+       /* ===== ALL EVENTS GRID ===== */
+.grid-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(30, 58, 138, 0.05);
+    overflow-x: auto;
+}
+    .custom-grid {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+}
+
+            .custom-grid th {
+                background: #f8fafc;
+                padding: 15px;
+                text-align: left;
+                font-size: 0.7rem;
+                color: #64748b;
+                text-transform: uppercase;
+                border-bottom: 2px solid var(--border-color);
+            }
+
+         .custom-grid td {
+    padding: 15px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+
         .event-badge-status { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; display: inline-block; text-align: center; }
         .badge-badminton { background: #dcfce7; color: #166534; }
         .badge-pickleball { background: #fef3c7; color: #92400e; }
@@ -104,9 +131,20 @@
         .badge-approved { background-color: #dcfce7; color: #166534; }
         .badge-cancelled { background-color: #fee2e2; color: #991b1b; }
         .badge-completed { background-color: #dbeafe; color: #1e3a8a; }
+        .badge-refunded { background-color: #d1fae5; color: #065f46; }
         
         .edit-link { color: #1e3a8a; font-weight: 600; padding: 6px 12px; background: #eff6ff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; outline: none; }
         .edit-link:hover { background: #dbeafe; }
+        .custom-grid .edit-link,
+.custom-grid .btn,
+.custom-grid a {
+    white-space: normal;
+}
+
+.table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
 
         /* ===== SIDEBAR / INPUT PANEL ===== */
         .sidebar-sticky { position: sticky; top: 20px; }
@@ -141,7 +179,8 @@
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
- 
+    <asp:ScriptManager ID="sm1" runat="server" />
+
     <asp:UpdateProgress ID="UpdateProgress1" runat="server" AssociatedUpdatePanelID="upMain">
         <ProgressTemplate>
             <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(2px);">
@@ -214,6 +253,7 @@
                                         <asp:ListItem Text="Approved" Value="Approved"></asp:ListItem>
                                         <asp:ListItem Text="Completed" Value="Completed"></asp:ListItem>
                                         <asp:ListItem Text="Cancelled" Value="Cancelled"></asp:ListItem>
+                                      <asp:ListItem Text="Refunded" Value="Refunded"></asp:ListItem>
                                     </asp:DropDownList>
                                 </div>
                             </div>
@@ -262,9 +302,9 @@
 
                                     <asp:TemplateField HeaderText="Status">
                                         <ItemTemplate>
-                                            <span class='event-badge-status <%# Eval("StatusName").ToString() == "Approved" ? "badge-approved" : (Eval("StatusName").ToString() == "Pending" ? "badge-pending" : (Eval("StatusName").ToString() == "Completed" ? "badge-completed" : "badge-cancelled")) %>'>
-                                                <%# Eval("StatusName") %>
-                                            </span>
+                                     <span class='event-badge-status <%# Eval("StatusName").ToString() == "Approved" ? "badge-approved" : (Eval("StatusName").ToString() == "Pending" ? "badge-pending" : (Eval("StatusName").ToString() == "Completed" ? "badge-completed" : (Eval("StatusName").ToString() == "Refunded" ? "badge-refunded" : "badge-cancelled"))) %>'>
+    <%# Eval("StatusName") %>
+</span>
                                         </ItemTemplate>
                                     </asp:TemplateField>
 
@@ -284,6 +324,90 @@
                                 </EmptyDataTemplate>
                             </asp:GridView>
                         </div>
+                        <div class="grid-card" style="margin-top:25px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;border-bottom:2px solid #f1f5f9;padding-bottom:10px;flex-wrap:wrap;gap:10px;">
+        <h4 style="color:#b91c1c;font-weight:800;margin:0;"><i class="fas fa-rotate-left" style="margin-right:8px;color:#ef4444;"></i>Refund Queue</h4>
+     <div style="font-size:0.85rem;color:#64748b;font-weight:600;">Reservations approved for refund processing</div>
+    </div>
+
+ <div class="table-scroll">
+    <asp:GridView ID="gvRefunds" runat="server" AutoGenerateColumns="False" CssClass="custom-grid" GridLines="None" OnRowCommand="gvRefunds_RowCommand">
+        <Columns>
+            <asp:TemplateField HeaderText="Reservation">
+                <ItemTemplate>
+                    <div style="font-weight:700;color:#1e3a8a;">#<%# Eval("ReservationID") %></div>
+                    <div style="font-size:0.75rem;color:#64748b;">Ref: <%# Eval("ReferenceText") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Customer">
+                <ItemTemplate>
+                    <div style="font-weight:700;color:#0f172a;"><%# Eval("CustomerName") %></div>
+                    <div style="font-size:0.8rem;color:#475569;"><%# Eval("UsernameText") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Contact">
+                <ItemTemplate>
+                    <div><i class="fas fa-envelope" style="color:#64748b;margin-right:6px;"></i><%# Eval("Email") %></div>
+                    <div style="margin-top:4px;"><i class="fas fa-phone" style="color:#64748b;margin-right:6px;"></i><%# Eval("PhoneNumber") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Payment Made">
+                <ItemTemplate>
+                    <div style="font-weight:700;color:#1e3a8a;">₱<%# Convert.ToDecimal(Eval("PaidAmount")).ToString("0.00") %></div>
+                    <span class='<%# Eval("PaymentStatus").ToString() == "FullyPaid" ? "badge-pay-full" : (Eval("PaymentStatus").ToString() == "HalfPaid" ? "badge-pay-half" : "badge-pay-unpaid") %>'>
+                        <%# Eval("PaymentStatus") %>
+                    </span>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Refund Amount">
+                <ItemTemplate>
+                    <div style="font-weight:800;color:#b91c1c;font-size:1rem;">₱<%# Convert.ToDecimal(Eval("RefundAmount")).ToString("0.00") %></div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Action">
+    <ItemTemplate>
+        <asp:LinkButton
+            ID="btnVoidRefund"
+            runat="server"
+            CssClass="btn btn-danger btn-sm"
+            Text="Void + Refund"
+            CommandName="VoidRefund"
+            CommandArgument='<%# Eval("ReservationID") %>'
+            OnClientClick="return confirm('Void all payments for this reservation and mark it as refunded?');" />
+    </ItemTemplate>
+</asp:TemplateField>
+
+            <asp:TemplateField HeaderText="Instruction">
+                <ItemTemplate>
+                   <div style="font-size:0.82rem;line-height:1.45;color:#475569;max-width:320px;">
+    Process the refund for <b><%# Eval("CustomerName") %></b>. After refunding, click
+    <b>Void + Refund</b> or <b>Mark Refunded</b>.
+</div>
+                </ItemTemplate>
+            </asp:TemplateField>
+
+            <asp:TemplateField ItemStyle-HorizontalAlign="Right">
+                <ItemTemplate>
+                    <asp:LinkButton ID="btnMarkRefunded" runat="server" CommandName="MarkRefunded" CommandArgument='<%# Eval("ReservationID") %>' CssClass="edit-link" style="background:#fee2e2;color:#b91c1c;">
+                        <i class="fas fa-check-circle"></i> Mark Refunded
+                    </asp:LinkButton>
+                </ItemTemplate>
+            </asp:TemplateField>
+        </Columns>
+        <EmptyDataTemplate>
+            <div style="text-align:center;padding:35px;color:#94a3b8;">
+                <i class="fas fa-wallet" style="font-size:2rem;margin-bottom:10px;"></i>
+                <h5 style="margin:0;font-weight:700;">No pending refunds.</h5>
+            </div>
+        </EmptyDataTemplate>
+    </asp:GridView>
+    </div>
+</div>
                     </div>
 
                     <%-- SIDEBAR CONFIGURATION --%>
@@ -387,11 +511,18 @@
                                 </div>
 
                                 <div style="margin-top: 25px;">
-                                    <asp:Button ID="btnApproveRes" runat="server" Text="✓ Approve Reservation" CssClass="btn-approve" OnClick="btnApproveRes_Click" Visible="false" />
-                                    <asp:Button ID="btnManageExtras" runat="server" Text="Manage Extras (Rentals/Water)" CssClass="btn-outline" OnClick="btnManageExtras_Click" />
-                                    <asp:Button ID="btnSaveUpdate" runat="server" Text="Apply Updates" CssClass="btn-primary" OnClick="btnSaveUpdate_Click" />
-                                    <asp:Button ID="btnCloseSidebar" runat="server" Text="Cancel" CssClass="btn-secondary" OnClick="btnCloseSidebar_Click" />
-                                </div>
+    <asp:Button ID="btnApproveRes" runat="server" Text="✓ Approve Reservation" CssClass="btn-approve" OnClick="btnApproveRes_Click" Visible="false" />
+    
+    <asp:Button ID="btnConfirmCancel" runat="server"
+        Text="Confirm Cancel → Refund Queue"
+        CssClass="btn-outline"
+        OnClick="btnConfirmCancel_Click"
+        Visible="false" />
+    
+    <asp:Button ID="btnManageExtras" runat="server" Text="Manage Extras (Rentals/Water)" CssClass="btn-outline" OnClick="btnManageExtras_Click" />
+    <asp:Button ID="btnSaveUpdate" runat="server" Text="Apply Updates" CssClass="btn-primary" OnClick="btnSaveUpdate_Click" />
+    <asp:Button ID="btnCloseSidebar" runat="server" Text="Cancel" CssClass="btn-secondary" OnClick="btnCloseSidebar_Click" />
+</div>
                             </asp:Panel>
 
                             <%-- STATE 3: CREATE NEW RESERVATION --%>

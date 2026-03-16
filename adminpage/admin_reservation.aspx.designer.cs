@@ -330,6 +330,15 @@ namespace Smash_IT.adminpage
         protected global::System.Web.UI.WebControls.Button btnApproveRes;
 
         /// <summary>
+        /// btnConfirmCancel control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnConfirmCancel;
+
+        /// <summary>
         /// btnManageExtras control.
         /// </summary>
         /// <remarks>

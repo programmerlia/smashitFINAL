@@ -57,7 +57,7 @@
                 <div class="leaderboard-head">
                     <div>
                         <h2 class="leaderboard-title"><i class="fas fa-trophy"></i> Player Leaderboards</h2>
-                        <p class="leaderboard-sub">Kahoot-style rankings for your top players</p>
+                      
                     </div>
                     <div class="leaderboard-filter">
                         <asp:DropDownList ID="ddlLeaderboardType" runat="server" AutoPostBack="true" CssClass="leaderboard-select" OnSelectedIndexChanged="ddlLeaderboardType_SelectedIndexChanged">

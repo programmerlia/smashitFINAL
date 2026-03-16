@@ -14,7 +14,7 @@
 .slot-5{grid-column:1;grid-row:5/span 8;}
 .slot-6{grid-column:2/span 2;grid-row:8/span 5;}
 .blank-a{grid-column:1;grid-row:1/span 3;background:transparent;border-radius:0;}
-.blank-b{grid-column:5/span 1;grid-row:9/span 4;background:transparent;border-radius:12px;display:flex;align-items:flex-end;justify-content:flex-end;padding:18px;}
+.blank-b{grid-column:4/span 2;grid-row:8/span 4;background:transparent;border-radius:12px;display:flex;align-items:flex-end;justify-content:flex-end;padding:18px;}
 
 
 .live-panel-inner{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:14px;width:100%;height:100%;}
@@ -26,7 +26,10 @@
 .court-card{position:relative;border-radius:15px;overflow:hidden;height:100%;width:100%;box-shadow:var(--shadow);border:1px solid #0f172a;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(255,255,255,.01)),radial-gradient(circle at 30% 20%,rgba(255,255,255,.09),transparent 35%),linear-gradient(135deg,var(--court-green-1),var(--court-green-2) 55%,var(--court-green-3));}
 .court-card.horizontal{height:100%;}
 .court-inner{position:relative;z-index:2;padding:18px;height:100%;display:flex;flex-direction:column;justify-content:space-between;backdrop-filter:saturate(1.05);}
-.slot-6 .court-inner{padding:16px 18px;}
+.slot-6 .court-inner{display: flex;
+    justify-content: space-evenly;
+    align-content: center;
+    align-items: stretch;padding:16px 18px;}
 .court-topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px;}
 .court-label{color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.28);}
 .court-label .court-no{font-size:1.22rem;font-weight:800;line-height:1.1;text-transform:uppercase;letter-spacing:.5px;display:block;}
@@ -106,6 +109,8 @@
                 <i class="fas fa-circle"></i> Live Feed Active
             </div>
             <asp:Button ID="btnRefresh" runat="server" Text="Refresh Now" CssClass="btn" OnClick="btnRefresh_Click" />
+            <asp:Button ID="btnLiveView2" runat="server" Text="Open Live Court" CssClass="btn btn-secondary"
+OnClientClick="window.open('../live_courts.aspx', '_blank'); return false;" />
         </div>
     </div>
 </div>

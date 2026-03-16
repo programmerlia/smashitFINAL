@@ -5,5 +5,9 @@
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
+<div sstyle="display: flex;
+justify-content: center;
+align-items: center;">
     <uc:CourtLive ID="CourtLive1" runat="server" />
+    </div>
 </asp:Content>

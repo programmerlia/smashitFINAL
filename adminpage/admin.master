@@ -201,6 +201,9 @@
                 <asp:HyperLink ID="navCourts" runat="server" NavigateUrl="~/adminpage/admin_court.aspx" ToolTip="Courts">
                     <i class="fas fa-table-tennis-paddle-ball"></i> <span>Manage Courts</span>
                 </asp:HyperLink>
+                     <asp:HyperLink ID="HyperLink2" runat="server" NavigateUrl="~/adminpage/admin_court_override.aspx" ToolTip="Courts">
+         <i class="fas fa-table-tennis-paddle-ball"></i> <span>Court Availability</span>
+     </asp:HyperLink>
                 <asp:HyperLink ID="navPlayForAll" runat="server" NavigateUrl="~/adminpage/admin_playallyoucan.aspx" ToolTip="Play-All">
                     <i class="fas fa-person-running"></i> <span>Play-All-You-Can</span>
                 </asp:HyperLink>
@@ -247,6 +250,8 @@
 
         <div class="main-wrapper" id="mainWrapper">
             <div class="main-content-container">
+            
+    
                 <asp:ContentPlaceHolder ID="MainContent" runat="server" />
             </div>
         </div>

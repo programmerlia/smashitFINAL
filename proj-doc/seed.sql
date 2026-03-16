@@ -22,7 +22,7 @@ BEGIN TRY
     ('Par', 'Dean', 'isaiahandreinoda@gmail.com', 'queuemaster', 'pass', 'queuemaster');
 
 
-    DECLARE @AdminStaffID INT = 1
+    DECLARE @AdminStaffID INT = 2
 
     INSERT INTO tblPlayerAccount (Lastname, Firstname, Email, PhoneNumber, Username, [Password])
     VALUES 

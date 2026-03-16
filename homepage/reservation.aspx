@@ -299,7 +299,7 @@
                                     <DIV class="summary-details mt-4">
                                         <P class="mb-1 small">Court: <SPAN id="courtSummaryCourt" class="fw-bold">---</SPAN></P>
                                         <P class="mb-1 small">Sport: <SPAN id="courtSummarySport" class="fw-bold">---</SPAN></P>
-                                        <P class="mb-1 small">Time: <SPAN id="courtSummaryTime" class="fw-bold">---</SPAN><SPAN id="courtSummaryDuration" class="fw-bold">---</SPAN></P>
+                                        <P class="mb-1 small">Time: <SPAN id="courtSummaryTime" class="fw-bold">---</SPAN><span>  </span><SPAN id="courtSummaryDuration" class="fw-bold">---</SPAN></P>
                                     
                                         <DIV class="p-3">
                                             <DIV class="d-flex justify-content-between">

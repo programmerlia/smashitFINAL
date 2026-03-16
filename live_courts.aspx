@@ -1,4 +1,4 @@
-﻿<%@ Page Title="Live Courts" Language="C#" AutoEventWireup="true" CodeBehind="admin_live_courts.aspx.cs" Inherits="Smash_IT.adminpage.admin_live_courts" EnableEventValidation="false" %>
+﻿<%@ Page Title="Live Courts" Language="C#" AutoEventWireup="true" CodeBehind="live_courts.aspx.cs" Inherits="Smash_IT.live_courts" EnableEventValidation="false" %>
 <%@ Register Src="~/controls/CourtLive.ascx" TagPrefix="uc" TagName="CourtLive" %>
 
 <!DOCTYPE html>

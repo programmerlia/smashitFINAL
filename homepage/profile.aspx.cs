@@ -175,7 +175,8 @@ SELECT
     (SELECT COUNT(*)
      FROM tblReservation
      WHERE UserID = @ID
-       AND ReservationStatusName = 'Pending') AS PendingCount,
+       AND ReservationStatusName = 'Pending'
+       AND ISNULL(RequestStatus,'') = '') AS PendingCount,
 
     (SELECT ISNULL(SUM(DATEDIFF(MINUTE, StartTime, EndTime)), 0)
      FROM tblReservation
@@ -183,24 +184,53 @@ SELECT
        AND ReservationStatusName IN ('Approved','Completed')) AS MinutesPlayed,
 
     (SELECT COUNT(*)
-     FROM tblRental
-     WHERE UserID = @ID) AS TotalRentals,
+     FROM tblRental rt
+     WHERE rt.UserID = @ID
+        OR EXISTS
+          (
+              SELECT 1
+              FROM tblReservation rr
+              WHERE rr.ReservationID = rt.ReservationID
+                AND rr.UserID = @ID
+          )) AS TotalRentals,
 
-    (SELECT ISNULL(SUM(Quantity), 0)
-     FROM tblConsumable
-     WHERE UserID = @ID) AS TotalConsumables,
+    (SELECT ISNULL(SUM(cs.Quantity), 0)
+     FROM tblConsumable cs
+     WHERE cs.UserID = @ID
+        OR EXISTS
+          (
+              SELECT 1
+              FROM tblReservation rr
+              WHERE rr.ReservationID = cs.ReservationID
+                AND rr.UserID = @ID
+          )) AS TotalConsumables,
 
-    (SELECT ISNULL(SUM(CAST(Amount AS DECIMAL(10,2))), 0)
-     FROM tblPayment
-     WHERE UserID = @ID
-       AND PaymentDate >= @WeekStart
-       AND PaymentDate < DATEADD(DAY, 7, @WeekStart)) AS SpentThisWeek,
+    (SELECT ISNULL(SUM(CAST(p.Amount AS DECIMAL(10,2))), 0)
+     FROM tblPayment p
+     WHERE (p.UserID = @ID
+        OR EXISTS
+          (
+              SELECT 1
+              FROM tblReservation rr
+              WHERE rr.ReservationID = p.ReservationID
+                AND rr.UserID = @ID
+          ))
+       AND p.PaymentDate >= @WeekStart
+       AND p.PaymentDate < DATEADD(DAY, 7, @WeekStart)) AS SpentThisWeek,
 
-    (SELECT ISNULL(SUM(CAST(Amount AS DECIMAL(10,2))), 0)
-     FROM tblPayment
-     WHERE UserID = @ID
-       AND PaymentDate >= @MonthStart
-       AND PaymentDate < DATEADD(MONTH, 1, @MonthStart)) AS SpentThisMonth;", con))
+    (SELECT ISNULL(SUM(CAST(p.Amount AS DECIMAL(10,2))), 0)
+     FROM tblPayment p
+     WHERE (p.UserID = @ID
+        OR EXISTS
+          (
+              SELECT 1
+              FROM tblReservation rr
+              WHERE rr.ReservationID = p.ReservationID
+                AND rr.UserID = @ID
+          ))
+       AND p.PaymentDate >= @MonthStart
+       AND p.PaymentDate < DATEADD(MONTH, 1, @MonthStart)) AS SpentThisMonth;
+", con))
             {
                 cmd.Parameters.AddWithValue("@ID", userId);
                 con.Open();
@@ -379,13 +409,21 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             }
         }
 
-        private bool CanRequestCancel(DateTime resDate, string status)
+        private bool CanRequestCancel(string status, string requestStatus)
         {
-            if (!(status.Equals("Pending", StringComparison.OrdinalIgnoreCase) ||
-                  status.Equals("Approved", StringComparison.OrdinalIgnoreCase)))
+            string s = (status ?? "").Trim();
+            string req = (requestStatus ?? "").Trim();
+
+            if (!string.IsNullOrWhiteSpace(req))
                 return false;
 
-            return resDate.Date >= DateTime.Today.AddDays(1);
+            if (s.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (s.Equals("Refunded", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
         }
         // -------------------- TOP 1 ON PROFILE (APPROVED UPCOMING FIRST) --------------------
         private void BindTopReservation(DataTable dt)
@@ -506,17 +544,17 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
         // -------------------- MODAL LISTS (CATEGORIES) --------------------
         private void BindReservationLists(DataTable dt)
         {
-            DataView dvRequests = new DataView(dt);
-            dvRequests.RowFilter = "RequestStatus <> ''";
-
             DataView dvApproved = new DataView(dt);
-            dvApproved.RowFilter = "ReservationStatusName = 'Approved'";
+            dvApproved.RowFilter = "ReservationStatusName = 'Approved' AND RequestStatus = ''";
 
             DataView dvPending = new DataView(dt);
-            dvPending.RowFilter = "ReservationStatusName = 'Pending'";
+            dvPending.RowFilter = "ReservationStatusName = 'Pending' AND RequestStatus = ''";
+
+            DataView dvRequests = new DataView(dt);
+            dvRequests.RowFilter = "RequestStatus = 'forRefund'";
 
             DataView dvCancelled = new DataView(dt);
-            dvCancelled.RowFilter = "ReservationStatusName = 'Cancelled'";
+            dvCancelled.RowFilter = "RequestStatus = 'forCancel'";
 
             DataView dvCompleted = new DataView(dt);
             dvCompleted.RowFilter = "ReservationStatusName = 'Completed'";
@@ -549,43 +587,43 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
             pnlEmptyCompleted.Visible = dvCompleted.Count == 0;
             pnlEmptyRefunded.Visible = dvRefunded.Count == 0;
         }
-      
 
         // -------------------- Repeater events --------------------
         protected void rptReservations_ItemDataBound(object sender, RepeaterItemEventArgs e)
         {
-            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem) return;
+            if (e.Item.ItemType != ListItemType.Item && e.Item.ItemType != ListItemType.AlternatingItem)
+                return;
 
             DataRowView row = (DataRowView)e.Item.DataItem;
 
-            DateTime resDate = Convert.ToDateTime(row["ResDate"]);
             string status = Convert.ToString(row["ReservationStatusName"] ?? "");
             string req = Convert.ToString(row["RequestStatus"] ?? "");
-            bool isPaid = row["IsPaid"] != DBNull.Value && Convert.ToBoolean(row["IsPaid"]);
-            string pay = Convert.ToString(row["PaymentStatus"] ?? "");
-            bool paid = isPaid || pay.Equals("paid", StringComparison.OrdinalIgnoreCase);
 
             Button btnCancel = (Button)e.Item.FindControl("btnCancelReq");
             Label hint = (Label)e.Item.FindControl("lblRuleHint");
 
-            bool alreadyRequested = !string.IsNullOrWhiteSpace(req);
+            bool canCancel = CanRequestCancel(status, req);
 
-            bool canCancel = !alreadyRequested && CanRequestCancel(resDate, status);
-            
-
-            if (btnCancel != null) btnCancel.Enabled = canCancel;
+            if (btnCancel != null)
+            {
+                btnCancel.Enabled = canCancel;
+                btnCancel.Visible = canCancel;
+            }
 
             if (hint != null)
             {
-                if (alreadyRequested)
-                    hint.Text = "You already have a request on this reservation. Please wait for staff/admin response.";
-                else if (!canCancel && (status.Equals("Pending", StringComparison.OrdinalIgnoreCase) || status.Equals("Approved", StringComparison.OrdinalIgnoreCase)))
-                    hint.Text = "Cancel request is allowed only at least 1 day before the reservation date.";
+                if (req.Equals("forCancel", StringComparison.OrdinalIgnoreCase))
+                    hint.Text = "Your cancellation request is waiting for admin action.";
+                else if (req.Equals("forRefund", StringComparison.OrdinalIgnoreCase))
+                    hint.Text = "Your reservation is now queued for refund processing.";
+                else if (status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    hint.Text = "Completed reservations can no longer be cancelled.";
+                else if (status.Equals("Refunded", StringComparison.OrdinalIgnoreCase))
+                    hint.Text = "This reservation has already been refunded.";
                 else
                     hint.Text = "";
             }
         }
-
         protected void rptReservations_ItemCommand(object source, RepeaterCommandEventArgs e)
         {
             int userId = Convert.ToInt32(Session["UserID"]);
@@ -604,15 +642,15 @@ ORDER BY r.ResDate DESC, r.StartTime DESC;", con))
 
         private void HandleCancelRequest(int userId, int reservationId)
         {
-            DateTime resDate;
             string status;
             string req;
 
             using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(@"
-SELECT ResDate, ReservationStatusName, ISNULL(RequestStatus,'') AS RequestStatus
+SELECT ReservationStatusName, ISNULL(RequestStatus,'') AS RequestStatus
 FROM tblReservation
-WHERE ReservationID=@RID AND UserID=@UID;", con))
+WHERE ReservationID = @RID
+  AND UserID = @UID;", con))
             {
                 cmd.Parameters.AddWithValue("@RID", reservationId);
                 cmd.Parameters.AddWithValue("@UID", userId);
@@ -620,22 +658,37 @@ WHERE ReservationID=@RID AND UserID=@UID;", con))
 
                 using (SqlDataReader dr = cmd.ExecuteReader())
                 {
-                    if (!dr.Read()) { ShowMsg("Reservation not found.", true); return; }
+                    if (!dr.Read())
+                    {
+                        ShowMsg("Reservation not found.", true);
+                        return;
+                    }
 
-                    resDate = Convert.ToDateTime(dr["ResDate"]);
                     status = Convert.ToString(dr["ReservationStatusName"] ?? "");
                     req = Convert.ToString(dr["RequestStatus"] ?? "");
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(req)) { ShowMsg("You already submitted a request for this reservation.", true); return; }
-            if (!CanRequestCancel(resDate, status)) { ShowMsg("Cancel request not allowed. You can only cancel at least 1 day prior to the reservation.", true); return; }
+            if (!CanRequestCancel(status, req))
+            {
+                if (!string.IsNullOrWhiteSpace(req))
+                    ShowMsg("This reservation already has an active request.", true);
+                else if (status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    ShowMsg("Completed reservations can no longer be cancelled.", true);
+                else if (status.Equals("Refunded", StringComparison.OrdinalIgnoreCase))
+                    ShowMsg("This reservation has already been refunded.", true);
+                else
+                    ShowMsg("Unable to request cancellation for this reservation.", true);
+
+                return;
+            }
 
             using (SqlConnection con = new SqlConnection(CS))
             using (SqlCommand cmd = new SqlCommand(@"
 UPDATE tblReservation
-SET RequestStatus='CancelRequest'
-WHERE ReservationID=@RID AND UserID=@UID;", con))
+SET RequestStatus = 'forCancel'
+WHERE ReservationID = @RID
+  AND UserID = @UID;", con))
             {
                 cmd.Parameters.AddWithValue("@RID", reservationId);
                 cmd.Parameters.AddWithValue("@UID", userId);
@@ -643,10 +696,10 @@ WHERE ReservationID=@RID AND UserID=@UID;", con))
                 cmd.ExecuteNonQuery();
             }
 
-            ShowMsg("Cancel request sent. Please wait for admin approval.", false);
+            ShowMsg("Cancellation request submitted. Please wait for admin action.", false);
         }
 
-    
+
         private void ShowMsg(string text, bool isError)
         {
             string css = isError ? "alert alert-danger" : "alert alert-success";
@@ -854,6 +907,13 @@ LEFT JOIN tblConsumable cons ON cons.ConsumableID = p.ConsumableID
 LEFT JOIN tblEquipmentModel cm ON cm.ModelID = cons.ModelID
 
 WHERE p.UserID = @UID
+   OR EXISTS
+      (
+          SELECT 1
+          FROM tblReservation rr
+          WHERE rr.ReservationID = p.ReservationID
+            AND rr.UserID = @UID
+      )
 ORDER BY ISNULL(p.PaymentDate, '19000101') DESC, p.PaymentID DESC;", con))
             {
                 cmd.Parameters.AddWithValue("@UID", userId);
@@ -1012,6 +1072,13 @@ LEFT JOIN tblReservation res ON res.ReservationID = rntl.ReservationID
 LEFT JOIN tblCourt c ON c.CourtID = res.CourtID
 
 WHERE rntl.UserID = @UID
+   OR EXISTS
+      (
+          SELECT 1
+          FROM tblReservation rr
+          WHERE rr.ReservationID = rntl.ReservationID
+            AND rr.UserID = @UID
+      )
 ORDER BY rntl.RentalDate DESC, rntl.RentalID DESC;", con))
             {
                 cmd.Parameters.AddWithValue("@UID", userId);

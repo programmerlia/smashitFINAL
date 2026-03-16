@@ -138,39 +138,49 @@ namespace Smash_IT.adminpage
                 using (SqlConnection con = new SqlConnection(CS))
                 {
                     string query = @"
-                SELECT
-                    r.ReservationID,
-                    CASE 
-                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Firstname,'') + ' ' + ISNULL(pa.Lastname,'')
-                        ELSE ISNULL(pw.Firstname,'') + ' ' + ISNULL(pw.Lastname,'')
-                    END AS CustomerName,
-                    CASE 
-                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Username,'')
-                        ELSE 'Walk-In'
-                    END AS UsernameText,
-                    CASE 
-                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Email,'No email')
-                        ELSE 'Walk-In / No email'
-                    END AS Email,
-                    CASE 
-                        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.PhoneNumber,'No phone')
-                        ELSE 'Walk-In / No phone'
-                    END AS PhoneNumber,
-                    ISNULL(r.PaymentStatus,'Unpaid') AS PaymentStatus,
-                    ISNULL(r.PaymongoCheckoutSessionID,'Cash / OTC') AS ReferenceText,
-                    ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0) AS PaidAmount,
-                    CASE
-                        WHEN ISNULL(r.PaymentStatus,'Unpaid') = 'FullyPaid' THEN ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0)
-                        WHEN ISNULL(r.PaymentStatus,'Unpaid') = 'HalfPaid' THEN ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0)
-                        ELSE 0
-                    END AS RefundAmount
-                FROM tblReservation r
-                LEFT JOIN tblPlayerAccount pa ON r.UserID = pa.UserID
-                LEFT JOIN tblPlayerWalkIn pw ON r.WalkInID = pw.WalkInID
-                WHERE r.RequestStatus = 'CancelRequest'
-                  AND r.ReservationStatusName = 'Cancelled'
-                  AND ISNULL((SELECT SUM(p.Amount) FROM tblPayment p WHERE p.ReservationID = r.ReservationID), 0) > 0
-                ORDER BY r.ResDate DESC, r.StartTime DESC";
+SELECT
+    r.ReservationID,
+    r.ResDate,
+    r.StartTime,
+    r.EndTime,
+    r.ReservationStatusName,
+    ISNULL(r.RequestStatus, '') AS RequestStatus,
+    CASE 
+        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Firstname,'') + ' ' + ISNULL(pa.Lastname,'')
+        ELSE ISNULL(pw.Firstname,'') + ' ' + ISNULL(pw.Lastname,'')
+    END AS CustomerName,
+    CASE 
+        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Username,'')
+        ELSE 'Walk-In'
+    END AS UsernameText,
+    CASE 
+        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.Email,'No email')
+        ELSE 'Walk-In / No email'
+    END AS Email,
+    CASE 
+        WHEN r.UserID IS NOT NULL THEN ISNULL(pa.PhoneNumber,'No phone')
+        ELSE 'Walk-In / No phone'
+    END AS PhoneNumber,
+    ISNULL(r.PaymentStatus,'Unpaid') AS PaymentStatus,
+    ISNULL(r.PaymongoCheckoutSessionID,'Cash / OTC') AS ReferenceText,
+
+    ISNULL((
+        SELECT SUM(CAST(p.Amount AS DECIMAL(10,2)))
+        FROM tblPayment p
+        WHERE p.ReservationID = r.ReservationID
+    ), 0) AS PaidAmount,
+
+    ISNULL((
+        SELECT SUM(CAST(p.Amount AS DECIMAL(10,2)))
+        FROM tblPayment p
+        WHERE p.ReservationID = r.ReservationID
+    ), 0) AS RefundAmount
+
+FROM tblReservation r
+LEFT JOIN tblPlayerAccount pa ON r.UserID = pa.UserID
+LEFT JOIN tblPlayerWalkIn pw ON r.WalkInID = pw.WalkInID
+WHERE r.RequestStatus = 'forRefund'
+ORDER BY r.ResDate DESC, r.StartTime DESC;";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
@@ -189,6 +199,135 @@ namespace Smash_IT.adminpage
             }
         }
 
+        private void VoidRefundedPayments(int reservationId)
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(CS))
+                {
+                    con.Open();
+
+                    using (SqlTransaction tx = con.BeginTransaction())
+                    {
+                        try
+                        {
+                            string checkQ = @"
+SELECT COUNT(*)
+FROM tblReservation
+WHERE ReservationID = @ReservationID
+  AND RequestStatus = 'forRefund';";
+
+                            using (SqlCommand cmdCheck = new SqlCommand(checkQ, con, tx))
+                            {
+                                cmdCheck.Parameters.AddWithValue("@ReservationID", reservationId);
+
+                                if (Convert.ToInt32(cmdCheck.ExecuteScalar()) <= 0)
+                                    throw new Exception("Reservation is not currently queued for refund.");
+                            }
+
+                            string deletePaymentsQ = @"
+DELETE FROM tblPayment
+WHERE ReservationID = @ReservationID;";
+
+                            using (SqlCommand cmdDelete = new SqlCommand(deletePaymentsQ, con, tx))
+                            {
+                                cmdDelete.Parameters.AddWithValue("@ReservationID", reservationId);
+                                cmdDelete.ExecuteNonQuery();
+                            }
+
+                            string updateRentalQ = @"
+UPDATE tblRental
+SET IsPaid = 0
+WHERE ReservationID = @ReservationID;";
+
+                            using (SqlCommand cmdRental = new SqlCommand(updateRentalQ, con, tx))
+                            {
+                                cmdRental.Parameters.AddWithValue("@ReservationID", reservationId);
+                                cmdRental.ExecuteNonQuery();
+                            }
+
+                            string updateConsumableQ = @"
+UPDATE tblConsumable
+SET IsPaid = 0
+WHERE ReservationID = @ReservationID;";
+
+                            using (SqlCommand cmdConsumable = new SqlCommand(updateConsumableQ, con, tx))
+                            {
+                                cmdConsumable.Parameters.AddWithValue("@ReservationID", reservationId);
+                                cmdConsumable.ExecuteNonQuery();
+                            }
+
+                            string updateReservationQ = @"
+UPDATE tblReservation
+SET RequestStatus = NULL,
+    ReservationStatusName = 'Refunded',
+    PaymentStatus = 'Refunded',
+    IsPaid = 0
+WHERE ReservationID = @ReservationID;";
+
+                            using (SqlCommand cmdRes = new SqlCommand(updateReservationQ, con, tx))
+                            {
+                                cmdRes.Parameters.AddWithValue("@ReservationID", reservationId);
+                                cmdRes.ExecuteNonQuery();
+                            }
+
+                            tx.Commit();
+
+                            ShowAlert("success", "Refund Processed", "Payments were voided and reservation marked as refunded.");
+                            RefreshAllData();
+                        }
+                        catch (Exception innerEx)
+                        {
+                            tx.Rollback();
+                            ShowAlert("error", "Refund Failed", innerEx.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("error", "Processing Error", ex.Message);
+            }
+        }
+
+        private void MoveReservationToRefundQueue(int reservationId)
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(CS))
+                {
+                    string query = @"
+UPDATE tblReservation
+SET RequestStatus = 'forRefund',
+    ReservationStatusName = 'Cancelled'
+WHERE ReservationID = @ReservationID
+  AND RequestStatus = 'forCancel'
+  AND ReservationStatusName <> 'Completed';";
+
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@ReservationID", reservationId);
+                        con.Open();
+                        int rows = cmd.ExecuteNonQuery();
+
+                        if (rows > 0)
+                        {
+                            ShowAlert("success", "Cancellation Confirmed", "Reservation moved to refund queue.");
+                            RefreshAllData();
+                            LoadReservationDetails(reservationId);
+                        }
+                        else
+                        {
+                            ShowAlert("warning", "No Change", "Reservation is not eligible for cancel confirmation.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowAlert("error", "Cancel Confirmation Failed", ex.Message);
+            }
+        }
         private void MarkReservationRefunded(int reservationId)
         {
             try
@@ -196,12 +335,13 @@ namespace Smash_IT.adminpage
                 using (SqlConnection con = new SqlConnection(CS))
                 {
                     string query = @"
-                UPDATE tblReservation
-                SET RequestStatus = NULL,
-                    ReservationStatusName = 'Refunded'
-                WHERE ReservationID = @ReservationID
-                  AND RequestStatus = 'CancelRequest'
-                  AND ReservationStatusName = 'Cancelled'";
+UPDATE tblReservation
+SET RequestStatus = NULL,
+    ReservationStatusName = 'Refunded',
+    PaymentStatus = 'Refunded',
+    IsPaid = 0
+WHERE ReservationID = @ReservationID
+  AND RequestStatus = 'forRefund';";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
@@ -216,7 +356,7 @@ namespace Smash_IT.adminpage
                         }
                         else
                         {
-                            ShowAlert("warning", "No Change", "Reservation was not in refundable cancelled status.");
+                            ShowAlert("warning", "No Change", "Reservation is not currently queued for refund.");
                         }
                     }
                 }
@@ -227,16 +367,19 @@ namespace Smash_IT.adminpage
             }
         }
 
-
         protected void gvRefunds_RowCommand(object sender, GridViewCommandEventArgs e)
         {
+            int reservationId;
+            if (!int.TryParse(e.CommandArgument.ToString(), out reservationId))
+                return;
+
             if (e.CommandName == "MarkRefunded")
             {
-                int reservationId;
-                if (int.TryParse(e.CommandArgument.ToString(), out reservationId))
-                {
-                    MarkReservationRefunded(reservationId);
-                }
+                MarkReservationRefunded(reservationId);
+            }
+            else if (e.CommandName == "VoidRefund")
+            {
+                VoidRefundedPayments(reservationId);
             }
         }
         private void LoadCourtsAndUsers()
@@ -490,32 +633,35 @@ namespace Smash_IT.adminpage
                     string filterStatus = ddlFilterStatus.SelectedValue;
 
                     string query = @"
-                        SELECT 
-                            'RES' AS RecordType,
-                            r.ReservationID AS RefID, 
-                            CASE 
-                                WHEN r.UserID IS NOT NULL THEN ISNULL(u.Firstname, '') + ' ' + ISNULL(u.Lastname, '')
-                                ELSE ISNULL(w.Firstname, '') + ' ' + ISNULL(w.Lastname, '') 
-                            END AS MainTitle,
-                            CASE WHEN r.UserID IS NOT NULL THEN 'Registered User' ELSE 'Walk-In Customer' END AS SubTitle,
-                            ISNULL(c.CourtNumber, 0) AS CourtNumber, 
-                            ISNULL(r.SportName, c.SportName) AS SportName,
-                            r.StartTime, 
-                            r.EndTime, 
-                            ISNULL(r.ReservationStatusName, 'Pending') AS StatusName, 
-                            ISNULL(r.PaymentStatus, 'Unpaid') AS PaymentStatus, 
-                            ISNULL(r.RequiredAmount, 0) AS RequiredAmount
-                        FROM tblReservation r
-                        LEFT JOIN tblPlayerAccount u ON r.UserID = u.UserID
-                        LEFT JOIN tblPlayerWalkIn w ON r.WalkInID = w.WalkInID
-                        LEFT JOIN tblCourt c ON r.CourtID = c.CourtID
-                        WHERE CAST(r.ResDate AS DATE) = CAST(@Date AS DATE)
-                          AND (@Status = 'All' OR r.ReservationStatusName = @Status)
-                          AND (@Search = '' OR 
-                               ISNULL(u.Firstname, '') LIKE '%' + @Search + '%' OR 
-                               ISNULL(w.Firstname, '') LIKE '%' + @Search + '%' OR 
-                               CAST(r.ReservationID AS VARCHAR) LIKE '%' + @Search + '%')
-                        ORDER BY r.StartTime ASC";
+SELECT 
+    'RES' AS RecordType,
+    r.ReservationID AS RefID, 
+    CASE 
+        WHEN r.UserID IS NOT NULL THEN ISNULL(u.Firstname, '') + ' ' + ISNULL(u.Lastname, '')
+        ELSE ISNULL(w.Firstname, '') + ' ' + ISNULL(w.Lastname, '') 
+    END AS MainTitle,
+    CASE WHEN r.UserID IS NOT NULL THEN 'Registered User' ELSE 'Walk-In Customer' END AS SubTitle,
+    ISNULL(c.CourtNumber, 0) AS CourtNumber, 
+    ISNULL(r.SportName, c.SportName) AS SportName,
+    r.StartTime, 
+    r.EndTime, 
+    ISNULL(r.ReservationStatusName, 'Pending') AS StatusName,
+    ISNULL(r.RequestStatus, '') AS RequestStatus,
+    ISNULL(r.PaymentStatus, 'Unpaid') AS PaymentStatus, 
+    ISNULL(r.RequiredAmount, 0) AS RequiredAmount
+FROM tblReservation r
+LEFT JOIN tblPlayerAccount u ON r.UserID = u.UserID
+LEFT JOIN tblPlayerWalkIn w ON r.WalkInID = w.WalkInID
+LEFT JOIN tblCourt c ON r.CourtID = c.CourtID
+WHERE CAST(r.ResDate AS DATE) = CAST(@Date AS DATE)
+  AND (@Status = 'All' OR r.ReservationStatusName = @Status)
+  AND (@Search = '' OR 
+       ISNULL(u.Firstname, '') LIKE '%' + @Search + '%' OR 
+       ISNULL(u.Lastname, '') LIKE '%' + @Search + '%' OR
+       ISNULL(w.Firstname, '') LIKE '%' + @Search + '%' OR
+       ISNULL(w.Lastname, '') LIKE '%' + @Search + '%' OR
+       CAST(r.ReservationID AS VARCHAR) LIKE '%' + @Search + '%')
+ORDER BY r.StartTime ASC";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
@@ -581,28 +727,29 @@ namespace Smash_IT.adminpage
                 using (SqlConnection con = new SqlConnection(CS))
                 {
                     string query = @"
-                        SELECT 
-                            r.ReservationID, 
-                            r.UserID,
-                            u.Firstname as UFirst, u.Lastname as ULast,
-                            r.WalkInID,
-                            w.Firstname as WFirst, w.Lastname as WLast,
-                            c.CourtID, 
-                            r.SportName,
-                            r.ResDate,
-                            r.StartTime, 
-                            r.EndTime, 
-                            ISNULL(r.ReservationStatusName, 'Pending') AS ReservationStatusName, 
-                            ISNULL(r.PaymentStatus, 'Unpaid') AS PaymentStatus, 
-                            ISNULL(r.RequiredAmount, 0) AS RequiredAmount,
-                            ISNULL(r.PaymongoCheckoutSessionID, 'N/A (Cash/Over the counter)') AS RefID,
-                            ISNULL((SELECT SUM(UnitPrice) FROM tblRental WHERE ReservationID = r.ReservationID), 0) as RentalAmt,
-                            ISNULL((SELECT SUM(UnitPrice * Quantity) FROM tblConsumable WHERE ReservationID = r.ReservationID), 0) as ConsumableAmt
-                        FROM tblReservation r
-                        LEFT JOIN tblPlayerAccount u ON r.UserID = u.UserID
-                        LEFT JOIN tblPlayerWalkIn w ON r.WalkInID = w.WalkInID
-                        JOIN tblCourt c ON r.CourtID = c.CourtID
-                        WHERE r.ReservationID = @ID";
+SELECT 
+    r.ReservationID, 
+    r.UserID,
+    u.Firstname as UFirst, u.Lastname as ULast,
+    r.WalkInID,
+    w.Firstname as WFirst, w.Lastname as WLast,
+    c.CourtID, 
+    r.SportName,
+    r.ResDate,
+    r.StartTime, 
+    r.EndTime, 
+    ISNULL(r.ReservationStatusName, 'Pending') AS ReservationStatusName,
+    ISNULL(r.RequestStatus, '') AS RequestStatus,
+    ISNULL(r.PaymentStatus, 'Unpaid') AS PaymentStatus, 
+    ISNULL(r.RequiredAmount, 0) AS RequiredAmount,
+    ISNULL(r.PaymongoCheckoutSessionID, 'N/A (Cash/Over the counter)') AS RefID,
+    ISNULL((SELECT SUM(UnitPrice) FROM tblRental WHERE ReservationID = r.ReservationID), 0) as RentalAmt,
+    ISNULL((SELECT SUM(UnitPrice * Quantity) FROM tblConsumable WHERE ReservationID = r.ReservationID), 0) as ConsumableAmt
+FROM tblReservation r
+LEFT JOIN tblPlayerAccount u ON r.UserID = u.UserID
+LEFT JOIN tblPlayerWalkIn w ON r.WalkInID = w.WalkInID
+JOIN tblCourt c ON r.CourtID = c.CourtID
+WHERE r.ReservationID = @ID";
 
                     using (SqlCommand cmd = new SqlCommand(query, con))
                     {
@@ -664,6 +811,8 @@ namespace Smash_IT.adminpage
                                 if (ddlPayment.Items.FindByValue(dbPay) != null) ddlPayment.SelectedValue = dbPay;
                                 else ddlPayment.SelectedValue = "Unpaid";
 
+                                string dbRequestStatus = dr["RequestStatus"].ToString();
+
                                 if (dbStatus == "Pending")
                                 {
                                     btnApproveRes.Visible = true;
@@ -674,6 +823,8 @@ namespace Smash_IT.adminpage
                                     btnApproveRes.Visible = false;
                                     btnSaveUpdate.Text = "Apply Updates";
                                 }
+
+                                btnConfirmCancel.Visible = dbRequestStatus == "forCancel" && dbStatus != "Completed";
 
                                 pnlEmptyState.Visible = false;
                                 pnlInputForm.Visible = false;
@@ -689,7 +840,14 @@ namespace Smash_IT.adminpage
                 ShowAlert("error", "Error loading details", ex.Message);
             }
         }
+        protected void btnConfirmCancel_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(hfSelectedResID.Value))
+                return;
 
+            int resId = Convert.ToInt32(hfSelectedResID.Value);
+            MoveReservationToRefundQueue(resId);
+        }
         protected void ddlEditCustomerType_SelectedIndexChanged(object sender, EventArgs e)
         {
             bool isWalkIn = ddlEditCustomerType.SelectedValue == "WalkIn";
@@ -747,6 +905,24 @@ namespace Smash_IT.adminpage
                     ShowAlert("warning", "Invalid Update", "Refunded status can only be set through the Refund Queue.");
                     return;
                 }
+                string currentRequestStatus = "";
+                using (SqlConnection conReq = new SqlConnection(CS))
+                using (SqlCommand cmdReq = new SqlCommand("SELECT ISNULL(RequestStatus,'') FROM tblReservation WHERE ReservationID = @ID", conReq))
+                {
+                    cmdReq.Parameters.AddWithValue("@ID", resId);
+                    conReq.Open();
+                    currentRequestStatus = Convert.ToString(cmdReq.ExecuteScalar() ?? "");
+                }
+
+                if (currentRequestStatus == "forRefund" || currentRequestStatus == "forCancel")
+                {
+                    if (newStatus == "Completed")
+                    {
+                        ShowAlert("warning", "Invalid Update", "A reservation with an active cancel/refund request cannot be completed.");
+                        return;
+                    }
+                }
+
                 string newPayment = ddlPayment.SelectedValue;
                 int isPaid = newPayment == "FullyPaid" ? 1 : 0;
                 int staffId = Session["StaffID"] != null ? Convert.ToInt32(Session["StaffID"]) : 1;
@@ -837,20 +1013,24 @@ namespace Smash_IT.adminpage
 
                             // UPDATE 
                             string updateQ = @"
-                                UPDATE tblReservation 
-                                SET UserID = @UID,
-                                    WalkInID = @WID,
-                                    CourtID = @Court,
-                                    SportName = @Sport,
-                                    ResDate = @Date,
-                                    StartTime = @Start,
-                                    EndTime = @End,
-                                    RequiredAmount = @Amt,
-                                    ReservationStatusName = @Status, 
-                                    PaymentStatus = @Pay, 
-                                    IsPaid = @IsPaid,
-                                    ApprovedByStaffID = CASE WHEN @Status = 'Approved' THEN @StaffID ELSE ApprovedByStaffID END
-                                WHERE ReservationID = @ID";
+    UPDATE tblReservation 
+    SET UserID = @UID,
+        WalkInID = @WID,
+        CourtID = @Court,
+        SportName = @Sport,
+        ResDate = @Date,
+        StartTime = @Start,
+        EndTime = @End,
+        RequiredAmount = @Amt,
+        ReservationStatusName = @Status, 
+        PaymentStatus = @Pay, 
+        IsPaid = @IsPaid,
+        ApprovedByStaffID = CASE WHEN @Status = 'Approved' THEN @StaffID ELSE ApprovedByStaffID END,
+        RequestStatus = CASE 
+                            WHEN @Status = 'Cancelled' AND ISNULL(RequestStatus,'') = '' THEN 'forRefund'
+                            ELSE RequestStatus
+                        END
+    WHERE ReservationID = @ID";
 
                             using (SqlCommand cmd = new SqlCommand(updateQ, con, tx))
                             {

@@ -15,6 +15,15 @@ namespace Smash_IT.receptionistpage
     {
 
         /// <summary>
+        /// sm1 control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.ScriptManager sm1;
+
+        /// <summary>
         /// UpdateProgress1 control.
         /// </summary>
         /// <remarks>
@@ -121,6 +130,15 @@ namespace Smash_IT.receptionistpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.GridView gvReservations;
+
+        /// <summary>
+        /// gvRefunds control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.GridView gvRefunds;
 
         /// <summary>
         /// pnlSidebarWrapper control.
@@ -310,6 +328,15 @@ namespace Smash_IT.receptionistpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnApproveRes;
+
+        /// <summary>
+        /// btnConfirmCancel control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnConfirmCancel;
 
         /// <summary>
         /// btnManageExtras control.

@@ -1,4 +1,4 @@
-﻿<%@ Page Title="Court Overrides" Language="C#" MasterPageFile="~/receptionistpage/receptionist.master" AutoEventWireup="true" CodeBehind="rec_court_override.aspx.cs" Inherits="Smash_IT.receptionistpage.rec_court_override" EnableEventValidation="false" %>
+﻿<%@ Page Title="Court Overrides" Language="C#" MasterPageFile="~/adminpage/admin.master" AutoEventWireup="true" CodeBehind="admin_court_override.aspx.cs" Inherits="Smash_IT.adminpage.admin_court_override" EnableEventValidation="false" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -391,7 +391,7 @@
   <script type="text/javascript">
       function openEditModal(availabilityId, timeRange, courtName, modeName, takenBy, createdByStaffId, sourceLabel, isLocked) {
           document.getElementById('<%= hfAvailabilityID.ClientID %>').value = availabilityId;
-         document.getElementById('<%= hfCreatedByStaffID.ClientID %>').value = createdByStaffId;
+          document.getElementById('<%= hfCreatedByStaffID.ClientID %>').value = createdByStaffId;
 
     document.getElementById('mTimeRange').textContent = timeRange || '--';
     document.getElementById('mCourtName').textContent = courtName || '--';
@@ -412,11 +412,11 @@
           return confirm("Are you sure you want to update this slot?");
       }
 
-    function closeEditModal() {
-        document.getElementById('slotEditModal').classList.remove('show');
-    }
+      function closeEditModal() {
+          document.getElementById('slotEditModal').classList.remove('show');
+      }
 
- 
+
 
       document.addEventListener('click', function (e) {
           var modal = document.getElementById('slotEditModal');
@@ -428,6 +428,8 @@
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="MainContent" runat="server">
+
+    <asp:ScriptManager ID="sm1" runat="server" />
     <div class="court-page">
 
     <div class="page-header">

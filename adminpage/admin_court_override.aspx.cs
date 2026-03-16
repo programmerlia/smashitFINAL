@@ -8,9 +8,9 @@ using System.Text;
 using System.Web;
 using System.Web.UI;
 
-namespace Smash_IT.receptionistpage
+namespace Smash_IT.adminpage
 {
-    public partial class rec_court_override : System.Web.UI.Page
+    public partial class admin_court_override : System.Web.UI.Page
     {
         private readonly string connString =
             ConfigurationManager.ConnectionStrings["soapergandahannali"].ConnectionString;
@@ -38,7 +38,7 @@ namespace Smash_IT.receptionistpage
             LoadMatrix();
         }
 
-     
+
         protected void btnConfirmApply_Click(object sender, EventArgs e)
         {
             int availabilityId;

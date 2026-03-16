@@ -118,7 +118,7 @@
                         <asp:Button ID="btnApplyTime" runat="server" Text="Check Time" OnClick="btnApplyTime_Click" CssClass="btn btn-primary" />
                         <asp:Button ID="btnLiveView" runat="server" Text="Live Feed" OnClick="btnLiveView_Click" CssClass="btn btn-secondary" />
                  <asp:Button ID="btnLiveView2" runat="server" Text="Open Live Court" CssClass="btn btn-secondary"
-    OnClientClick="window.open('../adminpage/admin_live_courts.aspx', '_blank'); return false;" />
+    OnClientClick="window.open('../live_courts.aspx', '_blank'); return false;" />
                     </div>
                 </div>
 
@@ -187,83 +187,5 @@
         </asp:UpdatePanel>
 
         <div class="section-divider"></div>
-
-        <h2 class="section-subtitle"><i class="fas fa-clock" style="color: var(--electric-yellow);"></i>Manual Schedule Overrides</h2>
-        <p class="note-text">
-            This section now follows the same slot logic as the receptionist page. It updates existing 30-minute availability slots instead of inserting overlapping rows.
-        </p>
-
-        <asp:UpdatePanel ID="upManagement" runat="server" UpdateMode="Conditional">
-            <ContentTemplate>
-                <div class="setup-container">
-                    <div class="setup-form">
-                        <div class="form-group">
-                            <label>Target Court</label>
-                            <asp:DropDownList ID="ddlSetupCourt" runat="server" CssClass="form-control"></asp:DropDownList>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Schedule Date</label>
-                            <asp:TextBox ID="txtSetupDate" runat="server" TextMode="Date" CssClass="form-control" AutoPostBack="true" OnTextChanged="txtSetupDate_TextChanged"></asp:TextBox>
-                        </div>
-
-                        <div style="display:flex; gap:15px;">
-                            <div class="form-group" style="flex:1;">
-                                <label>Start Time</label>
-                                <asp:DropDownList ID="ddlSetupStart" runat="server" CssClass="form-control"></asp:DropDownList>
-                            </div>
-                            <div class="form-group" style="flex:1;">
-                                <label>End Time</label>
-                                <asp:DropDownList ID="ddlSetupEnd" runat="server" CssClass="form-control"></asp:DropDownList>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Play Mode Override</label>
-                            <asp:DropDownList ID="ddlSetupMode" runat="server" CssClass="form-control">
-                                <asp:ListItem Value="Closed" Text="Closed / Maintenance"></asp:ListItem>
-                                <asp:ListItem Value="PlayForAll" Text="Play For All"></asp:ListItem>
-                                <asp:ListItem Value="Queue" Text="Queue"></asp:ListItem>
-                            </asp:DropDownList>
-                        </div>
-
-                        <asp:Button ID="btnSaveSchedule" runat="server" Text="Apply Override" OnClick="btnSaveSchedule_Click" CssClass="btn btn-success" Style="width:100%; margin-top:10px;" />
-                    </div>
-
-                    <div class="schedule-grid-container">
-                        <asp:GridView ID="gvSchedules" runat="server"
-                            AutoGenerateColumns="False"
-                            DataKeyNames="AvailabilityID"
-                            OnRowDeleting="gvSchedules_RowDeleting"
-                            CssClass="styled-table"
-                            GridLines="None">
-                            <Columns>
-                                <asp:BoundField DataField="CourtName" HeaderText="Court" ItemStyle-Font-Bold="true" />
-                                <asp:BoundField DataField="TimeRange" HeaderText="Time Block" />
-                                <asp:TemplateField HeaderText="Mode">
-                                    <ItemTemplate>
-                                        <span class="mode-badge"><%# Eval("ModeName") %></span>
-                                    </ItemTemplate>
-                                </asp:TemplateField>
-                                <asp:BoundField DataField="SourceLabel" HeaderText="Source" />
-                                <asp:TemplateField HeaderText="Actions" ItemStyle-HorizontalAlign="Right">
-                                    <ItemTemplate>
-                                        <asp:LinkButton ID="btnDelete" runat="server" CommandName="Delete" CssClass="btn-danger-sm" OnClientClick="return confirm('Remove this override?');">
-                                            <i class="fas fa-trash"></i>
-                                        </asp:LinkButton>
-                                    </ItemTemplate>
-                                </asp:TemplateField>
-                            </Columns>
-                            <EmptyDataTemplate>
-                                <div style="padding: 40px; text-align: center; color: #94a3b8;">
-                                    <i class="fas fa-calendar-check" style="font-size:2.5rem; display:block; margin-bottom:15px; opacity:0.5;"></i>
-                                    No manual overrides for this date.
-                                </div>
-                            </EmptyDataTemplate>
-                        </asp:GridView>
-                    </div>
-                </div>
-            </ContentTemplate>
-        </asp:UpdatePanel>
     </div>
 </asp:Content>

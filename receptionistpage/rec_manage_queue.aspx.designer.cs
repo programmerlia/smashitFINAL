@@ -7,21 +7,12 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Smash_IT.adminpage
+namespace Smash_IT.receptionistpage
 {
 
 
-    public partial class admin_manage_queue
+    public partial class rec_manage_queue
     {
-
-        /// <summary>
-        /// sm1 control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.ScriptManager sm1;
 
         /// <summary>
         /// UpdateProgress1 control.

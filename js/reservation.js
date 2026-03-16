@@ -880,7 +880,6 @@ const SafeStore = (() => {
             : (courtTotal * getCourtDepositRate());
 
         const payNowTotal = courtPayNow;
-        const remainingBalance = grandTotal - payNowTotal;
 
         const infoText = paymentMode === "full"
             ? "You are paying 100% of the court now. Rentals and sale items will be paid later."
@@ -897,13 +896,8 @@ const SafeStore = (() => {
         if ($("summaryDuration")) $("summaryDuration").innerText = durTxt;
 
         if ($("totalPrice")) $("totalPrice").innerText = "₱ " + courtTotal.toFixed(2);
-        if ($("totalFinal")) $("totalFinal").innerText = "₱ " + grandTotal.toFixed(2);
         if ($("summary-totalPrice")) $("summary-totalPrice").innerText = "₱ " + payNowTotal.toFixed(2);
         if ($("summary-totalPriceInfo")) $("summary-totalPriceInfo").innerText = "₱ " + payNowTotal.toFixed(2);
-
-        if ($("summaryPayNowNoteStep2")) $("summaryPayNowNoteStep2").innerText = infoText;
-        if ($("summaryPayNowNoteStep3")) $("summaryPayNowNoteStep3").innerText = infoText;
-        if ($("pmPayNowNote")) $("pmPayNowNote").innerText = infoText;
 
         if ($("summaryFirstname")) $("summaryFirstname").innerText = $id("txtFirstname")?.value || "------";
         if ($("summaryLastname")) $("summaryLastname").innerText = $id("txtLastname")?.value || "------";
