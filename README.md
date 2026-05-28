@@ -45,7 +45,7 @@ Players can reserve courts online or join the queue.
 ## 1. Clone Repository
 
 ```bash
-git clone https://github.com/programmerlia/smashit_system.git
+git clone https://github.com/programmerlia/smashitFINAL.git
 cd smashit_system
 ```
 
