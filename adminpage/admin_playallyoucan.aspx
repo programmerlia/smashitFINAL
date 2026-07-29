@@ -79,9 +79,9 @@
 
                 <div style="flex: 1.2; min-width: 250px;">
                     <div class="breakdown-card">
-                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px;"><span>Base PAYC Fee</span><span>P80.00</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px;"><span>Base PAYC Fee</span><span>₱80.00</span></div>
                         <div id="breakdownList"></div>
-                        <asp:Label ID="lblTotalDisplay" runat="server" CssClass="total-bill-amount" Text="P80.00" />
+                        <asp:Label ID="lblTotalDisplay" runat="server" CssClass="total-bill-amount" Text="₱80.00" />
                     </div>
                     <asp:Button ID="btnCheckIn" runat="server" Text="Confirm Session" OnClick="btnCheckIn_Click" CssClass="checkin-btn" style="margin-top:10px;" />
                     <asp:LinkButton ID="btnCancelEdit" runat="server" OnClick="btnCancelEdit_Click" style="display:block; text-align:center; margin-top:8px; font-size:0.8rem; color:#64748b;" Visible="false">Cancel Edit</asp:LinkButton>
@@ -101,7 +101,7 @@
                             </ItemTemplate>
                         </asp:TemplateField>
                         <asp:BoundField DataField="RentedItems" HeaderText="Items" />
-                        <asp:TemplateField HeaderText="Due"><ItemTemplate>P<%# Eval("TotalBill") %></ItemTemplate></asp:TemplateField>
+                        <asp:TemplateField HeaderText="Due"><ItemTemplate>₱<%# Eval("TotalBill") %></ItemTemplate></asp:TemplateField>
                         <asp:TemplateField HeaderText="Actions">
                             <ItemTemplate>
                                 <asp:LinkButton runat="server" CommandName="EditSession" CommandArgument='<%# Eval("PAYCID") + "|" + Eval("WalkInID") %>' CssClass="btn-action">Edit</asp:LinkButton>
@@ -123,7 +123,7 @@
                             </ItemTemplate>
                         </asp:TemplateField>
                         <asp:BoundField DataField="RentedItems" HeaderText="Items" />
-                        <asp:TemplateField HeaderText="Due"><ItemTemplate>P<%# Eval("TotalBill") %></ItemTemplate></asp:TemplateField>
+                        <asp:TemplateField HeaderText="Due"><ItemTemplate>₱<%# Eval("TotalBill") %></ItemTemplate></asp:TemplateField>
                         <asp:TemplateField HeaderText="Actions">
                             <ItemTemplate>
                                 <asp:LinkButton runat="server" CommandName="EditSession" CommandArgument='<%# Eval("PAYCID") + "|" + Eval("WalkInID") %>' CssClass="btn-action">Edit</asp:LinkButton>
@@ -175,11 +175,11 @@
                 let span = cb.closest('span');
                 let price = parseFloat(span.getAttribute('data-price') || 0);
                 let labelText = cb.nextSibling.textContent.trim();
-                html += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:2px;"><span>${labelText.split('-')[0]}</span><span>P${price.toFixed(2)}</span></div>`;
+                html += `<div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:2px;"><span>${labelText.split('-')[0]}</span><span>₱${price.toFixed(2)}</span></div>`;
                 total += price;
             });
             document.getElementById('breakdownList').innerHTML = html;
-            document.getElementById('<%= lblTotalDisplay.ClientID %>').innerText = "P" + total.toFixed(2);
+            document.getElementById('<%= lblTotalDisplay.ClientID %>').innerText = "₱" + total.toFixed(2);
         }
 
         document.addEventListener("DOMContentLoaded", () => {

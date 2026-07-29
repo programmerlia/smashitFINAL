@@ -60,7 +60,7 @@
                     maximumFractionDigits: 2
                 });
             } catch (e) {
-                return "₱ " + (amount || 0);
+                return "₱ " + Number(amount || 0).toFixed(2);
             }
         };
     </SCRIPT>

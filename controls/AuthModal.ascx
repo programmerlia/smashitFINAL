@@ -438,6 +438,30 @@
     }
 
 
+    function validateAndSendOTP() {
+        var firstName = document.getElementById('<%= txtFirstname.ClientID %>');
+        var lastName = document.getElementById('<%= txtLastname.ClientID %>');
+        var email = document.getElementById('<%= txtEmail.ClientID %>');
+        var phone = document.getElementById('<%= txtPhone.ClientID %>');
+        var username = document.getElementById('<%= txtSignupUsername.ClientID %>');
+        var password = document.getElementById('<%= txtSignupPassword.ClientID %>');
+        if (!firstName.value.trim() || !lastName.value.trim() || !email.value.trim() ||
+            !phone.value.trim() || !username.value.trim() || !password.value.trim()) {
+            alert('Please fill in all required fields.');
+            return false;
+        }
+        return true;
+    }
+
+    function validateTermsStep() {
+        var chk = document.getElementById('<%= chkTerms.ClientID %>');
+        if (!chk || !chk.checked) {
+            alert('You must accept the Terms & Conditions.');
+            return false;
+        }
+        return true;
+    }
+
     window.AuthSignup = {
         setStep: setStep,
         unlockStep3: unlockStep3,
@@ -445,7 +469,5 @@
         goToStep1: goToStep1,
         goToStep2: goToStep2,
         goToStep3: goToStep3
-
-
     };
 </script>

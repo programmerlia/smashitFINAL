@@ -56,7 +56,6 @@
           }
 
           document.addEventListener("DOMContentLoaded", toggleAccountButtons);
-          document.addEventListener("DOMContentLoaded", toggleAccountButtons);
           function checkAccount(returnUrl) {
               if (window.isLoggedIn) {
                   window.location.href = '<%= ResolveUrl("~/homepage/profile.aspx") %>';

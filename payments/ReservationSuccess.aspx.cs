@@ -24,6 +24,7 @@ namespace Smash_IT.payments
             string finalizedToken = Convert.ToString(Session["FinalizedReservationToken"] ?? "");
             if (string.Equals(finalizedToken, token, StringComparison.Ordinal))
             {
+                Response.Write("This reservation has already been finalized.");
                 return;
             }
 
@@ -34,6 +35,7 @@ namespace Smash_IT.payments
             }
             if (draft == null)
             {
+                Response.Write("Reservation draft not found. It may have expired.");
                 return;
             }
 
@@ -54,6 +56,7 @@ namespace Smash_IT.payments
             {
                 if (!IsCheckoutPaid(checkoutSessionId))
                 {
+                    Response.Write("Payment not yet completed. Please complete your payment and try again.");
                     return;
                 }
 

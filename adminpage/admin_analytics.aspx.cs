@@ -93,8 +93,10 @@ namespace Smash_IT.adminpage
             }
 
             // 3. Total Check-ins (Walk-Ins + Reservations)
-            int walkIns = int.Parse(lblQueueWalkIn.Text);
-            int reservations = int.Parse(lblQueueRes.Text);
+            int walkIns;
+            int reservations;
+            int.TryParse(lblQueueWalkIn.Text, out walkIns);
+            int.TryParse(lblQueueRes.Text, out reservations);
             lblQueuePaid.Text = (walkIns + reservations).ToString();
         }
 

@@ -543,17 +543,20 @@ namespace Smash_IT.queuemasterpage
                         updateEvt.Parameters.AddWithValue("@EID", eID);
                         updateEvt.ExecuteNonQuery();
 
-                        new SqlCommand($"DELETE FROM tblActiveSession WHERE QueueID IN (SELECT QueueID FROM tblCourtQueue WHERE EventID = {eID})", conn, trans).ExecuteNonQuery();
-                        new SqlCommand($"DELETE FROM tblCourtQueue WHERE EventID = {eID}", conn, trans).ExecuteNonQuery();
-                        new SqlCommand($"DELETE FROM tblEventCourtPool WHERE EventID = {eID}", conn, trans).ExecuteNonQuery();
+                        new SqlCommand("DELETE FROM tblActiveSession WHERE QueueID IN (SELECT QueueID FROM tblCourtQueue WHERE EventID = @EID)", conn, trans) { Parameters = { new System.Data.SqlClient.SqlParameter("@EID", eID) } }.ExecuteNonQuery();
+                        new SqlCommand("DELETE FROM tblCourtQueue WHERE EventID = @EID", conn, trans) { Parameters = { new System.Data.SqlClient.SqlParameter("@EID", eID) } }.ExecuteNonQuery();
+                        new SqlCommand("DELETE FROM tblEventCourtPool WHERE EventID = @EID", conn, trans) { Parameters = { new System.Data.SqlClient.SqlParameter("@EID", eID) } }.ExecuteNonQuery();
                     }
                     else
                     {
-                        string insertEvtSql = "INSERT INTO tblEvent (Title, SportName, EventDate, CreatedByStaffID, IsActive, RegistrationFee, MaxPlayers) VALUES (@Title, @Sport, @Date, 1, 1, @Fee, @Max); SELECT SCOPE_IDENTITY();";
+                        int staffID = Convert.ToInt32(Session["StaffID"] ?? 0);
+                        if (staffID <= 0) staffID = 1;
+                        string insertEvtSql = "INSERT INTO tblEvent (Title, SportName, EventDate, CreatedByStaffID, IsActive, RegistrationFee, MaxPlayers) VALUES (@Title, @Sport, @Date, @StaffID, 1, @Fee, @Max); SELECT SCOPE_IDENTITY();";
                         SqlCommand cmdEvt = new SqlCommand(insertEvtSql, conn, trans);
                         cmdEvt.Parameters.AddWithValue("@Title", txtEventTitle.Text.Trim());
                         cmdEvt.Parameters.AddWithValue("@Sport", ddlSport.SelectedValue.ToLower());
                         cmdEvt.Parameters.AddWithValue("@Date", dP);
+                        cmdEvt.Parameters.AddWithValue("@StaffID", staffID);
                         cmdEvt.Parameters.AddWithValue("@Fee", fee);
                         cmdEvt.Parameters.AddWithValue("@Max", maxP);
                         eID = Convert.ToInt32(cmdEvt.ExecuteScalar());

@@ -44,7 +44,7 @@ namespace Smash_IT.adminpage
 
                 // Updated Rental Query: Adds item specific ID and a subquery for the total available count of that model
                 string sqlRent = @"SELECT ei.ItemID, 
-                           em.EquipmentType + ' #' + CAST(ei.ItemID AS VARCHAR) + ' - P' + CAST(em.DefaultRentalPrice AS VARCHAR) + ' (' + CAST((SELECT COUNT(*) FROM tblEquipmentItem e2 WHERE e2.ModelID = em.ModelID AND e2.ItemID NOT IN (SELECT ItemID FROM tblRental WHERE ReturnedAt IS NULL)) AS VARCHAR) + ' avail)' as Display 
+                           em.EquipmentType + ' #' + CAST(ei.ItemID AS VARCHAR) + ' - ₱' + CAST(em.DefaultRentalPrice AS VARCHAR) + ' (' + CAST((SELECT COUNT(*) FROM tblEquipmentItem e2 WHERE e2.ModelID = em.ModelID AND e2.ItemID NOT IN (SELECT ItemID FROM tblRental WHERE ReturnedAt IS NULL)) AS VARCHAR) + ' avail)' as Display 
                            FROM tblEquipmentItem ei JOIN tblEquipmentModel em ON ei.ModelID = em.ModelID 
                            WHERE em.ItemCategory = 'Rental' AND em.IsArchived = 0 
                            AND (ei.ItemID NOT IN (SELECT ItemID FROM tblRental WHERE ReturnedAt IS NULL)
@@ -60,7 +60,7 @@ namespace Smash_IT.adminpage
 
                 // Updated Consumable Query: Appends the current ConsumableQty to the display string
                 string sqlConsumables = @"SELECT ModelID, 
-                                  EquipmentType + ' - P' + CAST(DefaultSellPrice AS VARCHAR) + ' (' + CAST(ConsumableQty AS VARCHAR) + ' avail)' as Display 
+                                  EquipmentType + ' - ₱' + CAST(DefaultSellPrice AS VARCHAR) + ' (' + CAST(ConsumableQty AS VARCHAR) + ' avail)' as Display 
                                   FROM tblEquipmentModel 
                                   WHERE ItemCategory = 'Consumable' AND IsArchived = 0 AND ConsumableQty > 0";
 

@@ -663,8 +663,10 @@ namespace Smash_IT.queuemasterpage
                 using (SqlConnection c = new SqlConnection(connString))
                 {
                     c.Open();
-                    new SqlCommand($"DELETE FROM tblMatch WHERE EventID={ddlActiveEvents.SelectedValue}", c).ExecuteNonQuery();
-                    new SqlCommand($"UPDATE tblEvent SET Champion_ParticipantID=NULL, RunnerUp_ParticipantID=NULL WHERE EventID={ddlActiveEvents.SelectedValue}", c).ExecuteNonQuery();
+                    SqlCommand cmdDel = new SqlCommand("DELETE FROM tblMatch WHERE EventID=@EID", c);
+                    cmdDel.Parameters.AddWithValue("@EID", ddlActiveEvents.SelectedValue); cmdDel.ExecuteNonQuery();
+                    SqlCommand cmdUpd = new SqlCommand("UPDATE tblEvent SET Champion_ParticipantID=NULL, RunnerUp_ParticipantID=NULL WHERE EventID=@EID", c);
+                    cmdUpd.Parameters.AddWithValue("@EID", ddlActiveEvents.SelectedValue); cmdUpd.ExecuteNonQuery();
                 }
                 RefreshWorkspace(int.Parse(ddlActiveEvents.SelectedValue));
                 ShowAlert("success", "Board Cleared", "All matches have been wiped. Leaderboard reset.");
@@ -709,12 +711,15 @@ namespace Smash_IT.queuemasterpage
                     c.Open();
                     if (e.CommandName == "Pay")
                     {
-                        decimal fee = (decimal)new SqlCommand($"SELECT RegistrationFee FROM tblEvent WHERE EventID={ddlActiveEvents.SelectedValue}", c).ExecuteScalar();
+                        SqlCommand cmdFee = new SqlCommand("SELECT RegistrationFee FROM tblEvent WHERE EventID=@EID", c);
+                        cmdFee.Parameters.AddWithValue("@EID", ddlActiveEvents.SelectedValue);
+                        decimal fee = (decimal)cmdFee.ExecuteScalar();
                         SqlCommand pay = new SqlCommand("INSERT INTO tblPayment (PaymentTypeName, WalkInID, UserID, Amount, PaymentDate) VALUES ('Queue', @W, @U, @A, GETDATE())", c);
                         pay.Parameters.AddWithValue("@W", string.IsNullOrEmpty(wId) ? (object)DBNull.Value : int.Parse(wId));
                         pay.Parameters.AddWithValue("@U", string.IsNullOrEmpty(uId) ? (object)DBNull.Value : int.Parse(uId));
                         pay.Parameters.AddWithValue("@A", fee); pay.ExecuteNonQuery();
-                        new SqlCommand($"UPDATE tblEventParticipant SET StatusName='Completed' WHERE EventParticipantID={pId}", c).ExecuteNonQuery();
+                        SqlCommand cmdComplete = new SqlCommand("UPDATE tblEventParticipant SET StatusName='Completed' WHERE EventParticipantID=@PID", c);
+                        cmdComplete.Parameters.AddWithValue("@PID", pId); cmdComplete.ExecuteNonQuery();
                     }
                     else if (e.CommandName == "Rent")
                     {
@@ -921,20 +926,44 @@ namespace Smash_IT.queuemasterpage
         {
             try
             {
-                int eid = int.Parse(ddlActiveEvents.SelectedValue);
+                int eid;
+                if (!int.TryParse(ddlActiveEvents.SelectedValue, out eid))
+                {
+                    ShowAlert("error", "Draft Error", "Invalid event selected.");
+                    ScriptManager.RegisterStartupScript(this, GetType(), "cl", "hideDraftModal();", true);
+                    return;
+                }
                 string format = ddlDraftFormat.SelectedValue;
                 string phase = "Casual";
 
                 using (SqlConnection c = new SqlConnection(connString))
                 {
                     c.Open();
-                    string sql = $@"SELECT ep.EventParticipantID FROM tblEventParticipant ep WHERE ep.EventID={eid} AND ep.StatusName='Completed' AND ep.EventParticipantID NOT IN (SELECT Player1_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player1_ParticipantID IS NOT NULL AND EventID={eid} UNION SELECT Player2_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player2_ParticipantID IS NOT NULL AND EventID={eid} UNION SELECT Player3_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player3_ParticipantID IS NOT NULL AND EventID={eid} UNION SELECT Player4_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player4_ParticipantID IS NOT NULL AND EventID={eid})";
-                    List<int> ids = new List<int>(); using (SqlDataReader dr = new SqlCommand(sql, c).ExecuteReader()) while (dr.Read()) ids.Add(dr.GetInt32(0));
 
-                    DataTable courts = new DataTable(); new SqlDataAdapter($"SELECT CourtID FROM tblEventCourtPool WHERE EventID={eid}", c).Fill(courts);
+                    SqlCommand participantCmd = new SqlCommand(@"
+SELECT ep.EventParticipantID FROM tblEventParticipant ep 
+WHERE ep.EventID=@EID AND ep.StatusName='Completed' 
+AND ep.EventParticipantID NOT IN (
+    SELECT Player1_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player1_ParticipantID IS NOT NULL AND EventID=@EID
+    UNION SELECT Player2_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player2_ParticipantID IS NOT NULL AND EventID=@EID
+    UNION SELECT Player3_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player3_ParticipantID IS NOT NULL AND EventID=@EID
+    UNION SELECT Player4_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player4_ParticipantID IS NOT NULL AND EventID=@EID
+)", c);
+                    participantCmd.Parameters.AddWithValue("@EID", eid);
+                    List<int> ids = new List<int>();
+                    using (SqlDataReader dr = participantCmd.ExecuteReader())
+                        while (dr.Read()) ids.Add(dr.GetInt32(0));
+
+                    DataTable courts = new DataTable();
+                    SqlDataAdapter courtAdapter = new SqlDataAdapter("SELECT CourtID FROM tblEventCourtPool WHERE EventID=@EID", c);
+                    courtAdapter.SelectCommand.Parameters.AddWithValue("@EID", eid);
+                    courtAdapter.Fill(courts);
+
                     if (courts.Rows.Count == 0 || ids.Count < 2) { ShowAlert("warning", "Draft Failed", "Not enough available players or courts to run a draft right now."); ScriptManager.RegisterStartupScript(this, GetType(), "cl", "hideDraftModal();", true); return; }
 
-                    int order = Convert.ToInt32(new SqlCommand($"SELECT ISNULL(MAX(MatchOrder),0)+1 FROM tblMatch WHERE EventID={eid}", c).ExecuteScalar());
+                    SqlCommand orderCmd = new SqlCommand("SELECT ISNULL(MAX(MatchOrder),0)+1 FROM tblMatch WHERE EventID=@EID", c);
+                    orderCmd.Parameters.AddWithValue("@EID", eid);
+                    int order = Convert.ToInt32(orderCmd.ExecuteScalar());
                     int step = format == "Doubles" ? 4 : 2;
 
                     for (int i = 0; i < ids.Count; i += step)
@@ -942,12 +971,26 @@ namespace Smash_IT.queuemasterpage
                         if (i + 1 >= ids.Count) break;
                         int cid = Convert.ToInt32(courts.Rows[(order - 1) % courts.Rows.Count]["CourtID"]);
 
-                        string p1 = ids[i].ToString();
-                        string p2 = format == "Doubles" && i + 2 < ids.Count ? ids[i + 2].ToString() : (format == "Singles" ? ids[i + 1].ToString() : "NULL");
-                        string p3 = format == "Doubles" ? ids[i + 1].ToString() : "NULL";
-                        string p4 = format == "Doubles" && i + 3 < ids.Count ? ids[i + 3].ToString() : "NULL";
+                        int? p1 = ids[i];
+                        int? p2 = format == "Doubles" && i + 2 < ids.Count ? ids[i + 2] : (format == "Singles" ? ids[i + 1] : (int?)null);
+                        int? p3 = format == "Doubles" ? ids[i + 1] : (int?)null;
+                        int? p4 = format == "Doubles" && i + 3 < ids.Count ? ids[i + 3] : (int?)null;
 
-                        new SqlCommand($"INSERT INTO tblMatch (EventID, CourtID, MatchType, BracketPhase, Player1_ParticipantID, Player2_ParticipantID, Player3_ParticipantID, Player4_ParticipantID, MatchStatus, MatchOrder) VALUES ({eid}, {cid}, '{format}', '{phase}', {p1}, {p2}, {p3}, {p4}, 'Scheduled', {order})", c).ExecuteNonQuery();
+                        SqlCommand insertCmd = new SqlCommand(@"
+INSERT INTO tblMatch (EventID, CourtID, MatchType, BracketPhase, 
+    Player1_ParticipantID, Player2_ParticipantID, Player3_ParticipantID, Player4_ParticipantID, 
+    MatchStatus, MatchOrder) 
+VALUES (@EID, @CID, @Format, @Phase, @P1, @P2, @P3, @P4, 'Scheduled', @Order)", c);
+                        insertCmd.Parameters.AddWithValue("@EID", eid);
+                        insertCmd.Parameters.AddWithValue("@CID", cid);
+                        insertCmd.Parameters.AddWithValue("@Format", format);
+                        insertCmd.Parameters.AddWithValue("@Phase", phase);
+                        insertCmd.Parameters.AddWithValue("@P1", (object)p1 ?? DBNull.Value);
+                        insertCmd.Parameters.AddWithValue("@P2", (object)p2 ?? DBNull.Value);
+                        insertCmd.Parameters.AddWithValue("@P3", (object)p3 ?? DBNull.Value);
+                        insertCmd.Parameters.AddWithValue("@P4", (object)p4 ?? DBNull.Value);
+                        insertCmd.Parameters.AddWithValue("@Order", order);
+                        insertCmd.ExecuteNonQuery();
                         order++;
                     }
                 }

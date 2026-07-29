@@ -13,16 +13,19 @@
     <add key="CloudinaryCloudName" value="YOUR_CLOUDINARY_CLOUD_NAME" />
     <add key="CloudinaryApiKey" value="YOUR_CLOUDINARY_API_KEY" />
     <add key="CloudinaryApiSecret" value="YOUR_CLOUDINARY_API_SECRET" />
-    <add key="SmtpHost" value="smtp.example.com" />
+    <add key="SendGridApiKey" value="YOUR_SENDGRID_API_KEY" />
+    <add key="SmtpHost" value="smtp.sendgrid.net" />
     <add key="SmtpPort" value="587" />
-    <add key="SmtpUsername" value="YOUR_SMTP_USERNAME" />
-    <add key="SmtpPassword" value="YOUR_SMTP_PASSWORD" />
-    <add key="SmtpFrom" value="no-reply@example.com" />
+    <add key="SmtpUsername" value="apikey" />
+    <add key="SmtpPassword" value="YOUR_SENDGRID_API_KEY" />
+    <add key="SmtpFrom" value="noreply@yourdomain.com" />
+    <add key="PaymentWebhookSecret" value="YOUR_PAYMENT_WEBHOOK_SECRET" />
   </appSettings>
   <system.web>
     <compilation debug="false" targetFramework="4.7.2" />
     <httpRuntime targetFramework="4.7.2" />
     <httpCookies httpOnlyCookies="true" requireSSL="true" />
     <customErrors mode="RemoteOnly" />
+    <globalization culture="en-PH" uiCulture="en-PH" />
   </system.web>
 </configuration>

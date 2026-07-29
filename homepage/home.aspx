@@ -669,7 +669,7 @@ body {
         <div class="reserve-content">
 
             <div class="reserve-image">
-                <img src="\images\announcement_draft.jpg" alt="Badminton Court" />
+                <img src="/images/announcement_draft.jpg" alt="Badminton Court" />
             </div>
 
             <div class="reserve-text">

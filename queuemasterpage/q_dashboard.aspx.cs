@@ -14,9 +14,9 @@ namespace Smash_IT.queuemasterpage
 
         private void LoadStaffName()
         {
-            if (Session["StaffName"] != null)
+            if (Session["FullName"] != null)
             {
-                litStaffName.Text = Session["StaffName"].ToString();
+                litStaffName.Text = Session["FullName"].ToString();
             }
             else
             {

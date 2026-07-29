@@ -368,8 +368,8 @@
                             <asp:TemplateField HeaderText="Price">
                                 <ItemTemplate>
                                     <%# Eval("ItemCategory").ToString() == "Rental"
-        ? "P " + Convert.ToDecimal(Eval("DefaultRentalPrice")).ToString("0.00")
-        : "P " + Convert.ToDecimal(Eval("DefaultSellPrice")).ToString("0.00") %>
+        ? "₱ " + Convert.ToDecimal(Eval("DefaultRentalPrice")).ToString("0.00")
+        : "₱ " + Convert.ToDecimal(Eval("DefaultSellPrice")).ToString("0.00") %>
                                 </ItemTemplate>
                             </asp:TemplateField>
                             <asp:BoundField DataField="TotalStock" HeaderText="Stock" ItemStyle-Font-Bold="true" />

@@ -82,9 +82,9 @@
 
                 <div style="flex: 1.2; min-width: 250px;">
                     <div class="breakdown-card">
-                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px;"><span>Base PAYC Fee</span><span>P80.00</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:5px;"><span>Base PAYC Fee</span><span>₱80.00</span></div>
                         <div id="breakdownList"></div>
-                        <asp:Label ID="lblTotalDisplay" runat="server" CssClass="total-bill-amount" Text="P80.00" />
+                        <asp:Label ID="lblTotalDisplay" runat="server" CssClass="total-bill-amount" Text="₱80.00" />
                     </div>
                     <asp:Button ID="btnCheckIn" runat="server" Text="Confirm Session" OnClick="btnCheckIn_Click" CssClass="checkin-btn" style="margin-top:10px;" />
                     <asp:LinkButton ID="btnCancelEdit" runat="server" OnClick="btnCancelEdit_Click" style="display:block; text-align:center; margin-top:8px; font-size:0.8rem; color:#64748b;" Visible="false">Cancel Edit</asp:LinkButton>
@@ -182,7 +182,7 @@
                 total += price;
             });
             document.getElementById('breakdownList').innerHTML = html;
-            document.getElementById('<%= lblTotalDisplay.ClientID %>').innerText = "P" + total.toFixed(2);
+            document.getElementById('<%= lblTotalDisplay.ClientID %>').innerText = "₱" + total.toFixed(2);
         }
 
         document.addEventListener("DOMContentLoaded", () => {
