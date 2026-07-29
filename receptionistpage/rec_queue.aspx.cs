@@ -604,9 +604,18 @@ namespace Smash_IT.receptionistpage
                 SqlTransaction trans = conn.BeginTransaction();
                 try
                 {
-                    new SqlCommand($"DELETE FROM tblActiveSession WHERE CourtID = {cId} AND QueueID IN (SELECT QueueID FROM tblCourtQueue WHERE EventID = {eId})", conn, trans).ExecuteNonQuery();
-                    new SqlCommand($"DELETE FROM tblCourtQueue WHERE CourtID = {cId} AND EventID = {eId}", conn, trans).ExecuteNonQuery();
-                    new SqlCommand($"DELETE FROM tblEventCourtPool WHERE CourtID = {cId} AND EventID = {eId}", conn, trans).ExecuteNonQuery();
+                    SqlCommand cmd1 = new SqlCommand("DELETE FROM tblActiveSession WHERE CourtID = @CID AND QueueID IN (SELECT QueueID FROM tblCourtQueue WHERE EventID = @EID)", conn, trans);
+                    cmd1.Parameters.AddWithValue("@CID", cId);
+                    cmd1.Parameters.AddWithValue("@EID", eId);
+                    cmd1.ExecuteNonQuery();
+                    SqlCommand cmd2 = new SqlCommand("DELETE FROM tblCourtQueue WHERE CourtID = @CID AND EventID = @EID", conn, trans);
+                    cmd2.Parameters.AddWithValue("@CID", cId);
+                    cmd2.Parameters.AddWithValue("@EID", eId);
+                    cmd2.ExecuteNonQuery();
+                    SqlCommand cmd3 = new SqlCommand("DELETE FROM tblEventCourtPool WHERE CourtID = @CID AND EventID = @EID", conn, trans);
+                    cmd3.Parameters.AddWithValue("@CID", cId);
+                    cmd3.Parameters.AddWithValue("@EID", eId);
+                    cmd3.ExecuteNonQuery();
 
                     trans.Commit();
                     RefreshGrid();

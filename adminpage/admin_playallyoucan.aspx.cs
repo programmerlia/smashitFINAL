@@ -153,7 +153,9 @@ namespace Smash_IT.adminpage
                         cmdReg.Parameters.AddWithValue("@W", wid); cmdReg.Parameters.AddWithValue("@S", ddlSport.SelectedValue);
                         cmdReg.Parameters.AddWithValue("@T", parsedTime); cmdReg.ExecuteNonQuery();
 
-                        new SqlCommand($"INSERT INTO tblPayment (PaymentTypeName, WalkInID, PaymentDate, Amount) VALUES ('PAYC', {wid}, GETDATE(), 80)", conn, trans).ExecuteNonQuery();
+                        SqlCommand cmdPayc = new SqlCommand("INSERT INTO tblPayment (PaymentTypeName, WalkInID, PaymentDate, Amount) VALUES ('PAYC', @WID, GETDATE(), 80)", conn, trans);
+                        cmdPayc.Parameters.AddWithValue("@WID", wid);
+                        cmdPayc.ExecuteNonQuery();
                     }
 
                     ProcessInventory(wid, conn, trans, isEdit);
@@ -183,13 +185,25 @@ namespace Smash_IT.adminpage
                         SqlCommand cmd = new SqlCommand("INSERT INTO tblRental (WalkInID, ItemID, RentalDate) VALUES (@W, @I, GETDATE()); SELECT SCOPE_IDENTITY();", conn, trans);
                         cmd.Parameters.AddWithValue("@W", wid); cmd.Parameters.AddWithValue("@I", iid);
                         int rid = Convert.ToInt32(cmd.ExecuteScalar());
-                        decimal p = Convert.ToDecimal(new SqlCommand($"SELECT m.DefaultRentalPrice FROM tblEquipmentModel m JOIN tblEquipmentItem i ON m.ModelID=i.ModelID WHERE i.ItemID={iid}", conn, trans).ExecuteScalar() ?? 0);
-                        new SqlCommand($"INSERT INTO tblPayment (PaymentTypeName, WalkInID, RentalID, Amount, PaymentDate) VALUES ('Rental', {wid}, {rid}, {p}, GETDATE())", conn, trans).ExecuteNonQuery();
+                        SqlCommand cmdSel = new SqlCommand("SELECT m.DefaultRentalPrice FROM tblEquipmentModel m JOIN tblEquipmentItem i ON m.ModelID=i.ModelID WHERE i.ItemID=@IID", conn, trans);
+                        cmdSel.Parameters.AddWithValue("@IID", iid);
+                        decimal p = Convert.ToDecimal(cmdSel.ExecuteScalar() ?? 0);
+                        SqlCommand cmdPayR = new SqlCommand("INSERT INTO tblPayment (PaymentTypeName, WalkInID, RentalID, Amount, PaymentDate) VALUES ('Rental', @WID, @RID, @P, GETDATE())", conn, trans);
+                        cmdPayR.Parameters.AddWithValue("@WID", wid);
+                        cmdPayR.Parameters.AddWithValue("@RID", rid);
+                        cmdPayR.Parameters.AddWithValue("@P", p);
+                        cmdPayR.ExecuteNonQuery();
                     }
                     else if (!li.Selected && dbRents.Contains(iid))
                     {
-                        new SqlCommand($"DELETE FROM tblPayment WHERE WalkInID={wid} AND RentalID IN (SELECT RentalID FROM tblRental WHERE WalkInID={wid} AND ItemID={iid} AND ReturnedAt IS NULL)", conn, trans).ExecuteNonQuery();
-                        new SqlCommand($"DELETE FROM tblRental WHERE WalkInID={wid} AND ItemID={iid} AND ReturnedAt IS NULL", conn, trans).ExecuteNonQuery();
+                        SqlCommand cmdDelP = new SqlCommand("DELETE FROM tblPayment WHERE WalkInID=@WID AND RentalID IN (SELECT RentalID FROM tblRental WHERE WalkInID=@WID AND ItemID=@IID AND ReturnedAt IS NULL)", conn, trans);
+                        cmdDelP.Parameters.AddWithValue("@WID", wid);
+                        cmdDelP.Parameters.AddWithValue("@IID", iid);
+                        cmdDelP.ExecuteNonQuery();
+                        SqlCommand cmdDelR = new SqlCommand("DELETE FROM tblRental WHERE WalkInID=@WID AND ItemID=@IID AND ReturnedAt IS NULL", conn, trans);
+                        cmdDelR.Parameters.AddWithValue("@WID", wid);
+                        cmdDelR.Parameters.AddWithValue("@IID", iid);
+                        cmdDelR.ExecuteNonQuery();
                     }
                 }
             }
@@ -207,18 +221,34 @@ namespace Smash_IT.adminpage
                 {
                     if (li.Selected && !dbCons.Contains(mid))
                     {
-                        decimal p = Convert.ToDecimal(new SqlCommand($"SELECT DefaultSellPrice FROM tblEquipmentModel WHERE ModelID={mid}", conn, trans).ExecuteScalar() ?? 0);
-                        new SqlCommand($"UPDATE tblEquipmentModel SET ConsumableQty -= 1 WHERE ModelID={mid}", conn, trans).ExecuteNonQuery();
+                        SqlCommand cmdSelP = new SqlCommand("SELECT DefaultSellPrice FROM tblEquipmentModel WHERE ModelID=@MID", conn, trans);
+                        cmdSelP.Parameters.AddWithValue("@MID", mid);
+                        decimal p = Convert.ToDecimal(cmdSelP.ExecuteScalar() ?? 0);
+                        SqlCommand cmdUpd = new SqlCommand("UPDATE tblEquipmentModel SET ConsumableQty -= 1 WHERE ModelID=@MID", conn, trans);
+                        cmdUpd.Parameters.AddWithValue("@MID", mid);
+                        cmdUpd.ExecuteNonQuery();
                         SqlCommand cmd = new SqlCommand("INSERT INTO tblConsumable (WalkInID, ModelID, Quantity, UnitPrice) VALUES (@W, @M, 1, @P); SELECT SCOPE_IDENTITY();", conn, trans);
                         cmd.Parameters.AddWithValue("@W", wid); cmd.Parameters.AddWithValue("@M", mid); cmd.Parameters.AddWithValue("@P", p);
                         int cid = Convert.ToInt32(cmd.ExecuteScalar());
-                        new SqlCommand($"INSERT INTO tblPayment (PaymentTypeName, WalkInID, ConsumableID, Amount, PaymentDate) VALUES ('Consumable', {wid}, {cid}, {p}, GETDATE())", conn, trans).ExecuteNonQuery();
+                        SqlCommand cmdPayC = new SqlCommand("INSERT INTO tblPayment (PaymentTypeName, WalkInID, ConsumableID, Amount, PaymentDate) VALUES ('Consumable', @WID, @CID, @P, GETDATE())", conn, trans);
+                        cmdPayC.Parameters.AddWithValue("@WID", wid);
+                        cmdPayC.Parameters.AddWithValue("@CID", cid);
+                        cmdPayC.Parameters.AddWithValue("@P", p);
+                        cmdPayC.ExecuteNonQuery();
                     }
                     else if (!li.Selected && dbCons.Contains(mid))
                     {
-                        new SqlCommand($"UPDATE tblEquipmentModel SET ConsumableQty += 1 WHERE ModelID={mid}", conn, trans).ExecuteNonQuery();
-                        new SqlCommand($"DELETE FROM tblPayment WHERE WalkInID={wid} AND ConsumableID IN (SELECT ConsumableID FROM tblConsumable WHERE WalkInID={wid} AND ModelID={mid})", conn, trans).ExecuteNonQuery();
-                        new SqlCommand($"DELETE FROM tblConsumable WHERE WalkInID={wid} AND ModelID={mid}", conn, trans).ExecuteNonQuery();
+                        SqlCommand cmdUpd2 = new SqlCommand("UPDATE tblEquipmentModel SET ConsumableQty += 1 WHERE ModelID=@MID", conn, trans);
+                        cmdUpd2.Parameters.AddWithValue("@MID", mid);
+                        cmdUpd2.ExecuteNonQuery();
+                        SqlCommand cmdDelP2 = new SqlCommand("DELETE FROM tblPayment WHERE WalkInID=@WID AND ConsumableID IN (SELECT ConsumableID FROM tblConsumable WHERE WalkInID=@WID AND ModelID=@MID)", conn, trans);
+                        cmdDelP2.Parameters.AddWithValue("@WID", wid);
+                        cmdDelP2.Parameters.AddWithValue("@MID", mid);
+                        cmdDelP2.ExecuteNonQuery();
+                        SqlCommand cmdDelC = new SqlCommand("DELETE FROM tblConsumable WHERE WalkInID=@WID AND ModelID=@MID", conn, trans);
+                        cmdDelC.Parameters.AddWithValue("@WID", wid);
+                        cmdDelC.Parameters.AddWithValue("@MID", mid);
+                        cmdDelC.ExecuteNonQuery();
                     }
                 }
             }

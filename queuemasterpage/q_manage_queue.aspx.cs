@@ -119,24 +119,28 @@ namespace Smash_IT.queuemasterpage
             using (SqlConnection c = new SqlConnection(connString))
             {
                 DataTable dtCourts = new DataTable();
-                new SqlDataAdapter($"SELECT c.CourtID, 'Court ' + CAST(c.CourtNumber AS VARCHAR) as CourtName FROM tblCourt c JOIN tblEventCourtPool p ON c.CourtID = p.CourtID WHERE p.EventID={eventId}", c).Fill(dtCourts);
+                SqlCommand cmdCourts = new SqlCommand("SELECT c.CourtID, 'Court ' + CAST(c.CourtNumber AS VARCHAR) as CourtName FROM tblCourt c JOIN tblEventCourtPool p ON c.CourtID = p.CourtID WHERE p.EventID=@EID", c);
+                cmdCourts.Parameters.AddWithValue("@EID", eventId);
+                new SqlDataAdapter(cmdCourts).Fill(dtCourts);
                 ddlManualCourt.DataSource = dtCourts; ddlManualCourt.DataTextField = "CourtName"; ddlManualCourt.DataValueField = "CourtID"; ddlManualCourt.DataBind();
 
                 // ONLY PAID & NOT CURRENTLY SCHEDULED OR PENDING
                 DataTable dtAvailable = new DataTable();
-                string sqlPlayers = $@"
+                string sqlPlayers = @"
                     SELECT ep.EventParticipantID, COALESCE(pa.Firstname + ' ' + pa.Lastname, pw.Firstname + ' ' + pw.Lastname) AS PlayerName 
                     FROM tblEventParticipant ep 
                     LEFT JOIN tblPlayerAccount pa ON ep.UserID = pa.UserID LEFT JOIN tblPlayerWalkIn pw ON ep.WalkInID = pw.WalkInID 
-                    WHERE ep.EventID = {eventId} AND ep.StatusName = 'Completed' 
+                    WHERE ep.EventID = @EID AND ep.StatusName = 'Completed' 
                     AND ep.EventParticipantID NOT IN (
-                        SELECT Player1_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player1_ParticipantID IS NOT NULL AND EventID={eventId}
-                        UNION SELECT Player2_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player2_ParticipantID IS NOT NULL AND EventID={eventId}
-                        UNION SELECT Player3_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player3_ParticipantID IS NOT NULL AND EventID={eventId}
-                        UNION SELECT Player4_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player4_ParticipantID IS NOT NULL AND EventID={eventId}
+                        SELECT Player1_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player1_ParticipantID IS NOT NULL AND EventID=@EID
+                        UNION SELECT Player2_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player2_ParticipantID IS NOT NULL AND EventID=@EID
+                        UNION SELECT Player3_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player3_ParticipantID IS NOT NULL AND EventID=@EID
+                        UNION SELECT Player4_ParticipantID FROM tblMatch WHERE MatchStatus IN ('Scheduled', 'Pending') AND Player4_ParticipantID IS NOT NULL AND EventID=@EID
                     ) ORDER BY PlayerName";
 
-                new SqlDataAdapter(sqlPlayers, c).Fill(dtAvailable);
+                SqlCommand cmdPlayers = new SqlCommand(sqlPlayers, c);
+                cmdPlayers.Parameters.AddWithValue("@EID", eventId);
+                new SqlDataAdapter(cmdPlayers).Fill(dtAvailable);
                 var dropDowns = new[] { ddlT1P1, ddlT1P2, ddlT2P1, ddlT2P2 };
                 foreach (var ddl in dropDowns)
                 {
@@ -146,7 +150,9 @@ namespace Smash_IT.queuemasterpage
 
                 // ALL PAID PLAYERS (For Champion Selection)
                 DataTable dtAllPaid = new DataTable();
-                new SqlDataAdapter($@"SELECT ep.EventParticipantID, COALESCE(pa.Firstname + ' ' + pa.Lastname, pw.Firstname + ' ' + pw.Lastname) AS PlayerName FROM tblEventParticipant ep LEFT JOIN tblPlayerAccount pa ON ep.UserID = pa.UserID LEFT JOIN tblPlayerWalkIn pw ON ep.WalkInID = pw.WalkInID WHERE ep.EventID = {eventId} AND ep.StatusName = 'Completed' ORDER BY PlayerName", c).Fill(dtAllPaid);
+                SqlCommand cmdAllPaid = new SqlCommand("SELECT ep.EventParticipantID, COALESCE(pa.Firstname + ' ' + pa.Lastname, pw.Firstname + ' ' + pw.Lastname) AS PlayerName FROM tblEventParticipant ep LEFT JOIN tblPlayerAccount pa ON ep.UserID = pa.UserID LEFT JOIN tblPlayerWalkIn pw ON ep.WalkInID = pw.WalkInID WHERE ep.EventID = @EID AND ep.StatusName = 'Completed' ORDER BY PlayerName", c);
+                cmdAllPaid.Parameters.AddWithValue("@EID", eventId);
+                new SqlDataAdapter(cmdAllPaid).Fill(dtAllPaid);
                 ddlChampion.DataSource = dtAllPaid; ddlChampion.DataTextField = "PlayerName"; ddlChampion.DataValueField = "EventParticipantID"; ddlChampion.DataBind(); ddlChampion.Items.Insert(0, new ListItem("-- Select Champion --", ""));
                 ddlRunnerUp.DataSource = dtAllPaid; ddlRunnerUp.DataTextField = "PlayerName"; ddlRunnerUp.DataValueField = "EventParticipantID"; ddlRunnerUp.DataBind(); ddlRunnerUp.Items.Insert(0, new ListItem("-- Select Runner Up --", ""));
             }
@@ -199,17 +205,23 @@ namespace Smash_IT.queuemasterpage
                         }
                     }
 
-                    litJoined.Text = new SqlCommand($"SELECT COUNT(*) FROM tblEventParticipant WHERE EventID={eventId} AND StatusName != 'Cancelled'", c).ExecuteScalar().ToString();
-                    litPaid.Text = new SqlCommand($"SELECT COUNT(*) FROM tblEventParticipant WHERE EventID={eventId} AND StatusName = 'Completed'", c).ExecuteScalar().ToString();
+                    SqlCommand cmdJoined = new SqlCommand("SELECT COUNT(*) FROM tblEventParticipant WHERE EventID=@EID AND StatusName != 'Cancelled'", c);
+                    cmdJoined.Parameters.AddWithValue("@EID", eventId);
+                    litJoined.Text = cmdJoined.ExecuteScalar().ToString();
+                    SqlCommand cmdPaid = new SqlCommand("SELECT COUNT(*) FROM tblEventParticipant WHERE EventID=@EID AND StatusName = 'Completed'", c);
+                    cmdPaid.Parameters.AddWithValue("@EID", eventId);
+                    litPaid.Text = cmdPaid.ExecuteScalar().ToString();
 
                     // Roster
                     DataTable dtParts = new DataTable();
-                    new SqlDataAdapter($"SELECT ep.EventParticipantID, ep.WalkInID, ep.UserID, ep.StatusName, ep.OrderNo, COALESCE(pa.Firstname + ' ' + pa.Lastname, pw.Firstname + ' ' + pw.Lastname) AS PlayerName FROM tblEventParticipant ep LEFT JOIN tblPlayerAccount pa ON ep.UserID = pa.UserID LEFT JOIN tblPlayerWalkIn pw ON ep.WalkInID = pw.WalkInID WHERE ep.EventID = {eventId} AND ep.StatusName != 'Cancelled' ORDER BY ep.OrderNo", c).Fill(dtParts);
+                    SqlCommand cmdParts = new SqlCommand("SELECT ep.EventParticipantID, ep.WalkInID, ep.UserID, ep.StatusName, ep.OrderNo, COALESCE(pa.Firstname + ' ' + pa.Lastname, pw.Firstname + ' ' + pw.Lastname) AS PlayerName FROM tblEventParticipant ep LEFT JOIN tblPlayerAccount pa ON ep.UserID = pa.UserID LEFT JOIN tblPlayerWalkIn pw ON ep.WalkInID = pw.WalkInID WHERE ep.EventID = @EID AND ep.StatusName != 'Cancelled' ORDER BY ep.OrderNo", c);
+                    cmdParts.Parameters.AddWithValue("@EID", eventId);
+                    new SqlDataAdapter(cmdParts).Fill(dtParts);
                     gvParticipants.DataSource = dtParts; gvParticipants.DataBind();
 
                     // Matches
                     dtAllMatches = new DataTable();
-                    new SqlDataAdapter($@"SELECT m.MatchID, m.CourtID, c.CourtNumber, m.MatchStatus, m.MatchOrder, m.MatchType, m.BracketPhase, m.Player1_ParticipantID, m.Player2_ParticipantID, m.Player3_ParticipantID, m.Player4_ParticipantID,
+                    SqlCommand cmdMatches = new SqlCommand(@"SELECT m.MatchID, m.CourtID, c.CourtNumber, m.MatchStatus, m.MatchOrder, m.MatchType, m.BracketPhase, m.Player1_ParticipantID, m.Player2_ParticipantID, m.Player3_ParticipantID, m.Player4_ParticipantID,
                            COALESCE(pa1.Firstname, pw1.Firstname) AS T1P1Name, COALESCE(pa3.Firstname, pw3.Firstname) AS T1P2Name, COALESCE(pa2.Firstname, pw2.Firstname) AS T2P1Name, COALESCE(pa4.Firstname, pw4.Firstname) AS T2P2Name, 
                            COALESCE(paW.Firstname, pwW.Firstname) AS WinnerName, m.Winner_ParticipantID, m.Team1_Score, m.Team2_Score
                            FROM tblMatch m INNER JOIN tblCourt c ON m.CourtID = c.CourtID
@@ -218,10 +230,14 @@ namespace Smash_IT.queuemasterpage
                            LEFT JOIN tblEventParticipant ep3 ON m.Player3_ParticipantID = ep3.EventParticipantID LEFT JOIN tblPlayerAccount pa3 ON ep3.UserID = pa3.UserID LEFT JOIN tblPlayerWalkIn pw3 ON ep3.WalkInID = pw3.WalkInID
                            LEFT JOIN tblEventParticipant ep4 ON m.Player4_ParticipantID = ep4.EventParticipantID LEFT JOIN tblPlayerAccount pa4 ON ep4.UserID = pa4.UserID LEFT JOIN tblPlayerWalkIn pw4 ON ep4.WalkInID = pw4.WalkInID
                            LEFT JOIN tblEventParticipant epW ON m.Winner_ParticipantID = epW.EventParticipantID LEFT JOIN tblPlayerAccount paW ON epW.UserID = paW.UserID LEFT JOIN tblPlayerWalkIn pwW ON epW.WalkInID = pwW.WalkInID
-                           WHERE m.EventID = {eventId} AND m.MatchStatus != 'Cancelled' ORDER BY m.MatchOrder ASC", c).Fill(dtAllMatches);
+                           WHERE m.EventID = @EID AND m.MatchStatus != 'Cancelled' ORDER BY m.MatchOrder ASC", c);
+                    cmdMatches.Parameters.AddWithValue("@EID", eventId);
+                    new SqlDataAdapter(cmdMatches).Fill(dtAllMatches);
 
                     DataTable dtCourts = new DataTable();
-                    new SqlDataAdapter($"SELECT CourtID, CourtNumber FROM tblCourt WHERE CourtID IN (SELECT CourtID FROM tblEventCourtPool WHERE EventID={eventId})", c).Fill(dtCourts);
+                    SqlCommand cmdCourtPool = new SqlCommand("SELECT CourtID, CourtNumber FROM tblCourt WHERE CourtID IN (SELECT CourtID FROM tblEventCourtPool WHERE EventID=@EID)", c);
+                    cmdCourtPool.Parameters.AddWithValue("@EID", eventId);
+                    new SqlDataAdapter(cmdCourtPool).Fill(dtCourts);
                     rptCourts.DataSource = dtCourts; rptCourts.DataBind();
 
                     pnlNoMatches.Visible = dtAllMatches.Select("MatchStatus IN ('Scheduled', 'Pending')").Length == 0;
@@ -419,8 +435,12 @@ namespace Smash_IT.queuemasterpage
             }
             else
             {
-                int order = Convert.ToInt32(new SqlCommand($"SELECT ISNULL(MAX(MatchOrder),0)+1 FROM tblMatch WHERE EventID={eventId}", c).ExecuteScalar());
-                object courtObj = new SqlCommand($"SELECT TOP 1 CourtID FROM tblEventCourtPool WHERE EventID={eventId}", c).ExecuteScalar();
+                SqlCommand cmdMaxOrder = new SqlCommand("SELECT ISNULL(MAX(MatchOrder),0)+1 FROM tblMatch WHERE EventID=@EID", c);
+                cmdMaxOrder.Parameters.AddWithValue("@EID", eventId);
+                int order = Convert.ToInt32(cmdMaxOrder.ExecuteScalar());
+                SqlCommand cmdCourt = new SqlCommand("SELECT TOP 1 CourtID FROM tblEventCourtPool WHERE EventID=@EID", c);
+                cmdCourt.Parameters.AddWithValue("@EID", eventId);
+                object courtObj = cmdCourt.ExecuteScalar();
                 int courtId = courtObj != null ? Convert.ToInt32(courtObj) : 0;
 
                 if (courtId > 0)
@@ -434,11 +454,15 @@ namespace Smash_IT.queuemasterpage
 
         private void MergeToGrandFinals(int eventId, SqlConnection c)
         {
-            int activeMatches = Convert.ToInt32(new SqlCommand($"SELECT COUNT(*) FROM tblMatch WHERE EventID={eventId} AND MatchStatus='Scheduled' AND BracketPhase IN ('Winners Bracket', 'Losers Bracket')", c).ExecuteScalar());
+            SqlCommand cmdActive = new SqlCommand("SELECT COUNT(*) FROM tblMatch WHERE EventID=@EID AND MatchStatus='Scheduled' AND BracketPhase IN ('Winners Bracket', 'Losers Bracket')", c);
+            cmdActive.Parameters.AddWithValue("@EID", eventId);
+            int activeMatches = Convert.ToInt32(cmdActive.ExecuteScalar());
             if (activeMatches == 0)
             {
                 DataTable dtP = new DataTable();
-                new SqlDataAdapter($"SELECT MatchID, MatchType, Player1_ParticipantID, Player3_ParticipantID, BracketPhase FROM tblMatch WHERE EventID={eventId} AND MatchStatus='Pending' AND Player2_ParticipantID IS NULL", c).Fill(dtP);
+                SqlCommand cmdPending = new SqlCommand("SELECT MatchID, MatchType, Player1_ParticipantID, Player3_ParticipantID, BracketPhase FROM tblMatch WHERE EventID=@EID AND MatchStatus='Pending' AND Player2_ParticipantID IS NULL", c);
+                cmdPending.Parameters.AddWithValue("@EID", eventId);
+                new SqlDataAdapter(cmdPending).Fill(dtP);
                 if (dtP.Rows.Count == 2)
                 {
                     bool hasWinners = dtP.Select("BracketPhase = 'Winners Bracket'").Length == 1;
@@ -451,7 +475,9 @@ namespace Smash_IT.queuemasterpage
                         cmdUpd.Parameters.AddWithValue("@P2", losRow["Player1_ParticipantID"]);
                         cmdUpd.Parameters.AddWithValue("@P4", losRow["Player3_ParticipantID"] != DBNull.Value ? losRow["Player3_ParticipantID"] : DBNull.Value);
                         cmdUpd.Parameters.AddWithValue("@M", winRow["MatchID"]); cmdUpd.ExecuteNonQuery();
-                        new SqlCommand($"DELETE FROM tblMatch WHERE MatchID={losRow["MatchID"]}", c).ExecuteNonQuery();
+                        SqlCommand cmdDelMatch = new SqlCommand("DELETE FROM tblMatch WHERE MatchID=@MID", c);
+                        cmdDelMatch.Parameters.AddWithValue("@MID", losRow["MatchID"]);
+                        cmdDelMatch.ExecuteNonQuery();
                     }
                 }
             }
@@ -731,7 +757,9 @@ namespace Smash_IT.queuemasterpage
                     }
                     else if (e.CommandName == "RemovePlayer")
                     {
-                        new SqlCommand($"UPDATE tblEventParticipant SET StatusName='Cancelled' WHERE EventParticipantID={pId}", c).ExecuteNonQuery();
+                        SqlCommand cmdCancel = new SqlCommand("UPDATE tblEventParticipant SET StatusName='Cancelled' WHERE EventParticipantID=@PID", c);
+                        cmdCancel.Parameters.AddWithValue("@PID", pId);
+                        cmdCancel.ExecuteNonQuery();
                     }
                 }
                 RefreshWorkspace(int.Parse(ddlActiveEvents.SelectedValue));
@@ -850,7 +878,9 @@ namespace Smash_IT.queuemasterpage
                         int rentedCount = 0;
                         for (int i = 0; i < qty; i++)
                         {
-                            object itemObj = new SqlCommand($"SELECT TOP 1 ItemID FROM tblEquipmentItem WHERE ModelID={mid} AND IsDeleted=0 AND ItemID NOT IN (SELECT ItemID FROM tblRental WHERE ReturnedAt IS NULL)", c).ExecuteScalar();
+                            SqlCommand cmdItem = new SqlCommand("SELECT TOP 1 ItemID FROM tblEquipmentItem WHERE ModelID=@MID AND IsDeleted=0 AND ItemID NOT IN (SELECT ItemID FROM tblRental WHERE ReturnedAt IS NULL)", c);
+                            cmdItem.Parameters.AddWithValue("@MID", mid);
+                            object itemObj = cmdItem.ExecuteScalar();
                             if (itemObj != null)
                             {
                                 SqlCommand rentCmd = new SqlCommand("INSERT INTO tblRental (WalkInID, UserID, ItemID, RentalDate) VALUES (@W, @U, @I, GETDATE())", c);
@@ -866,12 +896,17 @@ namespace Smash_IT.queuemasterpage
                     }
                     else
                     {
-                        int currentStock = Convert.ToInt32(new SqlCommand($"SELECT ISNULL(ConsumableQty, 0) FROM tblEquipmentModel WHERE ModelID={mid}", c).ExecuteScalar());
+                        SqlCommand cmdStock = new SqlCommand("SELECT ISNULL(ConsumableQty, 0) FROM tblEquipmentModel WHERE ModelID=@MID", c);
+                        cmdStock.Parameters.AddWithValue("@MID", mid);
+                        int currentStock = Convert.ToInt32(cmdStock.ExecuteScalar());
                         if (currentStock < qty)
                         {
                             ShowAlert("error", "Not Enough Stock", $"You are trying to sell {qty}, but there are only {currentStock} left in stock."); return;
                         }
-                        new SqlCommand($"UPDATE tblEquipmentModel SET ConsumableQty = ConsumableQty - {qty} WHERE ModelID={mid}", c).ExecuteNonQuery();
+                        SqlCommand cmdUpdStock = new SqlCommand("UPDATE tblEquipmentModel SET ConsumableQty = ConsumableQty - @QTY WHERE ModelID=@MID", c);
+                        cmdUpdStock.Parameters.AddWithValue("@QTY", qty);
+                        cmdUpdStock.Parameters.AddWithValue("@MID", mid);
+                        cmdUpdStock.ExecuteNonQuery();
 
                         SqlCommand conCmd = new SqlCommand("INSERT INTO tblConsumable (WalkInID, UserID, ModelID, Quantity, UnitPrice, IsPaid) VALUES (@W, @U, @M, @Q, @P, 1); SELECT SCOPE_IDENTITY();", c);
                         conCmd.Parameters.AddWithValue("@W", wVal.HasValue ? (object)wVal.Value : DBNull.Value);
@@ -910,7 +945,9 @@ namespace Smash_IT.queuemasterpage
                 using (SqlConnection c = new SqlConnection(connString))
                 {
                     c.Open();
-                    int order = Convert.ToInt32(new SqlCommand($"SELECT ISNULL(MAX(MatchOrder),0)+1 FROM tblMatch WHERE EventID={eid}", c).ExecuteScalar());
+                    SqlCommand cmdMaxOrder = new SqlCommand("SELECT ISNULL(MAX(MatchOrder),0)+1 FROM tblMatch WHERE EventID=@EID", c);
+                    cmdMaxOrder.Parameters.AddWithValue("@EID", eid);
+                    int order = Convert.ToInt32(cmdMaxOrder.ExecuteScalar());
                     SqlCommand cmd = new SqlCommand("INSERT INTO tblMatch (EventID, CourtID, MatchType, BracketPhase, Player1_ParticipantID, Player2_ParticipantID, Player3_ParticipantID, Player4_ParticipantID, MatchStatus, MatchOrder) VALUES (@E, @C, @MT, @BP, @P1, @P2, @P3, @P4, 'Scheduled', @O)", c);
                     cmd.Parameters.AddWithValue("@E", eid); cmd.Parameters.AddWithValue("@C", ddlManualCourt.SelectedValue); cmd.Parameters.AddWithValue("@MT", matchType); cmd.Parameters.AddWithValue("@BP", ddlManualPhase.SelectedValue); cmd.Parameters.AddWithValue("@O", order);
                     cmd.Parameters.AddWithValue("@P1", t1p1); cmd.Parameters.AddWithValue("@P2", string.IsNullOrEmpty(t2p1) ? (object)DBNull.Value : t2p1); cmd.Parameters.AddWithValue("@P3", string.IsNullOrEmpty(t1p2) ? (object)DBNull.Value : t1p2); cmd.Parameters.AddWithValue("@P4", string.IsNullOrEmpty(t2p2) ? (object)DBNull.Value : t2p2);
