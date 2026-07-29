@@ -11,7 +11,7 @@ namespace Smash_IT.payments
 {
     public partial class ReservationSuccess : reservation
     {
-        protected void Page_Load(object sender, EventArgs e)
+        protected new void Page_Load(object sender, EventArgs e)
         {
             string token = (Request.QueryString["token"] ?? "").Trim();
            if (string.IsNullOrWhiteSpace(token))

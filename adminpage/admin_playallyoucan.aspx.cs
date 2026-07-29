@@ -245,10 +245,10 @@ namespace Smash_IT.adminpage
                     }
                     dr.Close(); LoadInventory();
 
-                    DataTable dtR = new DataTable(); new SqlDataAdapter($"SELECT ItemID FROM tblRental WHERE WalkInID={args[1]} AND ReturnedAt IS NULL", conn).Fill(dtR);
+                    DataTable dtR = new DataTable(); using (SqlCommand c = new SqlCommand("SELECT ItemID FROM tblRental WHERE WalkInID=@W AND ReturnedAt IS NULL", conn)) { c.Parameters.AddWithValue("@W", args[1]); new SqlDataAdapter(c).Fill(dtR); }
                     foreach (ListItem li in cblEquipment.Items) { li.Selected = dtR.AsEnumerable().Any(r => r.Field<int>("ItemID").ToString() == li.Value); }
 
-                    DataTable dtC = new DataTable(); new SqlDataAdapter($"SELECT ModelID FROM tblConsumable WHERE WalkInID={args[1]}", conn).Fill(dtC);
+                    DataTable dtC = new DataTable(); using (SqlCommand c = new SqlCommand("SELECT ModelID FROM tblConsumable WHERE WalkInID=@W", conn)) { c.Parameters.AddWithValue("@W", args[1]); new SqlDataAdapter(c).Fill(dtC); }
                     foreach (ListItem li in cblConsumables.Items) { li.Selected = dtC.AsEnumerable().Any(r => r.Field<int>("ModelID").ToString() == li.Value); }
                 }
                 ScriptManager.RegisterStartupScript(this, GetType(), "ui", $"updateUI('{txtPlayerName.Text}');", true);
@@ -258,8 +258,8 @@ namespace Smash_IT.adminpage
                 using (SqlConnection conn = new SqlConnection(connStr))
                 {
                     conn.Open();
-                    new SqlCommand($"UPDATE tblPlayAllYouCanRegistry SET StatusName='Completed' WHERE PAYCID={args[0]}", conn).ExecuteNonQuery();
-                    new SqlCommand($"UPDATE tblRental SET ReturnedAt=GETDATE() WHERE WalkInID={args[1]} AND ReturnedAt IS NULL", conn).ExecuteNonQuery();
+                    SqlCommand cmdP = new SqlCommand("UPDATE tblPlayAllYouCanRegistry SET StatusName='Completed' WHERE PAYCID=@P", conn); cmdP.Parameters.AddWithValue("@P", args[0]); cmdP.ExecuteNonQuery();
+                    SqlCommand cmdR = new SqlCommand("UPDATE tblRental SET ReturnedAt=GETDATE() WHERE WalkInID=@W AND ReturnedAt IS NULL", conn); cmdR.Parameters.AddWithValue("@W", args[1]); cmdR.ExecuteNonQuery();
                 }
                 Response.Redirect(Request.RawUrl);
             }

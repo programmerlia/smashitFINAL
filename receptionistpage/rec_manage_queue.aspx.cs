@@ -663,8 +663,10 @@ namespace Smash_IT.receptionistpage
                 using (SqlConnection c = new SqlConnection(connString))
                 {
                     c.Open();
-                    new SqlCommand($"DELETE FROM tblMatch WHERE EventID={ddlActiveEvents.SelectedValue}", c).ExecuteNonQuery();
-                    new SqlCommand($"UPDATE tblEvent SET Champion_ParticipantID=NULL, RunnerUp_ParticipantID=NULL WHERE EventID={ddlActiveEvents.SelectedValue}", c).ExecuteNonQuery();
+                    SqlCommand cmdDel = new SqlCommand("DELETE FROM tblMatch WHERE EventID=@EID", c);
+                    cmdDel.Parameters.AddWithValue("@EID", ddlActiveEvents.SelectedValue); cmdDel.ExecuteNonQuery();
+                    SqlCommand cmdUpd = new SqlCommand("UPDATE tblEvent SET Champion_ParticipantID=NULL, RunnerUp_ParticipantID=NULL WHERE EventID=@EID", c);
+                    cmdUpd.Parameters.AddWithValue("@EID", ddlActiveEvents.SelectedValue); cmdUpd.ExecuteNonQuery();
                 }
                 RefreshWorkspace(int.Parse(ddlActiveEvents.SelectedValue));
                 ShowAlert("success", "Board Cleared", "All matches have been wiped. Leaderboard reset.");
@@ -709,12 +711,15 @@ namespace Smash_IT.receptionistpage
                     c.Open();
                     if (e.CommandName == "Pay")
                     {
-                        decimal fee = (decimal)new SqlCommand($"SELECT RegistrationFee FROM tblEvent WHERE EventID={ddlActiveEvents.SelectedValue}", c).ExecuteScalar();
+                        SqlCommand cmdFee = new SqlCommand("SELECT RegistrationFee FROM tblEvent WHERE EventID=@EID", c);
+                        cmdFee.Parameters.AddWithValue("@EID", ddlActiveEvents.SelectedValue);
+                        decimal fee = (decimal)cmdFee.ExecuteScalar();
                         SqlCommand pay = new SqlCommand("INSERT INTO tblPayment (PaymentTypeName, WalkInID, UserID, Amount, PaymentDate) VALUES ('Queue', @W, @U, @A, GETDATE())", c);
                         pay.Parameters.AddWithValue("@W", string.IsNullOrEmpty(wId) ? (object)DBNull.Value : int.Parse(wId));
                         pay.Parameters.AddWithValue("@U", string.IsNullOrEmpty(uId) ? (object)DBNull.Value : int.Parse(uId));
                         pay.Parameters.AddWithValue("@A", fee); pay.ExecuteNonQuery();
-                        new SqlCommand($"UPDATE tblEventParticipant SET StatusName='Completed' WHERE EventParticipantID={pId}", c).ExecuteNonQuery();
+                        SqlCommand cmdComplete = new SqlCommand("UPDATE tblEventParticipant SET StatusName='Completed' WHERE EventParticipantID=@PID", c);
+                        cmdComplete.Parameters.AddWithValue("@PID", pId); cmdComplete.ExecuteNonQuery();
                     }
                     else if (e.CommandName == "Rent")
                     {
@@ -726,7 +731,8 @@ namespace Smash_IT.receptionistpage
                     }
                     else if (e.CommandName == "RemovePlayer")
                     {
-                        new SqlCommand($"UPDATE tblEventParticipant SET StatusName='Cancelled' WHERE EventParticipantID={pId}", c).ExecuteNonQuery();
+                        SqlCommand cmdRemove = new SqlCommand("UPDATE tblEventParticipant SET StatusName='Cancelled' WHERE EventParticipantID=@PID", c);
+                        cmdRemove.Parameters.AddWithValue("@PID", pId); cmdRemove.ExecuteNonQuery();
                     }
                 }
                 RefreshWorkspace(int.Parse(ddlActiveEvents.SelectedValue));

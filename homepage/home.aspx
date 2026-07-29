@@ -455,7 +455,7 @@
 }
 
     .promo-text h3 {
-        font-family: 'Inter', -apple-system, sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 2.2rem;
         color: var(--text-dark);
         font-weight: 800;
