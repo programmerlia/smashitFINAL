@@ -29,14 +29,17 @@ namespace Smash_IT.payments
             string whSecret = ConfigurationManager.AppSettings["PaymongoWebhookSecret"];
             string sigHeader = context.Request.Headers["Paymongo-Signature"] ?? "";
 
-            if (!string.IsNullOrWhiteSpace(whSecret))
+            if (string.IsNullOrWhiteSpace(whSecret))
             {
-                if (!IsValidSignature(sigHeader, whSecret, raw))
-                {
-                    context.Response.StatusCode = 400;
-                    context.Response.Write("Invalid signature");
-                    return;
-                }
+                context.Response.StatusCode = 503;
+                context.Response.Write("Webhook is not configured");
+                return;
+            }
+            if (!IsValidSignature(sigHeader, whSecret, raw))
+            {
+                context.Response.StatusCode = 400;
+                context.Response.Write("Invalid signature");
+                return;
             }
 
             try

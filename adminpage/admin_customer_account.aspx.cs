@@ -4,6 +4,7 @@ using System.Data.SqlClient;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using Smash_IT.Security;
 using System.Web.Services;
 using System.Web.UI;
 using System.Web.UI.HtmlControls;
@@ -429,7 +430,7 @@ namespace Smash_IT.adminpage
                     cmd.Parameters.AddWithValue("@User", string.IsNullOrEmpty(txtUsername.Text.Trim()) ? (object)DBNull.Value : txtUsername.Text.Trim());
 
                     if (isNew)
-                        cmd.Parameters.AddWithValue("@Pass", txtPassword.Text.Trim());
+                        cmd.Parameters.AddWithValue("@Pass", PasswordHasher.Hash(txtPassword.Text.Trim()));
                     else
                         cmd.Parameters.AddWithValue("@ID", hfUserID.Value);
 

@@ -151,6 +151,7 @@
     <Content Include="login.aspx" />
     <Content Include="proj-doc\createTables.sql" />
     <Content Include="Web.config" />
+    <Content Include="Web.config.example" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="adminpage\admin.master.cs">
@@ -420,6 +421,7 @@
       <DependentUpon>reservation.aspx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Security\PasswordHasher.cs" />
     <Compile Include="homepage\homepage.master.cs">
       <DependentUpon>homepage.master</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>

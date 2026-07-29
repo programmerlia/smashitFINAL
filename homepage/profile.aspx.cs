@@ -11,6 +11,7 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using Smash_IT.Security;
 
 namespace Smash_IT.homepage
 {
@@ -812,7 +813,7 @@ SET PhoneNumber=@P,
                 cmd.Parameters.AddWithValue("@ID", userId);
 
                 if (!string.IsNullOrWhiteSpace(newPass))
-                    cmd.Parameters.AddWithValue("@PW", newPass);
+                    cmd.Parameters.AddWithValue("@PW", PasswordHasher.Hash(newPass));
 
                 con.Open();
                 cmd.ExecuteNonQuery();

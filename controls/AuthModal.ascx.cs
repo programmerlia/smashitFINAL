@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Web;
 using System.Web.UI;
+using Smash_IT.Security;
 
 namespace Smash_IT.Controls
 {
@@ -64,23 +65,42 @@ WHERE UserID = @UserID;", con))
                 {
                     con.Open();
                     using (SqlCommand cmd = new SqlCommand(@"
-SELECT UserID
+SELECT UserID, [Password]
 FROM tblPlayerAccount
-WHERE Username=@Username AND Password=@Password;", con))
+WHERE Username=@Username;", con))
                     {
                         cmd.Parameters.AddWithValue("@Username", username);
-                        cmd.Parameters.AddWithValue("@Password", password);
-
-                        object result = cmd.ExecuteScalar();
-                        if (result == null)
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            lblLoginMsg.Text = "Invalid username or password.";
-                            txtLoginUsername.Text = "";
-                            txtLoginPassword.Text = "";
-                            return;
+                            if (!reader.Read())
+                            {
+                                lblLoginMsg.Text = "Invalid username or password.";
+                                txtLoginUsername.Text = "";
+                                txtLoginPassword.Text = "";
+                                return;
+                            }
+                            userId = Convert.ToInt32(reader["UserID"]);
+                            string storedPassword = Convert.ToString(reader["Password"]);
+                            bool valid = PasswordHasher.Verify(password, storedPassword) || (PasswordHasher.IsLegacyPlainText(storedPassword) && storedPassword == password);
+                            if (!valid)
+                            {
+                                lblLoginMsg.Text = "Invalid username or password.";
+                                txtLoginUsername.Text = "";
+                                txtLoginPassword.Text = "";
+                                return;
+                            }
+                            if (PasswordHasher.IsLegacyPlainText(storedPassword))
+                            {
+                                reader.Close();
+                                using (SqlCommand update = new SqlCommand("UPDATE tblPlayerAccount SET [Password]=@Password WHERE UserID=@UserID", con))
+                                {
+                                    update.Parameters.AddWithValue("@Password", PasswordHasher.Hash(password));
+                                    update.Parameters.AddWithValue("@UserID", userId);
+                                    update.ExecuteNonQuery();
+                                }
+                            }
                         }
 
-                        userId = Convert.ToInt32(result);
                     }
                 }
 
@@ -283,7 +303,7 @@ SELECT SCOPE_IDENTITY();", con))
                     cmd.Parameters.AddWithValue("@Email", email);
                     cmd.Parameters.AddWithValue("@Phone", phone);
                     cmd.Parameters.AddWithValue("@Username", username);
-                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@Password", PasswordHasher.Hash(password));
                     cmd.Parameters.AddWithValue("@CreatedAt", DateTime.Now);
 
                     return Convert.ToInt32(cmd.ExecuteScalar());
@@ -297,7 +317,14 @@ SELECT SCOPE_IDENTITY();", con))
             {
                 MailMessage mail = new MailMessage();
                 mail.To.Add(toEmail);
-                mail.From = new MailAddress("hannaliolayvar@gmail.com");
+                string smtpHost = ConfigurationManager.AppSettings["SmtpHost"];
+                string smtpPortValue = ConfigurationManager.AppSettings["SmtpPort"];
+                string smtpUsername = ConfigurationManager.AppSettings["SmtpUsername"];
+                string smtpPassword = ConfigurationManager.AppSettings["SmtpPassword"];
+                string smtpFrom = ConfigurationManager.AppSettings["SmtpFrom"];
+                int smtpPort;
+                if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUsername) || string.IsNullOrWhiteSpace(smtpPassword) || string.IsNullOrWhiteSpace(smtpFrom) || !int.TryParse(smtpPortValue, out smtpPort)) throw new ConfigurationErrorsException("SMTP settings are missing or invalid.");
+                mail.From = new MailAddress(smtpFrom);
                 mail.Subject = "Smash-It: OTP Verification";
                 mail.Body = $@"
 <html>
@@ -311,8 +338,8 @@ SELECT SCOPE_IDENTITY();", con))
 </html>";
                 mail.IsBodyHtml = true;
 
-                SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587);
-                smtp.Credentials = new NetworkCredential("hannaliolayvar@gmail.com", "REVOKED_SMTP_APP_PASSWORD");
+                SmtpClient smtp = new SmtpClient(smtpHost, smtpPort);
+                smtp.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
                 smtp.EnableSsl = true;
                 smtp.Send(mail);
             }

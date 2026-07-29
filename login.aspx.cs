@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Text;
+using Smash_IT.Security;
 
 namespace login
 {
@@ -14,26 +15,10 @@ namespace login
         {
             if (!IsPostBack)
             {
-                // Check if both cookies exist
-                if (Request.Cookies["SmashItSavedUser"] != null && Request.Cookies["SmashItSavedPass"] != null)
+                if (Request.Cookies["SmashItSavedUser"] != null)
                 {
                     txtUsername.Text = Request.Cookies["SmashItSavedUser"].Value;
-
-                    try
-                    {
-                        // Decode the password from Base64
-                        string encodedPass = Request.Cookies["SmashItSavedPass"].Value;
-                        byte[] passBytes = Convert.FromBase64String(encodedPass);
-                        string decodedPass = Encoding.UTF8.GetString(passBytes);
-
-                        // Set the value attribute so it populates the Password box
-                        txtPassword.Attributes.Add("value", decodedPass);
-                        chkRememberMe.Checked = true;
-                    }
-                    catch
-                    {
-                        // If decoding fails (corrupted cookie), clear it
-                    }
+                    chkRememberMe.Checked = true;
                 }
             }
         }
@@ -68,17 +53,28 @@ namespace login
                             string dbUser = reader["Username"].ToString();
                             string dbPass = reader["Password"].ToString();
                             string dbRole = reader["RoleName"].ToString();
+                            string firstName = reader["Firstname"].ToString();
+                            string lastName = reader["Lastname"].ToString();
 
-                            // Case-sensitive validation
-                            if (dbUser.Equals(inputUser, StringComparison.Ordinal) &&
-                                dbPass.Equals(inputPass, StringComparison.Ordinal))
+                            bool valid = PasswordHasher.Verify(inputPass, dbPass) || (PasswordHasher.IsLegacyPlainText(dbPass) && dbPass.Equals(inputPass, StringComparison.Ordinal));
+                            if (dbUser.Equals(inputUser, StringComparison.Ordinal) && valid)
                             {
-                                HandleCookies(dbUser, inputPass);
+                                if (PasswordHasher.IsLegacyPlainText(dbPass))
+                                {
+                                    reader.Close();
+                                    using (SqlCommand update = new SqlCommand("UPDATE tblStaffAccount SET [Password]=@Password WHERE StaffID=@StaffID", con))
+                                    {
+                                        update.Parameters.AddWithValue("@Password", PasswordHasher.Hash(inputPass));
+                                        update.Parameters.AddWithValue("@StaffID", dbID);
+                                        update.ExecuteNonQuery();
+                                    }
+                                }
+                                HandleCookies(dbUser);
 
                                 // Set Sessions
                                 Session["StaffID"] = dbID;
                                 Session["Username"] = dbUser;
-                                Session["FullName"] = $"{reader["Firstname"]} {reader["Lastname"]}";
+                                Session["FullName"] = $"{firstName} {lastName}";
                                 Session["RoleName"] = dbRole;
 
                                 RedirectByRole(dbRole);
@@ -97,7 +93,7 @@ namespace login
             }
         }
 
-        private void HandleCookies(string user, string pass)
+        private void HandleCookies(string user)
         {
             if (chkRememberMe.Checked)
             {
@@ -105,34 +101,23 @@ namespace login
                 HttpCookie userCookie = new HttpCookie("SmashItSavedUser")
                 {
                     Value = user,
-                    Expires = DateTime.Now.AddDays(30)
+                    Expires = DateTime.Now.AddDays(30),
+                    HttpOnly = true,
+                    Secure = Request.IsSecureConnection
                 };
                 Response.Cookies.Add(userCookie);
-
-                // Save Password (Base64 Encoded)
-                string encodedPass = Convert.ToBase64String(Encoding.UTF8.GetBytes(pass));
-                HttpCookie passCookie = new HttpCookie("SmashItSavedPass")
-                {
-                    Value = encodedPass,
-                    Expires = DateTime.Now.AddDays(30),
-                    HttpOnly = true // Enhanced security against XSS
-                };
-                Response.Cookies.Add(passCookie);
+                ExpireCookie("SmashItSavedPass");
             }
             else
             {
-                // Expire existing cookies if unchecked
-                if (Request.Cookies["SmashItSavedUser"] != null)
-                {
-                    HttpCookie c1 = new HttpCookie("SmashItSavedUser") { Expires = DateTime.Now.AddDays(-1) };
-                    Response.Cookies.Add(c1);
-                }
-                if (Request.Cookies["SmashItSavedPass"] != null)
-                {
-                    HttpCookie c2 = new HttpCookie("SmashItSavedPass") { Expires = DateTime.Now.AddDays(-1) };
-                    Response.Cookies.Add(c2);
-                }
+                ExpireCookie("SmashItSavedUser");
+                ExpireCookie("SmashItSavedPass");
             }
+        }
+
+        private void ExpireCookie(string name)
+        {
+            Response.Cookies.Add(new HttpCookie(name) { Expires = DateTime.Now.AddDays(-1), HttpOnly = true, Secure = Request.IsSecureConnection });
         }
 
         private void RedirectByRole(string role)
