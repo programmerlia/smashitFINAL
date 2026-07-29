@@ -2,11 +2,12 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
+    <meta charset="UTF-8" />
     <title>Preparing Payment</title>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', sans-serif;
             background: #f7f8fc;
             min-height: 100vh;
             display: flex;

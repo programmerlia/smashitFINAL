@@ -13,7 +13,7 @@
 
 body {
     background-color: var(--bg-light);
-    font-family: 'Inter', sans-serif;
+    font-family: 'Poppins', sans-serif;
     color: var(--text-dark);
     overflow-x: hidden;
     margin: 0;
@@ -376,7 +376,7 @@ h3 {
 }
 
 .mini-Announcement-overlay h1 {
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: 'Poppins', sans-serif;
     font-size: 1.2rem;
     color: var(--text-dark);
     font-weight: 800;
@@ -433,7 +433,7 @@ h3 {
 }
 
 .mini-anno-text-side h3 {
-    font-family: 'Inter', -apple-system, sans-serif;
+    font-family: 'Poppins', sans-serif;
     font-size: 0.8rem;
     color: var(--text-dark);
     font-weight: 800;

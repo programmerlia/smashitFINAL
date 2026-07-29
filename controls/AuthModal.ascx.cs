@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Configuration;
 using System.Data.SqlClient;
+using System.IO;
 using System.Net;
-using System.Net.Mail;
+using System.Text;
 using System.Web;
 using System.Web.UI;
 using Smash_IT.Security;
@@ -315,40 +316,41 @@ SELECT SCOPE_IDENTITY();", con))
         {
             try
             {
-                MailMessage mail = new MailMessage();
-                mail.To.Add(toEmail);
-                string smtpHost = ConfigurationManager.AppSettings["SmtpHost"];
-                string smtpPortValue = ConfigurationManager.AppSettings["SmtpPort"];
-                string smtpUsername = ConfigurationManager.AppSettings["SmtpUsername"];
-                string smtpPassword = ConfigurationManager.AppSettings["SmtpPassword"];
-                string smtpFrom = ConfigurationManager.AppSettings["SmtpFrom"];
-                int smtpPort;
-                if (string.IsNullOrWhiteSpace(smtpHost) || string.IsNullOrWhiteSpace(smtpUsername) || string.IsNullOrWhiteSpace(smtpPassword) || string.IsNullOrWhiteSpace(smtpFrom) || !int.TryParse(smtpPortValue, out smtpPort)) throw new ConfigurationErrorsException("SMTP settings are missing or invalid.");
-                mail.From = new MailAddress(smtpFrom);
-                mail.Subject = "Smash-It: OTP Verification";
-                mail.Body = $@"
+                string apiKey = ConfigurationManager.AppSettings["SendGridApiKey"];
+                string fromEmail = ConfigurationManager.AppSettings["SmtpFrom"] ?? "noreply@smashit.com";
+                if (string.IsNullOrWhiteSpace(apiKey)) throw new ConfigurationErrorsException("SendGrid API key is missing.");
+
+                string htmlBody = $@"
 <html>
 <body style='font-family: Arial, sans-serif;'>
   <h2>Welcome to Smash-It!</h2>
   <p>Your OTP for account verification is:</p>
-  <h1 style='color: #1a187c;'>{otp}</h1>
+  <h1 style='color: #1a187c;'>{HttpUtility.JavaScriptStringEncode(otp)}</h1>
   <p>Please enter this code to verify your account.</p>
   <p>If you did not request this, please ignore this email.</p>
 </body>
 </html>";
-                mail.IsBodyHtml = true;
 
-                SmtpClient smtp = new SmtpClient(smtpHost, smtpPort);
-                smtp.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-                smtp.EnableSsl = true;
-                smtp.Send(mail);
+                string escapedBody = HttpUtility.JavaScriptStringEncode(htmlBody, true);
+                string json = $"{{\"personalizations\":[{{\"to\":[{{\"email\":\"{toEmail}\"}}]}}],\"from\":{{\"email\":\"{fromEmail}\"}},\"subject\":\"Smash-It: OTP Verification\",\"content\":[{{\"type\":\"text/html\",\"value\":\"{escapedBody}\"}}]}}";
+
+                byte[] data = Encoding.UTF8.GetBytes(json);
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create("https://api.sendgrid.com/v3/mail/send");
+                req.Method = "POST";
+                req.ContentType = "application/json";
+                req.Headers.Add("Authorization", "Bearer " + apiKey);
+                req.ContentLength = data.Length;
+                using (Stream stream = req.GetRequestStream())
+                {
+                    stream.Write(data, 0, data.Length);
+                }
+                using (HttpWebResponse resp = (HttpWebResponse)req.GetResponse()) { }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("Email Error: " + ex.Message);
             }
         }
-
         private void ClearSignupFields()
         {
             txtFirstname.Text = "";

@@ -4,7 +4,7 @@
     padding: 60px 0 20px;
     font-size: 0.95rem;
     color: var(--text-muted);
-    font-family: 'Inter', 'Poppins', -apple-system, sans-serif;
+    font-family: 'Poppins', sans-serif;
 }
 
 .footer-content {
@@ -18,7 +18,7 @@
 }
 
     .footer-col h3 {
-        font-family: 'Inter', 'Poppins', -apple-system, sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.2rem;
         color: var(--text-dark);
         font-weight: 800;

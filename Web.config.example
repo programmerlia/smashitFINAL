@@ -14,10 +14,6 @@
     <add key="CloudinaryApiKey" value="YOUR_CLOUDINARY_API_KEY" />
     <add key="CloudinaryApiSecret" value="YOUR_CLOUDINARY_API_SECRET" />
     <add key="SendGridApiKey" value="YOUR_SENDGRID_API_KEY" />
-    <add key="SmtpHost" value="smtp.sendgrid.net" />
-    <add key="SmtpPort" value="587" />
-    <add key="SmtpUsername" value="apikey" />
-    <add key="SmtpPassword" value="YOUR_SENDGRID_API_KEY" />
     <add key="SmtpFrom" value="noreply@yourdomain.com" />
     <add key="PaymentWebhookSecret" value="YOUR_PAYMENT_WEBHOOK_SECRET" />
   </appSettings>
