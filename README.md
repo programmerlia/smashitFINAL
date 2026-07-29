@@ -16,7 +16,7 @@ A web-based **Court Queueing and Reservation System** built using **ASP.NET WebF
 The system allows administrators to manage walk-in players, approve reservations, and monitor active court sessions.  
 Players can reserve courts online or join the queue.
 
-LINK HERE -> [smashitdemo3324.somee.com](smashitdemo3324.somee.com)
+LINK HERE -> [smashitdemo3324.somee.com](https://smashitdemo3324.somee.com)
 ## Creators
 
 - **Isaiah Andrei Noda** – Project Leader  
